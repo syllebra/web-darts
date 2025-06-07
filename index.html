@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular Darts Application</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light+Two&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="ui/Dartboard.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .game-area {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .dartboard-container {
+            position: relative;
+            margin: 20px 0;
+        }
+
+        #dartboard {
+            border: 3px solid #fff;
+            border-radius: 50%;
+            cursor: crosshair;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .game-controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn.danger {
+            background: #f44336;
+        }
+
+        .btn.danger:hover {
+            background: #da190b;
+        }
+
+        .btn.secondary {
+            background: #2196F3;
+        }
+
+        .btn.secondary:hover {
+            background: #0b7dda;
+        }
+
+        .game-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .stats-panel {
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .throw-history {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .throw-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .throw-item.editable {
+            cursor: pointer;
+        }
+
+        .throw-item.editable:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .game-selector {
+            margin-bottom: 20px;
+        }
+
+        .game-selector select {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 16px;
+        }
+
+        .game-selector select option {
+            background: #2a5298;
+            color: white;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .connection-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+
+        .connection-status.disconnected {
+            background: #f44336;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px auto 1fr auto;
+            }
+
+            .sidebar {
+                order: 2;
+            }
+
+            .game-area {
+                order: 3;
+            }
+        }
+
+        /* Add new styles for multiplayer UI */
+        .players-container {
+            margin: 15px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .player-score {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .active-player {
+            background: rgba(0,150,255,0.3);
+            font-weight: bold;
+        }
+
+        /* Animation styles moved to ui/RoundAnimation.css */
+    </style>
+    <link rel="stylesheet" href="ui/RoundAnimation.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>Modular Darts App</h1>
+            <div class="status-indicator">
+                <span>MQTT:</span>
+                <div class="connection-status" id="mqttStatus"></div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="game-selector">
+                <h3>Select Game</h3>
+                <select id="gameSelect">
+                    <option value="501">501 Game</option>
+                    <option value="cricket">Cricket</option>
+                    <option value="around-the-clock">Around the Clock</option>
+                </select>
+            </div>
+
+            <div class="game-info">
+                <h3 id="currentGame">501 Game</h3>
+                <p id="gameVariant">Standard</p>
+                <p id="currentPlayer">Player 1</p>
+                <h2 id="currentScore">501</h2>
+            </div>
+
+            <div class="throw-history">
+                <h4>Recent Throws</h4>
+                <div id="throwList"></div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="game-controls">
+                <button class="btn" onclick="app.undo()">Undo</button>
+                <button class="btn secondary" onclick="app.redo()">Redo</button>
+                <button class="btn danger" onclick="app.resetGame()">Reset Game</button>
+                <button class="btn secondary" onclick="app.toggleEditMode()">Edit Mode</button>
+            </div>
+
+            <div id="gameSpecificUI"></div>
+        </div>
+        <div class="game-info">
+            <h3 id="currentGame">501 Game</h3>
+            <div class="players-container" id="playersContainer">
+                <!-- Player scores will be dynamically inserted here -->
+            </div>
+            <h2 id="currentScore">501</h2>
+        </div>
+        <div class="sidebar">
+            <div class="stats-panel">
+                <h3>Statistics</h3>
+                <div id="statsContainer">
+                    <!-- Player stats will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+        <!-- Sliding Dartboard Panel -->
+        <div class="dartboard-overlay" id="dartboardOverlay"></div>
+        <div class="dartboard-panel" id="dartboardPanel">
+            <div class="dartboard-container">
+                <canvas id="dartboard" width="400" height="400"></canvas>
+            </div>
+        </div>
+        <!-- Dartboard Panel Toggle -->
+        <div class="dartboard-toggle" id="dartboardToggle">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2" />
+            </svg>
+        </div>
+
+    </div>
+
+    <!-- Include all JavaScript files -->
+    <script src="ui/RoundAnimation.js"></script>
+    <script src="utils/EventEmitter.js"></script>
+    <script src="core/Throw.js"></script>
+    <script src="games/GameBase.js"></script>
+    <script src="games/501/Game501.js"></script>
+    <script src="games/GameRegistry.js"></script>
+    <script src="ui/DartboardRenderer.js"></script>
+    <script src="utils/StatisticsEngine.js"></script>
+    <script src="utils/NetworkManager.js"></script>
+    <script src="app.js"></script>
+
+    <script>
+        // Initialize the application
+        const app = new DartsApp();
+
+        // Add some demo functionality
+        console.log('Modular Darts Application Loaded');
+        console.log('Features demonstrated:');
+        console.log('- Modular game system (501 game implemented)');
+        console.log('- Clickable dartboard with throw detection');
+        console.log('- Undo/Redo functionality');
+        console.log('- Throw editing in edit mode');
+        console.log('- Statistics calculation');
+        console.log('- Network simulation (MQTT status indicator)');
+        console.log('- Responsive design for mobile/desktop');
+        console.log('');
+        console.log('Click on the dartboard to simulate throws!');
+    </script> 
+</body>
+
+</html>

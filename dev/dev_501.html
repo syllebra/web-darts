@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darts Scoreboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            position: relative;
+            padding: 20px;
+        }
+
+        .scoreboard-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .routes-overlay {
+            display: flex;
+            flex-direction: column;
+            gap: 0px;
+            margin-bottom: 52px;
+            /* Align with player rows */
+        }
+
+        .player-routes {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            height: 40px;
+            padding: 8px 12px;
+            justify-content: flex-end;
+        }
+
+        .route-item {
+            background: linear-gradient(135deg, #1a4a1a 0%, #0d3a0d 100%);
+            color: #00ff00;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            border: 1px solid #2a6a2a;
+            min-width: 40px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .main-scoreboard {
+            position: relative;
+        }
+
+        .scoreboard {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #444;
+            min-width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        }
+
+        .scoreboard-header {
+            background: linear-gradient(135deg, #4a4a4a 0%, #2a2a2a 100%);
+            display: grid;
+            grid-template-columns: 180px 60px 80px;
+            color: #e0e0e0;
+            font-weight: bold;
+            font-size: 13px;
+            padding: 12px 16px;
+            border-bottom: 2px solid #555;
+            text-align: center;
+        }
+
+        .scoreboard-header div:first-child {
+            text-align: left;
+            font-size: 16px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .game-header-inline {
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: normal;
+        }
+
+        .players-container {
+            background: transparent;
+            position: relative;
+        }
+
+        .player-row {
+            display: grid;
+            grid-template-columns: 250px 60px 80px;
+            align-items: center;
+            padding: 0px;
+            border-bottom: 1px solid #444;
+            position: relative;
+            background: linear-gradient(135deg, #f8f8f8 0%, #e8e8e8 100%);
+            height: 40px;
+        }
+
+        .player-row:last-child {
+            border-bottom: none;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-name {
+            color: #000000;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .player-flag {
+            width: 24px;
+            height: 16px;
+            border-radius: 2px;
+            background: #ffffff;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #999;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .flag-england {
+            background: #ffffff;
+        }
+
+        .flag-england::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                linear-gradient(to right, transparent 45%, #ff0000 45%, #ff0000 55%, transparent 55%),
+                linear-gradient(to bottom, transparent 40%, #ff0000 40%, #ff0000 60%, transparent 60%);
+        }
+
+        .sets-score {
+            background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+            padding: 6px 4px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+            height: 100%;
+        }
+
+        .legs-score {
+            background: linear-gradient(135deg, #4a4a4a 0%, #2a2a2a 100%);
+            color: #00ff00;
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+            padding: 6px 4px;
+            border-radius: 4px;
+            border: 1px solid #666;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+            height: 100%;
+        }
+
+        .match-info {
+            background: #1a1a1a;
+            color: #cccccc;
+            text-align: center;
+            padding: 8px 12px;
+            font-size: 12px;
+            border-top: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .match-title {
+            color: #cccccc;
+        }
+
+        .broadcaster {
+            background: #0066cc;
+            color: #ffffff;
+            padding: 3px 8px;
+            border-radius: 2px;
+            font-weight: bold;
+            font-size: 11px;
+            text-transform: lowercase;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            max-width: 300px;
+        }
+
+        .control-btn {
+            background: #333;
+            color: #ffffff;
+            border: 1px solid #555;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: #444;
+        }
+
+        .turn-indicators {
+            position: absolute;
+            left: -25px;
+            top: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 0px;
+        }
+
+        .turn-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #333;
+            border: 2px solid #555;
+            margin-bottom: 30px;
+            /* Align with each player row */
+            margin-top: 5px;
+        }
+
+        .turn-dot.active {
+            background: #00ff00;
+            border-color: #00ff00;
+            box-shadow: 0 0 8px #00ff00;
+        }
+
+        @media (max-width: 800px) {
+            .scoreboard-container {
+                position: relative;
+                bottom: auto;
+                right: auto;
+                flex-direction: column;
+                align-items: center;
+                margin: 20px auto;
+            }
+
+            .routes-overlay {
+                flex-direction: row;
+                margin-bottom: 10px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .player-routes {
+                height: auto;
+                padding: 5px;
+                margin-bottom: 5px;
+                justify-content: center;
+            }
+
+            .turn-indicators {
+                position: static;
+                flex-direction: row;
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+
+            .turn-dot {
+                margin: 0 5px 0 0;
+            }
+
+            .controls {
+                position: static;
+                justify-content: center;
+                margin-top: 20px;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <button class="control-btn" onclick="addPlayer()">Add Player</button>
+        <button class="control-btn" onclick="removePlayer()">Remove Player</button>
+        <button class="control-btn" onclick="toggleTurn()">Toggle Turn</button>
+        <button class="control-btn" onclick="updateScores()">Random Scores</button>
+        <button class="control-btn" onclick="resetScores()">Reset Scores</button>
+        <button class="control-btn" onclick="toggleRoutes()">Toggle Routes</button>
+    </div>
+
+    <div class="scoreboard-container">
+        <div class="routes-overlay" id="routesOverlay">
+            <!-- Routes will be positioned here -->
+        </div>
+
+        <div class="main-scoreboard">
+            <div class="turn-indicators" id="turnIndicators">
+                <!-- Turn indicators will be populated by JavaScript -->
+            </div>
+
+            <div class="scoreboard">
+                <div class="scoreboard-header">
+                    <div>
+                        <span id="gameHeader">First to 11</span>
+                    </div>
+                    <div>Legs</div>
+                    <div>Score</div>
+                </div>
+                <div class="players-container" id="playersContainer">
+                    <!-- Players will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="match-info">
+                <span class="match-title" id="matchTitle">2025 Premier League Final</span>
+                <span class="broadcaster" id="broadcaster">sky sports</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration object - easily customizable
+        const config = {
+            gameHeader: "First to 11",
+            matchTitle: "2025 Premier League Final",
+            broadcaster: "sky sports",
+            showRoutes: true,
+            currentPlayerTurn: 0,
+            players: [
+                { name: "Littler", flag: "england", legs: 5, score: 52, finishRoute: ["T20", "T20", "BULL"] },
+                { name: "Humphries", flag: "england", legs: 3, score: 170, finishRoute: ["12", "D20"] }
+            ]
+        };
+
+        // Function to generate finish routes based on score
+        function generateFinishRoute(score) {
+            if (score <= 0) return [];
+            if (score > 170) return [];
+
+            // Simple route generation logic - you can make this more sophisticated
+            const routes = {
+                170: ["T20", "T20", "BULL"],
+                167: ["T20", "T19", "BULL"],
+                164: ["T20", "T18", "BULL"],
+                161: ["T20", "T17", "BULL"],
+                160: ["T20", "T20", "D20"],
+                157: ["T19", "T20", "D20"],
+                156: ["T20", "T20", "D18"],
+                155: ["T19", "T18", "D20"],
+                154: ["T18", "T20", "D20"],
+                153: ["T19", "T18", "D18"],
+                152: ["T20", "T20", "D16"],
+                151: ["T17", "T18", "D20"],
+                150: ["T18", "T18", "D18"],
+                149: ["T19", "T18", "D16"],
+                148: ["T20", "T16", "D20"],
+                147: ["T19", "T16", "D18"],
+                146: ["T20", "T18", "D16"],
+                145: ["T19", "T18", "D16"],
+                144: ["T20", "T20", "D12"],
+                143: ["T17", "T18", "D16"],
+                142: ["T20", "T14", "D20"],
+                141: ["T19", "T16", "D16"],
+                140: ["T20", "T20", "D10"],
+                139: ["T19", "T14", "D20"],
+                138: ["T20", "T18", "D12"],
+                137: ["T19", "T16", "D14"],
+                136: ["T20", "T20", "D8"],
+                135: ["T20", "T17", "D12"],
+                134: ["T20", "T14", "D16"],
+                133: ["T19", "T14", "D16"],
+                132: ["BULL", "BULL", "D16"],
+                131: ["T19", "T12", "D16"],
+                130: ["T20", "T18", "D8"],
+                52: ["12", "D20"],
+                50: ["BULL"],
+                40: ["D20"],
+                32: ["D16"],
+                24: ["D12"],
+                20: ["D10"],
+                18: ["D9"],
+                16: ["D8"],
+                14: ["D7"],
+                12: ["D6"],
+                10: ["D5"],
+                8: ["D4"],
+                6: ["D3"],
+                4: ["D2"],
+                2: ["D1"]
+            };
+
+            return routes[score] || [];
+        }
+
+        // Initialize the scoreboard
+        function initializeScoreboard() {
+            updateGameInfo();
+            renderPlayers();
+            renderTurnIndicators();
+            renderFinishRoutes();
+        }
+
+        // Update game information
+        function updateGameInfo() {
+            document.getElementById('gameHeader').textContent = config.gameHeader;
+            document.getElementById('matchTitle').textContent = config.matchTitle;
+            document.getElementById('broadcaster').textContent = config.broadcaster;
+        }
+
+        // Render turn indicators
+        function renderTurnIndicators() {
+            const container = document.getElementById('turnIndicators');
+            container.innerHTML = '';
+
+            config.players.forEach((player, index) => {
+                const dot = document.createElement('div');
+                dot.className = `turn-dot ${index === config.currentPlayerTurn ? 'active' : ''}`;
+                container.appendChild(dot);
+            });
+        }
+
+        // Render finish routes
+        function renderFinishRoutes() {
+            // Routes are now rendered per player, so this function is no longer needed
+            // but kept for API compatibility
+        }
+
+        // Render players
+        function renderPlayers() {
+            const container = document.getElementById('playersContainer');
+            const routesContainer = document.getElementById('routesOverlay');
+            container.innerHTML = '';
+            routesContainer.innerHTML = '';
+
+            config.players.forEach((player, index) => {
+                const playerRow = document.createElement('div');
+                playerRow.className = `player-row ${index === config.currentPlayerTurn ? 'active' : ''}`;
+
+                playerRow.innerHTML = `
+                    <div class="player-info">
+                        <span class="player-name">${player.name}</span>
+                        <div class="player-flag flag-${player.flag}"></div>
+                    </div>
+                    <div class="sets-score">${player.legs}</div>
+                    <div class="legs-score">${player.score}</div>
+                `;
+
+                container.appendChild(playerRow);
+
+                // Add routes to the overlay
+                if (config.showRoutes) {
+                    const finishRoute = generateFinishRoute(player.score);
+                    const routesRow = document.createElement('div');
+                    routesRow.className = 'player-routes';
+
+                    if (finishRoute.length > 0) {
+                        finishRoute.forEach(route => {
+                            const routeItem = document.createElement('div');
+                            routeItem.className = 'route-item';
+                            routeItem.textContent = route;
+                            routesRow.appendChild(routeItem);
+                        });
+                    }
+
+                    routesContainer.appendChild(routesRow);
+                } else {
+                    // Add empty div to maintain spacing
+                    const emptyRow = document.createElement('div');
+                    emptyRow.className = 'player-routes';
+                    routesContainer.appendChild(emptyRow);
+                }
+            });
+        }
+
+        // Control functions
+        function addPlayer() {
+            const name = prompt("Enter player name:") || `Player ${config.players.length + 1}`;
+            const score = parseInt(prompt("Enter current score:") || "100");
+            config.players.push({
+                name: name,
+                flag: "england",
+                legs: 0,
+                score: score
+            });
+            renderPlayers();
+            renderTurnIndicators();
+        }
+
+        function removePlayer() {
+            if (config.players.length > 1) {
+                config.players.pop();
+                if (config.currentPlayerTurn >= config.players.length) {
+                    config.currentPlayerTurn = 0;
+                }
+                renderPlayers();
+                renderTurnIndicators();
+            }
+        }
+
+        function toggleTurn() {
+            config.currentPlayerTurn = (config.currentPlayerTurn + 1) % config.players.length;
+            renderPlayers();
+            renderTurnIndicators();
+        }
+
+        function updateScores() {
+            const possibleScores = [170, 167, 164, 161, 160, 157, 156, 155, 154, 153, 152, 151, 150, 149, 148, 147, 146, 145, 144, 143, 142, 141, 140, 139, 138, 137, 136, 135, 134, 133, 132, 131, 130, 52, 50, 40, 32, 24, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2];
+            config.players.forEach(player => {
+                player.legs = Math.floor(Math.random() * 12);
+                player.score = possibleScores[Math.floor(Math.random() * possibleScores.length)];
+            });
+            renderPlayers();
+        }
+
+        function resetScores() {
+            config.players.forEach(player => {
+                player.legs = 0;
+                player.score = 0;
+            });
+            renderPlayers();
+        }
+
+        function toggleRoutes() {
+            config.showRoutes = !config.showRoutes;
+            renderPlayers();
+        }
+
+        // API-like functions for external control
+        window.DartsScoreboard = {
+            setGameHeader: (header) => {
+                config.gameHeader = header;
+                updateGameInfo();
+            },
+            setFinishRoutes: (routes) => {
+                // This function is kept for API compatibility but routes are now auto-generated
+                console.log("Routes are now auto-generated based on player scores");
+            },
+            setMatchInfo: (title, broadcaster) => {
+                config.matchTitle = title;
+                config.broadcaster = broadcaster;
+                updateGameInfo();
+            },
+            setPlayers: (players) => {
+                config.players = players;
+                config.currentPlayerTurn = Math.min(config.currentPlayerTurn, players.length - 1);
+                renderPlayers();
+                renderTurnIndicators();
+            },
+            updatePlayer: (index, data) => {
+                if (config.players[index]) {
+                    Object.assign(config.players[index], data);
+                    renderPlayers();
+                }
+            },
+            setCurrentPlayer: (index) => {
+                if (index >= 0 && index < config.players.length) {
+                    config.currentPlayerTurn = index;
+                    renderPlayers();
+                    renderTurnIndicators();
+                }
+            },
+            showRoutes: (show) => {
+                config.showRoutes = show;
+                renderPlayers();
+            },
+            getConfig: () => ({ ...config })
+        };
+
+        // Initialize on load
+        initializeScoreboard();
+
+        // Example of how to use the API
+        console.log("Use DartsScoreboard API to control the component:");
+        console.log("DartsScoreboard.setGameHeader('First to 7')");
+        console.log("DartsScoreboard.setFinishRoutes(['T19', 'T19', 'BULL', '20', 'D20'])");
+        console.log("DartsScoreboard.setCurrentPlayer(1)");
+        console.log("DartsScoreboard.showRoutes(false)");
+    </script>
+</body>
+
+</html>

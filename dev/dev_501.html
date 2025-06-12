@@ -14,7 +14,8 @@
 
         body {
             font-family: Arial, sans-serif;
-            background: #000;
+            background: #000 url('../images/backdrops/background_pdc_01.jpg') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
             position: relative;
             padding: 20px;
@@ -30,60 +31,34 @@
             z-index: 1000;
         }
 
-        .routes-overlay {
-            display: flex;
-            flex-direction: column;
-            gap: 0px;
-            margin-bottom: 52px;
-            /* Align with player rows */
-        }
-
-        .player-routes {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            height: 40px;
-            padding: 8px 12px;
-            justify-content: flex-end;
-        }
-
-        .route-item {
-            background: linear-gradient(135deg, #1a4a1a 0%, #0d3a0d 100%);
-            color: #00ff00;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 12px;
-            border: 1px solid #2a6a2a;
-            min-width: 40px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-        }
-
         .main-scoreboard {
             position: relative;
+            overflow: visible; /* Ensure this allows overflow */
         }
 
         .scoreboard {
-            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid #444;
+            border-radius: 2px;
+            overflow: visible; /* FIXED: Changed from hidden to visible */
+            border-bottom: 2px solid rgba(168, 166, 166, 0.8);
             min-width: 320px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            position: relative; /* ADDED: Ensure positioning context */
         }
 
         .scoreboard-header {
-            background: linear-gradient(135deg, #4a4a4a 0%, #2a2a2a 100%);
+            background: linear-gradient(20deg, rgba(63, 63, 63, 0.9), rgba(61, 61, 61, 0.3));
+            border-radius: 10px 10px 0px 0px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: grid;
             grid-template-columns: 180px 60px 80px;
             color: #e0e0e0;
             font-weight: bold;
             font-size: 13px;
             padding: 12px 16px;
-            border-bottom: 2px solid #555;
             text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .scoreboard-header div:first-child {
@@ -104,6 +79,7 @@
         .players-container {
             background: transparent;
             position: relative;
+            overflow: visible; /* FIXED: Ensure this allows overflow */
         }
 
         .player-row {
@@ -113,8 +89,9 @@
             padding: 0px;
             border-bottom: 1px solid #444;
             position: relative;
-            background: linear-gradient(135deg, #f8f8f8 0%, #e8e8e8 100%);
-            height: 40px;
+            background: linear-gradient(135deg, #f8f8f8 0%, #959393 100%);
+            min-height: 40px;
+            overflow: visible; /* ADDED: Allow overflow on individual rows */
         }
 
         .player-row:last-child {
@@ -130,7 +107,8 @@
         .player-name {
             color: #000000;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 24px;
+            padding-left: 10px;
         }
 
         .player-flag {
@@ -163,27 +141,78 @@
         .sets-score {
             background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
             color: #ffffff;
-            font-weight: bold;
-            font-size: 16px;
-            text-align: center;
-            padding: 6px 4px;
-            border-radius: 4px;
+            font-size: 24px;
+            padding: 0px;
             border: 1px solid #555;
             box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
             height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 40px;
         }
 
         .legs-score {
             background: linear-gradient(135deg, #4a4a4a 0%, #2a2a2a 100%);
-            color: #00ff00;
-            font-weight: bold;
-            font-size: 16px;
-            text-align: center;
-            padding: 6px 4px;
-            border-radius: 4px;
-            border: 1px solid #666;
+            color: #91bf76;
+            font-size: 24px;
+            padding: 0px;
+            border: 1px solid #555;
             box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
             height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 40px;
+        }
+
+        .player-routes {
+            background: linear-gradient(135deg, #131417 0%, #1d1e1c 100%);
+            border-radius: 5px 0px 0px 5px;
+            position: absolute;
+            right: 100%;
+            top: 2px;
+            bottom: 2px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding: 12px;
+            z-index: -1;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.4s ease, visibility 0.4s ease, transform 0.4s ease;
+            transform: translateX(0);
+            white-space: nowrap;
+        }
+
+        .player-routes.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        .player-routes.hide {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(50px);
+        }
+
+        .route-item {
+            color: #91bf76;
+            padding: 4px 8px;
+            font-size: 24px;
+            min-width: 40px;
+            text-align: center;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+            border-radius: 3px;
+            backdrop-filter: blur(1px);
+            white-space: nowrap;
+        }
+
+        .player-row:not(.active) .route-item {
+            opacity: 0.6;
+            color: #6d8a5d;
         }
 
         .match-info {
@@ -207,7 +236,6 @@
             background: #0066cc;
             color: #ffffff;
             padding: 3px 8px;
-            border-radius: 2px;
             font-weight: bold;
             font-size: 11px;
             text-transform: lowercase;
@@ -238,30 +266,34 @@
             background: #444;
         }
 
-        .turn-indicators {
+        .turn-marker {
             position: absolute;
-            left: -25px;
-            top: 60px;
-            display: flex;
-            flex-direction: column;
-            gap: 0px;
+            right: -8px;
+            width: 12px;
+            height: 37px;
+            background: linear-gradient(90deg, #000000 0%, rgb(138, 223, 89) 50%);
+
+            transition: transform 1.0s ease;
+            z-index: -1;
+            border-radius: 0px 2px 2px 0px;
+
         }
 
-        .turn-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #333;
-            border: 2px solid #555;
-            margin-bottom: 30px;
-            /* Align with each player row */
-            margin-top: 5px;
+        /* Animation delays for staggered effect */
+        .player-row:nth-child(1) .player-routes {
+            transition-delay: 0.1s;
         }
-
-        .turn-dot.active {
-            background: #00ff00;
-            border-color: #00ff00;
-            box-shadow: 0 0 8px #00ff00;
+        
+        .player-row:nth-child(2) .player-routes {
+            transition-delay: 0.15s;
+        }
+        
+        .player-row:nth-child(3) .player-routes {
+            transition-delay: 0.2s;
+        }
+        
+        .player-row:nth-child(4) .player-routes {
+            transition-delay: 0.25s;
         }
 
         @media (max-width: 800px) {
@@ -274,29 +306,11 @@
                 margin: 20px auto;
             }
 
-            .routes-overlay {
-                flex-direction: row;
-                margin-bottom: 10px;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-
-            .player-routes {
-                height: auto;
-                padding: 5px;
-                margin-bottom: 5px;
-                justify-content: center;
-            }
-
             .turn-indicators {
                 position: static;
                 flex-direction: row;
                 justify-content: center;
                 margin-bottom: 10px;
-            }
-
-            .turn-dot {
-                margin: 0 5px 0 0;
             }
 
             .controls {
@@ -305,6 +319,7 @@
                 margin-top: 20px;
                 max-width: none;
             }
+
         }
     </style>
 </head>
@@ -320,16 +335,12 @@
     </div>
 
     <div class="scoreboard-container">
-        <div class="routes-overlay" id="routesOverlay">
-            <!-- Routes will be positioned here -->
-        </div>
-
         <div class="main-scoreboard">
             <div class="turn-indicators" id="turnIndicators">
-                <!-- Turn indicators will be populated by JavaScript -->
+                <div class="turn-marker" id="turnMarker"></divclass>
             </div>
 
-            <div class="scoreboard">
+            <div class="scoreboard" id="scoreboard">
                 <div class="scoreboard-header">
                     <div>
                         <span id="gameHeader">First to 11</span>
@@ -427,8 +438,8 @@
         function initializeScoreboard() {
             updateGameInfo();
             renderPlayers();
-            renderTurnIndicators();
-            renderFinishRoutes();
+            positionTurnMarker();
+            updateRoutesVisibility();
         }
 
         // Update game information
@@ -438,34 +449,72 @@
             document.getElementById('broadcaster').textContent = config.broadcaster;
         }
 
-        // Render turn indicators
-        function renderTurnIndicators() {
-            const container = document.getElementById('turnIndicators');
-            container.innerHTML = '';
+        function positionTurnMarker() {
+            const marker = document.querySelector('.turn-marker');
+            if (!marker) return;
 
-            config.players.forEach((player, index) => {
-                const dot = document.createElement('div');
-                dot.className = `turn-dot ${index === config.currentPlayerTurn ? 'active' : ''}`;
-                container.appendChild(dot);
-            });
+            const playerRows = document.querySelectorAll('.player-row');
+            if (playerRows.length === 0) return;
+            
+            const currentRow = playerRows[config.currentPlayerTurn];
+            const scoreboard = document.getElementById('scoreboard');
+            const scoreboardTop = scoreboard.getBoundingClientRect().top;
+            const rowTop = currentRow.getBoundingClientRect().top - scoreboardTop;
+            const rowHeight = currentRow.offsetHeight;
+            
+            // Calculate exact position relative to scoreboard
+            const targetY = rowTop + rowHeight / 2 - marker.offsetHeight / 2;
+            
+            // Get current position
+            const currentTransform = marker.style.transform;
+
+            // Set initial position if not set
+            if (!currentTransform) {
+                marker.style.transform = `translateY(${targetY}px)`;
+                return;
+            }
+            
+            // // Force reflow before animation
+            marker.getBoundingClientRect();
+            
+            // Animate to new position with smooth easing
+            marker.style.transform = `translateY(${targetY}px)`;
+            
+            requestAnimationFrame(marker);
         }
 
-        // Render finish routes
-        function renderFinishRoutes() {
-            // Routes are now rendered per player, so this function is no longer needed
-            // but kept for API compatibility
+        // Update routes visibility
+        function updateRoutesVisibility() {
+            const routes = document.querySelectorAll('.player-routes');
+            routes.forEach(route => {
+                route.classList.remove('show', 'hide');
+                if (config.showRoutes) {
+                    route.classList.add('show');
+                } else {
+                    route.classList.add('hide');
+                }
+            });
         }
 
         // Render players
         function renderPlayers() {
             const container = document.getElementById('playersContainer');
-            const routesContainer = document.getElementById('routesOverlay');
             container.innerHTML = '';
-            routesContainer.innerHTML = '';
 
             config.players.forEach((player, index) => {
                 const playerRow = document.createElement('div');
                 playerRow.className = `player-row ${index === config.currentPlayerTurn ? 'active' : ''}`;
+
+                // Generate finish route for current score
+                const finishRoute = generateFinishRoute(player.score);
+                
+                // Create routes HTML
+                let routesHTML = '';
+                if (finishRoute.length > 0) {
+                    finishRoute.forEach(route => {
+                        routesHTML += `<div class="route-item">${route}</div>`;
+                    });
+                }
 
                 playerRow.innerHTML = `
                     <div class="player-info">
@@ -474,32 +523,12 @@
                     </div>
                     <div class="sets-score">${player.legs}</div>
                     <div class="legs-score">${player.score}</div>
+                    <div class="player-routes ${config.showRoutes ? 'show' : 'hide'}">
+                        ${routesHTML}
+                    </div>
                 `;
 
                 container.appendChild(playerRow);
-
-                // Add routes to the overlay
-                if (config.showRoutes) {
-                    const finishRoute = generateFinishRoute(player.score);
-                    const routesRow = document.createElement('div');
-                    routesRow.className = 'player-routes';
-
-                    if (finishRoute.length > 0) {
-                        finishRoute.forEach(route => {
-                            const routeItem = document.createElement('div');
-                            routeItem.className = 'route-item';
-                            routeItem.textContent = route;
-                            routesRow.appendChild(routeItem);
-                        });
-                    }
-
-                    routesContainer.appendChild(routesRow);
-                } else {
-                    // Add empty div to maintain spacing
-                    const emptyRow = document.createElement('div');
-                    emptyRow.className = 'player-routes';
-                    routesContainer.appendChild(emptyRow);
-                }
             });
         }
 
@@ -514,7 +543,7 @@
                 score: score
             });
             renderPlayers();
-            renderTurnIndicators();
+            positionTurnMarker();
         }
 
         function removePlayer() {
@@ -524,14 +553,14 @@
                     config.currentPlayerTurn = 0;
                 }
                 renderPlayers();
-                renderTurnIndicators();
+                positionTurnMarker();
             }
         }
 
         function toggleTurn() {
             config.currentPlayerTurn = (config.currentPlayerTurn + 1) % config.players.length;
             renderPlayers();
-            renderTurnIndicators();
+            positionTurnMarker();
         }
 
         function updateScores() {
@@ -553,7 +582,7 @@
 
         function toggleRoutes() {
             config.showRoutes = !config.showRoutes;
-            renderPlayers();
+            updateRoutesVisibility();
         }
 
         // API-like functions for external control
@@ -575,7 +604,7 @@
                 config.players = players;
                 config.currentPlayerTurn = Math.min(config.currentPlayerTurn, players.length - 1);
                 renderPlayers();
-                renderTurnIndicators();
+                positionTurnMarker();
             },
             updatePlayer: (index, data) => {
                 if (config.players[index]) {
@@ -587,12 +616,12 @@
                 if (index >= 0 && index < config.players.length) {
                     config.currentPlayerTurn = index;
                     renderPlayers();
-                    renderTurnIndicators();
+                    positionTurnMarker();
                 }
             },
             showRoutes: (show) => {
                 config.showRoutes = show;
-                renderPlayers();
+                updateRoutesVisibility();
             },
             getConfig: () => ({ ...config })
         };
@@ -603,7 +632,6 @@
         // Example of how to use the API
         console.log("Use DartsScoreboard API to control the component:");
         console.log("DartsScoreboard.setGameHeader('First to 7')");
-        console.log("DartsScoreboard.setFinishRoutes(['T19', 'T19', 'BULL', '20', 'D20'])");
         console.log("DartsScoreboard.setCurrentPlayer(1)");
         console.log("DartsScoreboard.showRoutes(false)");
     </script>

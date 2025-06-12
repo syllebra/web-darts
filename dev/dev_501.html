@@ -91,7 +91,7 @@
             position: relative;
             background: linear-gradient(135deg, #f8f8f8 0%, #959393 100%);
             min-height: 40px;
-            overflow: visible; /* ADDED: Allow overflow on individual rows */
+            overflow: visible;
         }
 
         .player-row:last-child {
@@ -208,11 +208,15 @@
             border-radius: 3px;
             backdrop-filter: blur(1px);
             white-space: nowrap;
+            -webkit-transition: all 1s; /* For Safari 3.0 to 6.0 */
+            transition: all 1s; /* For modern browsers */
         }
 
         .player-row:not(.active) .route-item {
             opacity: 0.6;
             color: #6d8a5d;
+            -webkit-transition: all 1s;
+            transition: all 1s;
         }
 
         .match-info {
@@ -499,37 +503,69 @@
         // Render players
         function renderPlayers() {
             const container = document.getElementById('playersContainer');
-            container.innerHTML = '';
-
+            
+            // Preserve existing rows if they match current players
+            const existingRows = Array.from(container.children);
+            
             config.players.forEach((player, index) => {
-                const playerRow = document.createElement('div');
-                playerRow.className = `player-row ${index === config.currentPlayerTurn ? 'active' : ''}`;
-
-                // Generate finish route for current score
-                const finishRoute = generateFinishRoute(player.score);
+                let playerRow = existingRows[index];
                 
-                // Create routes HTML
-                let routesHTML = '';
-                if (finishRoute.length > 0) {
-                    finishRoute.forEach(route => {
-                        routesHTML += `<div class="route-item">${route}</div>`;
-                    });
+                if (!playerRow) {
+                    playerRow = document.createElement('div');
+                    playerRow.className = 'player-row';
+                    container.appendChild(playerRow);
+                    
+                    // Generate initial HTML structure
+                    playerRow.innerHTML = `
+                        <div class="player-info">
+                            <span class="player-name">${player.name}</span>
+                            <div class="player-flag flag-${player.flag}"></div>
+                        </div>
+                        <div class="sets-score">${player.legs}</div>
+                        <div class="legs-score">${player.score}</div>
+                        <div class="player-routes">
+                        </div>
+                    `;
                 }
 
-                playerRow.innerHTML = `
-                    <div class="player-info">
-                        <span class="player-name">${player.name}</span>
-                        <div class="player-flag flag-${player.flag}"></div>
-                    </div>
-                    <div class="sets-score">${player.legs}</div>
-                    <div class="legs-score">${player.score}</div>
-                    <div class="player-routes ${config.showRoutes ? 'show' : 'hide'}">
-                        ${routesHTML}
-                    </div>
-                `;
-
-                container.appendChild(playerRow);
+                // Update dynamic content
+                playerRow.querySelector('.player-name').textContent = player.name;
+                playerRow.querySelector('.sets-score').textContent = player.legs;
+                playerRow.querySelector('.legs-score').textContent = player.score;
+                
+                // Update routes
+                const routesContainer = playerRow.querySelector('.player-routes');
+                const finishRoute = generateFinishRoute(player.score);
+                
+                // Clear only if routes changed
+                if (routesContainer.children.length !== finishRoute.length || 
+                    Array.from(routesContainer.children).some((item, i) => item.textContent !== finishRoute[i])) {
+                    
+                    routesContainer.innerHTML = '';
+                    finishRoute.forEach(route => {
+                        const routeItem = document.createElement('div');
+                        routeItem.className = 'route-item';
+                        routeItem.textContent = route;
+                        routesContainer.appendChild(routeItem);
+                    });
+                }
+                
+                // Toggle active class
+                if (index === config.currentPlayerTurn) {
+                    playerRow.classList.add('active');
+                } else {
+                    playerRow.classList.remove('active');
+                }
+                
+                // Update routes visibility
+                routesContainer.classList.remove('show', 'hide');
+                routesContainer.classList.add(config.showRoutes ? 'show' : 'hide');
             });
+            
+            // Remove any extra rows
+            while (container.children.length > config.players.length) {
+                container.removeChild(container.lastChild);
+            }
         }
 
         // Control functions

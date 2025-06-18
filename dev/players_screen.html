@@ -1,503 +1,773 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player Select</title>
+    <title>Player Select Menu</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            background: linear-gradient(135deg, #581c87 0%, #1e3a8a 50%, #312e81 100%);
+            position: relative;
             overflow-x: hidden;
-            position: relative;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background:
-                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
-            animation: backgroundPulse 8s ease-in-out infinite alternate;
-            z-index: -1;
-        }
-
-        @keyframes backgroundPulse {
-            0% {
-                opacity: 0.8;
-            }
-
-            100% {
-                opacity: 1;
-            }
-        }
-
-        .container {
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .title {
-            font-size: clamp(2.5rem, 8vw, 5rem);
-            font-weight: 900;
-            text-align: center;
-            margin-bottom: 2rem;
-            background: linear-gradient(45deg, #00ff88, #00d4ff, #ff00d4);
-            background-size: 300% 300%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
-            animation: titleGlow 3s ease-in-out infinite alternate,
-                gradientShift 6s ease-in-out infinite;
-            letter-spacing: 3px;
-        }
-
-        @keyframes titleGlow {
-            0% {
-                text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
-            }
-
-            100% {
-                text-shadow: 0 0 50px rgba(0, 255, 136, 0.8), 0 0 80px rgba(0, 212, 255, 0.5);
-            }
-        }
-
-        @keyframes gradientShift {
-            0% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
-
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
-        .players-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            width: 100%;
-            max-width: 1200px;
-            margin-bottom: 2rem;
-        }
-
-        .player-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
+        /* Animated Background */
+        .bg-animation {
+            position: absolute;
+            inset: 0;
             overflow: hidden;
-            cursor: pointer;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            z-index: 1;
         }
 
-        .player-card::before {
+        .bg-animation::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: -100%;
+            top: -50%;
+            left: -50%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
+            background: radial-gradient(circle, rgba(34, 211, 238, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: pulse 4s ease-in-out infinite;
         }
 
-        .player-card:hover::before {
-            left: 100%;
+        .bg-animation::after {
+            content: '';
+            position: absolute;
+            bottom: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: pulse 4s ease-in-out infinite 2s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .main-content {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Header Styles */
+        .header-card {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        .title-gradient {
+            background: linear-gradient(45deg, #22d3ee, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        /* Player Card Styles */
+        .player-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            min-height: 280px;
         }
 
         .player-card:hover {
             transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .player-number {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+            text-shadow: 0 0 5px currentColor;
         }
 
         .player-icon {
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            margin: 0 auto 15px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+            border: 1px solid rgba(255, 255, 255, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2.5rem;
+            cursor: pointer;
             transition: all 0.3s ease;
-            animation: iconFloat 2s ease-in-out infinite alternate;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            margin: 0 auto 20px;
         }
 
-        @keyframes iconFloat {
-            0% {
-                transform: translateY(0px);
-            }
-
-            100% {
-                transform: translateY(-3px);
-            }
-        }
-
-        .player-card:hover .player-icon {
-            transform: scale(1.1) translateY(-5px);
-            animation-play-state: paused;
+        .player-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         }
 
         .player-name {
-            font-size: 1.2rem;
             font-weight: bold;
-            color: white;
-            margin-bottom: 15px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            font-size: 1.25rem;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
         }
 
-        .name-input {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            padding: 10px;
+        .player-name:hover {
+            transform: scale(1.05);
+        }
+
+        .color-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin: 0 auto;
+        }
+
+        .color-circle:hover {
+            transform: scale(1.1);
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.8);
+            border: none;
             color: white;
-            font-size: 1rem;
-            width: 100%;
-            margin-bottom: 15px;
-            backdrop-filter: blur(10px);
+            opacity: 0;
             transition: all 0.3s ease;
         }
 
-        .name-input:focus {
-            outline: none;
+        .player-card:hover .remove-btn {
+            opacity: 1;
+        }
+
+        .remove-btn:hover {
+            background: rgb(239, 68, 68);
+            transform: scale(1.1);
+        }
+
+        /* Add Player Card */
+        .add-player-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-height: 280px;
+        }
+
+        .add-player-card:hover {
+            background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.5);
-            background: rgba(255, 255, 255, 0.15);
             transform: scale(1.02);
         }
 
-        .name-input::placeholder {
-            color: rgba(255, 255, 255, 0.7);
+        /* Start Game Button */
+        .start-btn {
+            background: linear-gradient(45deg, #10b981, #059669);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+            color: white;
+            font-weight: bold;
+            font-size: 1.25rem;
+            padding: 15px 50px;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         }
 
-        .color-picker-container {
-            display: flex;
+        .start-btn:hover {
+            background: linear-gradient(45deg, #059669, #047857);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.25);
+            color: white;
+        }
+
+        .name-input {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            outline: none;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .name-input:focus {
+            border-bottom-color: var(--player-color, #fff);
+        }
+
+        /* Fullscreen Modal Styles */
+        .fullscreen-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            display: none;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            margin-bottom: 15px;
+            z-index: 2000;
+            animation: fadeIn 0.3s ease;
         }
 
-        .color-picker {
+        .fullscreen-modal.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .modal-title {
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .current-player {
+            color: var(--current-player-color);
+            font-size: 1.2rem;
+            text-shadow: 0 0 10px var(--current-player-color);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
             width: 40px;
             height: 40px;
             border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-modal:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* Color Picker Styles */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .color-option {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
             border: 3px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
             transition: all 0.3s ease;
-            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .color-picker:hover {
+        .color-option:hover {
+            transform: scale(1.1);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .color-option.selected {
+            border-color: white;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .color-option.selected::after {
+            content: '✓';
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Icon Picker Styles */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .icon-option {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .icon-option:hover {
+            background: rgba(255, 255, 255, 0.2);
             transform: scale(1.1);
             border-color: rgba(255, 255, 255, 0.6);
         }
 
-        .color-picker input[type="color"] {
-            width: 120%;
-            height: 120%;
-            border: none;
-            cursor: pointer;
-            transform: translate(-10%, -10%);
-        }
-
-        .remove-btn {
-            background: rgba(255, 0, 0, 0.2);
-            border: 1px solid rgba(255, 0, 0, 0.4);
-            color: white;
-            border-radius: 8px;
-            padding: 8px 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-            backdrop-filter: blur(10px);
-        }
-
-        .remove-btn:hover {
-            background: rgba(255, 0, 0, 0.4);
-            transform: scale(1.05);
-        }
-
-        .add-player-btn {
-            background: rgba(0, 255, 136, 0.2);
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(0, 255, 136, 0.4);
-            border-radius: 20px;
-            padding: 20px;
-            color: white;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            min-height: 200px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .add-player-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .add-player-btn:hover::before {
-            left: 100%;
-        }
-
-        .add-player-btn:hover {
-            transform: translateY(-5px) scale(1.02);
-            border-color: rgba(0, 255, 136, 0.6);
-            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.3);
-        }
-
-        .start-btn {
-            background: linear-gradient(45deg, #ff6b6b, #feca57);
-            border: none;
-            border-radius: 50px;
-            padding: 15px 40px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
-            animation: pulseGlow 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes pulseGlow {
-            0% {
-                box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
-            }
-
-            100% {
-                box-shadow: 0 15px 40px rgba(255, 107, 107, 0.6), 0 0 20px rgba(254, 202, 87, 0.4);
-            }
-        }
-
-        .start-btn:hover {
-            transform: translateY(-3px) scale(1.05);
-            animation-play-state: paused;
-        }
-
-        .start-btn:active {
-            transform: translateY(-1px) scale(1.02);
+        .icon-option.selected {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: white;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
         }
 
         @media (max-width: 768px) {
-            .players-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
+            .color-grid {
+                grid-template-columns: repeat(4, 1fr);
             }
-
-            .container {
-                padding: 15px;
+            
+            .icon-grid {
+                grid-template-columns: repeat(5, 1fr);
             }
-
-            .title {
-                margin-bottom: 1.5rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .player-card {
-                padding: 15px;
-            }
-
-            .player-icon {
+            
+            .color-option, .icon-option {
                 width: 60px;
                 height: 60px;
+            }
+            
+            .icon-option {
                 font-size: 2rem;
             }
         }
     </style>
 </head>
-
 <body>
-    <div class="container">
-        <h1 class="title">PLAYER SELECT</h1>
-
-        <div class="players-grid" id="playersGrid">
-            <!-- Players will be dynamically added here -->
+    <div class="bg-animation"></div>
+    
+    <div class="main-content">
+        <!-- Header -->
+        <div class="container-fluid py-4">
+            <div class="row justify-content-center">
+                <div class="col-auto">
+                    <div class="header-card rounded-4 px-5 py-4">
+                        <h1 class="display-3 fw-bold title-gradient mb-2">PLAYER SELECT</h1>
+                        <div class="d-flex align-items-center justify-content-center gap-2 text-white-50">
+                            <i class="fas fa-users"></i>
+                            <span class="fs-5" id="player-count">4 Players</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <button class="start-btn" id="startBtn">Start Game</button>
+        <!-- Players Grid -->
+        <div class="container-fluid px-4 py-4">
+            <div class="row g-4 justify-content-center" id="players-grid">
+                <!-- Player cards will be inserted here -->
+            </div>
+            
+            <!-- Start Game Button -->
+            <div class="row mt-5">
+                <div class="col-12 text-center">
+                    <button class="btn start-btn" id="start-game-btn">
+                        <i class="fas fa-play me-2"></i>
+                        START GAME
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="container-fluid py-3">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <div class="text-white-50 d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-gamepad"></i>
+                        <small>Click player icons to customize • Tap colors to change</small>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- Color Picker Modal -->
+    <div class="fullscreen-modal" id="color-picker-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeColorPicker()">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="modal-header">
+                <h2 class="modal-title">Choose Color</h2>
+                <div class="current-player" id="color-picker-player"></div>
+            </div>
+            
+            <div class="color-grid" id="color-grid">
+                <!-- Colors will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Icon Picker Modal -->
+    <div class="fullscreen-modal" id="icon-picker-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeIconPicker()">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="modal-header">
+                <h2 class="modal-title">Choose Icon</h2>
+                <div class="current-player" id="icon-picker-player"></div>
+            </div>
+            
+            <div class="icon-grid" id="icon-grid">
+                <!-- Icons will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        class PlayerSelectMenu {
-            constructor() {
-                this.players = [
-                    { id: 1, name: 'Player 1', color: '#ff6b6b', icon: '🎮' }
-                ];
-                this.nextId = 2;
-                this.maxPlayers = 8;
-                this.init();
-            }
+        // Game state
+        let players = [
+            { id: 1, name: 'MARIO', color: '#ff4444', icon: '🍄' },
+            { id: 2, name: 'LUIGI', color: '#44ff44', icon: '⭐' },
+            { id: 3, name: 'PEACH', color: '#ff69b4', icon: '👑' },
+            { id: 4, name: 'TOAD', color: '#4169e1', icon: '🎯' }
+        ];
 
-            init() {
-                this.render();
-                this.bindEvents();
-            }
+        let editingPlayer = null;
+        let currentPickerPlayer = null;
 
-            bindEvents() {
-                document.getElementById('startBtn').addEventListener('click', () => {
-                    this.startGame();
-                });
-            }
+        const predefinedColors = [
+            '#ff4444', '#44ff44', '#4444ff', '#ffff44',
+            '#ff44ff', '#44ffff', '#ff8844', '#8844ff',
+            '#ff4488', '#88ff44', '#4488ff', '#ffaa44',
+            '#ff6b6b', '#4ecdc4', '#45b7d1', '#f39c12',
+            '#e74c3c', '#2ecc71', '#9b59b6', '#34495e'
+        ];
 
-            render() {
-                const grid = document.getElementById('playersGrid');
-                grid.innerHTML = '';
+        const availableIcons = [
+            '🍄', '⭐', '👑', '🎯', '🔥', '⚡', '💎', '🎮', 
+            '🚀', '🎪', '🎨', '🎭', '🦄', '🐉', '👾', '🎲',
+            '🏆', '⚔️', '🛡️', '🎸', '🎺', '🎪', '🎨', '🎭'
+        ];
 
-                // Render existing players
-                this.players.forEach(player => {
-                    grid.appendChild(this.createPlayerCard(player));
-                });
+        // Utility functions
+        function updatePlayerCount() {
+            const playerCount = document.getElementById('player-count');
+            playerCount.textContent = `${players.length} Player${players.length > 1 ? 's' : ''}`;
+        }
 
-                // Render add button if under max players
-                if (this.players.length < this.maxPlayers) {
-                    grid.appendChild(this.createAddButton());
-                }
-            }
+        function addPlayer() {
+            const newId = Math.max(...players.map(p => p.id)) + 1;
+            const randomColor = predefinedColors[Math.floor(Math.random() * predefinedColors.length)];
+            const randomIcon = availableIcons[Math.floor(Math.random() * availableIcons.length)];
+            
+            const newPlayer = {
+                id: newId,
+                name: `PLAYER ${newId}`,
+                color: randomColor,
+                icon: randomIcon
+            };
+            
+            players.push(newPlayer);
+            renderPlayers();
+            updatePlayerCount();
+        }
 
-            createPlayerCard(player) {
-                const card = document.createElement('div');
-                card.className = 'player-card';
-                card.innerHTML = `
-                    <div class="player-icon" style="background: ${player.color}">
-                        ${player.icon}
-                    </div>
-                    <input type="text" class="name-input" value="${player.name}" 
-                           placeholder="Enter player name" 
-                           onchange="playerMenu.updatePlayerName(${player.id}, this.value)">
-                    <div class="color-picker-container">
-                        <div class="color-picker">
-                            <input type="color" value="${player.color}" 
-                                   onchange="playerMenu.updatePlayerColor(${player.id}, this.value)">
-                        </div>
-                        <input type="text" value="${player.icon}" 
-                               style="width: 60px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; padding: 5px; color: white; text-align: center;"
-                               placeholder="Icon" 
-                               onchange="playerMenu.updatePlayerIcon(${player.id}, this.value)">
-                    </div>
-                    ${this.players.length > 1 ? `
-                        <button class="remove-btn" onclick="playerMenu.removePlayer(${player.id})">
-                            Remove Player
-                        </button>
-                    ` : ''}
-                `;
-                return card;
-            }
-
-            createAddButton() {
-                const button = document.createElement('div');
-                button.className = 'add-player-btn';
-                button.innerHTML = `
-                    <div style="text-align: center;">
-                        <div style="font-size: 3rem; margin-bottom: 10px;">➕</div>
-                        <div>Add Player</div>
-                    </div>
-                `;
-                button.addEventListener('click', () => this.addPlayer());
-                return button;
-            }
-
-            addPlayer() {
-                if (this.players.length < this.maxPlayers) {
-                    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#ff6348'];
-                    const icons = ['🎮', '🕹️', '🎯', '⭐', '🚀', '🎲', '👾', '🔥'];
-
-                    const newPlayer = {
-                        id: this.nextId++,
-                        name: `Player ${this.players.length + 1}`,
-                        color: colors[this.players.length % colors.length],
-                        icon: icons[this.players.length % icons.length]
-                    };
-
-                    this.players.push(newPlayer);
-                    this.render();
-                }
-            }
-
-            removePlayer(id) {
-                if (this.players.length > 1) {
-                    this.players = this.players.filter(player => player.id !== id);
-                    this.render();
-                }
-            }
-
-            updatePlayerName(id, name) {
-                const player = this.players.find(p => p.id === id);
-                if (player) {
-                    player.name = name || `Player ${id}`;
-                }
-            }
-
-            updatePlayerColor(id, color) {
-                const player = this.players.find(p => p.id === id);
-                if (player) {
-                    player.color = color;
-                    this.render();
-                }
-            }
-
-            updatePlayerIcon(id, icon) {
-                const player = this.players.find(p => p.id === id);
-                if (player) {
-                    player.icon = icon || '🎮';
-                    this.render();
-                }
-            }
-
-            startGame() {
-                const playerNames = this.players.map(p => p.name).join(', ');
-                alert(`Starting game with players: ${playerNames}`);
-                // Here you would typically navigate to the game or emit an event
+        function removePlayer(id) {
+            if (players.length > 1) {
+                players = players.filter(p => p.id !== id);
+                renderPlayers();
+                updatePlayerCount();
             }
         }
 
-        // Initialize the player select menu
-        const playerMenu = new PlayerSelectMenu();
+        function updatePlayer(id, field, value) {
+            const player = players.find(p => p.id === id);
+            if (player) {
+                player[field] = value;
+                renderPlayers();
+            }
+        }
+
+        function createPlayerCard(player, index) {
+            const isEditing = editingPlayer === player.id;
+            
+            return `
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+                    <div class="card player-card rounded-4 border-0 h-100 position-relative" 
+                         style="border-color: ${player.color}40 !important;">
+                        
+                        <!-- Player Number -->
+                        <div class="player-number" style="background-color: ${player.color}60; border-color: ${player.color}80;">
+                            ${index + 1}
+                        </div>
+                        
+                        <!-- Remove Button -->
+                        ${players.length > 1 ? `
+                            <button class="remove-btn" onclick="removePlayer(${player.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                        
+                        <div class="card-body text-center p-4">
+                            <!-- Player Icon -->
+                            <div class="player-icon" 
+                                 style="box-shadow: 0 0 20px ${player.color}40, inset 0 0 20px ${player.color}20;"
+                                 onclick="openIconPicker(${player.id})">
+                                ${player.icon}
+                            </div>
+                            
+                            <!-- Player Name -->
+                            ${isEditing ? `
+                                <input type="text" 
+                                       class="name-input" 
+                                       value="${player.name}"
+                                       style="--player-color: ${player.color};"
+                                       onblur="finishEditing()"
+                                       onkeypress="handleNameKeypress(event, ${player.id})"
+                                       oninput="updatePlayerName(${player.id}, this.value)"
+                                       id="name-input-${player.id}">
+                            ` : `
+                                <h5 class="player-name" 
+                                    style="color: ${player.color}; text-shadow: 0 0 10px ${player.color}80;"
+                                    onclick="startEditing(${player.id})">
+                                    ${player.name}
+                                </h5>
+                            `}
+                            
+                            <!-- Color Circle -->
+                            <div class="color-circle" 
+                                 style="background-color: ${player.color};"
+                                 onclick="openColorPicker(${player.id})">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createAddPlayerCard() {
+            return `
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+                    <div class="card add-player-card rounded-4 border-0 h-100 d-flex align-items-center justify-content-center" 
+                         onclick="addPlayer()">
+                        <div class="text-center text-white">
+                            <div class="player-icon mb-3">
+                                <i class="fas fa-plus fa-2x text-white-50"></i>
+                            </div>
+                            <h5 class="text-white-50 fw-bold">ADD PLAYER</h5>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPlayers() {
+            const grid = document.getElementById('players-grid');
+            const playerCards = players.map((player, index) => createPlayerCard(player, index)).join('');
+            const addPlayerCard = createAddPlayerCard();
+            
+            grid.innerHTML = playerCards + addPlayerCard;
+        }
+
+        // Player editing functions
+        function startEditing(playerId) {
+            editingPlayer = playerId;
+            renderPlayers();
+            
+            setTimeout(() => {
+                const input = document.getElementById(`name-input-${playerId}`);
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 10);
+        }
+
+        function finishEditing() {
+            editingPlayer = null;
+            renderPlayers();
+        }
+
+        function updatePlayerName(playerId, value) {
+            updatePlayer(playerId, 'name', value.toUpperCase());
+        }
+
+        function handleNameKeypress(event, playerId) {
+            if (event.key === 'Enter') {
+                finishEditing();
+            }
+        }
+
+        // Color picker functions
+        function openColorPicker(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            currentPickerPlayer = playerId;
+            
+            // Update modal content
+            const playerDisplay = document.getElementById('color-picker-player');
+            playerDisplay.textContent = `${player.icon} ${player.name}`;
+            playerDisplay.style.setProperty('--current-player-color', player.color);
+            
+            // Render color options
+            const colorGrid = document.getElementById('color-grid');
+            colorGrid.innerHTML = predefinedColors.map(color => `
+                <div class="color-option ${player.color === color ? 'selected' : ''}" 
+                     style="background-color: ${color};"
+                     onclick="selectColor('${color}')">
+                </div>
+            `).join('');
+            
+            // Show modal
+            document.getElementById('color-picker-modal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function selectColor(color) {
+            if (currentPickerPlayer) {
+                updatePlayer(currentPickerPlayer, 'color', color);
+                closeColorPicker();
+            }
+        }
+
+        function closeColorPicker() {
+            document.getElementById('color-picker-modal').classList.remove('show');
+            document.body.style.overflow = '';
+            currentPickerPlayer = null;
+        }
+
+        // Icon picker functions
+        function openIconPicker(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            currentPickerPlayer = playerId;
+            
+            // Update modal content
+            const playerDisplay = document.getElementById('icon-picker-player');
+            playerDisplay.textContent = `${player.icon} ${player.name}`;
+            playerDisplay.style.setProperty('--current-player-color', player.color);
+            
+            // Render icon options
+            const iconGrid = document.getElementById('icon-grid');
+            iconGrid.innerHTML = availableIcons.map(icon => `
+                <div class="icon-option ${player.icon === icon ? 'selected' : ''}" 
+                     onclick="selectIcon('${icon}')">
+                    ${icon}
+                </div>
+            `).join('');
+            
+            // Show modal
+            document.getElementById('icon-picker-modal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function selectIcon(icon) {
+            if (currentPickerPlayer) {
+                updatePlayer(currentPickerPlayer, 'icon', icon);
+                closeIconPicker();
+            }
+        }
+
+        function closeIconPicker() {
+            document.getElementById('icon-picker-modal').classList.remove('show');
+            document.body.style.overflow = '';
+            currentPickerPlayer = null;
+        }
+
+        // Close modals on escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeColorPicker();
+                closeIconPicker();
+            }
+        });
+
+        // Close modals when clicking outside
+        document.getElementById('color-picker-modal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeColorPicker();
+            }
+        });
+
+        document.getElementById('icon-picker-modal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeIconPicker();
+            }
+        });
+
+        // Start game handler
+        document.getElementById('start-game-btn').addEventListener('click', function() {
+            alert('Starting game with ' + players.length + ' players!\n\nPlayers:\n' + 
+                  players.map(p => `${p.name} (${p.icon})`).join('\n'));
+        });
+
+        // Initial render
+        renderPlayers();
+        updatePlayerCount();
     </script>
 </body>
-
 </html>

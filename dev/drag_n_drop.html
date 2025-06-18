@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Cards</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="drag_n_drop.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-4">Drag & Drop Card System</h2>
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <h5>Team A</h5>
+                        <div class="card-container" id="container1">
+                            <div class="card draggable-card" draggable="true" data-id="1">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-grip-vertical drag-handle"></i>
+                                        <div>
+                                            <h6 class="card-title mb-1">John Smith</h6>
+                                            <small class="text-muted">Forward</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card draggable-card" draggable="true" data-id="2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-grip-vertical drag-handle"></i>
+                                        <div>
+                                            <h6 class="card-title mb-1">Sarah Johnson</h6>
+                                            <small class="text-muted">Midfielder</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card draggable-card" draggable="true" data-id="3">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-grip-vertical drag-handle"></i>
+                                        <div>
+                                            <h6 class="card-title mb-1">Mike Davis</h6>
+                                            <small class="text-muted">Defender</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-4">
+                        <h5>Team B</h5>
+                        <div class="card-container" id="container2">
+                            <div class="card draggable-card" draggable="true" data-id="4">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-grip-vertical drag-handle"></i>
+                                        <div>
+                                            <h6 class="card-title mb-1">Emma Wilson</h6>
+                                            <small class="text-muted">Goalkeeper</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card draggable-card" draggable="true" data-id="5">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-grip-vertical drag-handle"></i>
+                                        <div>
+                                            <h6 class="card-title mb-1">Alex Brown</h6>
+                                            <small class="text-muted">Forward</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button class="btn btn-primary me-2" onclick="addNewCard()">
+                        <i class="fas fa-plus"></i> Add Player
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="resetCards()">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Zone -->
+    <div class="delete-zone" id="deleteZone">
+        <i class="fas fa-trash-alt me-2"></i>
+        Drop here to delete
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="drag_n_drop.js"></script>
+</body>
+</html>

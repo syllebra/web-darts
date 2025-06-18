@@ -1,0 +1,126 @@
+.card-container {
+    min-height: 400px;
+    padding: 15px;
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+}
+
+.draggable-card {
+    cursor: grab;
+    transition: all 0.3s ease;
+    margin-bottom: 15px;
+    touch-action: none;
+}
+
+.draggable-card:active {
+    cursor: grabbing;
+}
+
+.draggable-card.dragging {
+    opacity: 0.5;
+    transform: scale(1.05);
+    z-index: 1000;
+    position: relative;
+}
+
+.card-container.drag-over {
+    border-color: #0d6efd;
+}
+
+.drop-zone {
+    height: 60px;
+    border: 2px dashed #6c757d;
+    border-radius: 8px;
+    background-color: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0;
+    opacity: 0;
+    transform: scaleY(0);
+    transition: all 0.3s ease;
+}
+
+.drop-zone.active {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+.drop-zone.drag-over {
+    border-color: #198754;
+    background-color: #d1e7dd;
+}
+
+.delete-zone {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(45deg, #dc3545, #c82333);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-weight: bold;
+    box-shadow: 0 4px 20px rgba(220, 53, 69, 0.4);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 1001;
+    min-width: 200px;
+    text-align: center;
+}
+
+.delete-zone.active {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.delete-zone.drag-over {
+    background: linear-gradient(45deg, #bb2d3b, #a02834);
+    transform: translateX(-50%) translateY(0) scale(1.1);
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #6c757d;
+    margin-right: 10px;
+}
+
+.drag-handle:hover {
+    color: #495057;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .card-container {
+        padding: 10px;
+    }
+    
+    .draggable-card {
+        margin-bottom: 10px;
+    }
+    
+    .delete-zone {
+        bottom: 10px;
+        padding: 12px 20px;
+        min-width: 150px;
+        font-size: 14px;
+    }
+}
+
+/* Touch feedback */
+.draggable-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-placeholder {
+    height: 4px;
+    background-color: #0d6efd;
+    border-radius: 2px;
+    margin: 5px 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.card-placeholder.active {
+    opacity: 1;
+}

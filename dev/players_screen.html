@@ -646,17 +646,29 @@
         }
 
         function finishEditing() {
-            editingPlayer = null;
-            renderPlayers();
+            // Only finish editing if Enter was pressed or input lost focus intentionally
+            if (editingPlayer) {
+                editingPlayer = null;
+                renderPlayers();
+            }
         }
 
         function updatePlayerName(playerId, value) {
-            updatePlayer(playerId, 'name', value.toUpperCase());
+            const player = players.find(p => p.id === playerId);
+            if (player) {
+                player.name = value.toUpperCase();
+                // Update just the input value without full re-render
+                const input = document.getElementById(`name-input-${playerId}`);
+                if (input) {
+                    input.value = player.name;
+                }
+            }
         }
 
         function handleNameKeypress(event, playerId) {
             if (event.key === 'Enter') {
                 finishEditing();
+                event.preventDefault();  // Only prevent default for Enter key
             }
         }
 

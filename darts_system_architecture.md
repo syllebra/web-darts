@@ -13,9 +13,9 @@ DartsApp/
 │   └── PlatformAdapter.js     # Mobile/Desktop adaptations
 ├── games/
 │   ├── GameBase.js           # Base class for all games
-│   ├── 501/
-│   │   ├── Game501.js        # Game logic
-│   │   └── Game501View.js    # Game visualization
+│   ├── X01/
+│   │   ├── GameX01.js        # Game logic
+│   │   └── GameX01View.js    # Game visualization
 │   ├── cricket/
 │   │   ├── GameCricket.js
 │   │   └── GameCricketView.js

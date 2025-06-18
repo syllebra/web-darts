@@ -22,7 +22,7 @@ class DartsApp {
 
     this.setupEventListeners();
     this.setupPanelControls();
-    this.startGame("501");
+    this.startGame("X01");
     this.updateUI();
   }
 

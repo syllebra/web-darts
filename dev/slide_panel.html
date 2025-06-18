@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Slice Panel System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Main application container */
+        .app-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Panel system */
+        .panel-system {
+            position: fixed;
+            top: 0;
+            height: 100vh;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .panel-system.left {
+            left: 0;
+        }
+
+        .panel-system.right {
+            right: 0;
+        }
+
+        .slice-panel {
+            position: absolute;
+            top: 0;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.2);
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            pointer-events: auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Left panel positioning */
+        .panel-system.left .slice-panel {
+            left: 0;
+            border-left: none;
+            box-shadow: 10px 0 40px rgba(0, 0, 0, 0.2);
+            transform: translateX(-100%);
+        }
+
+        /* Right panel positioning */
+        .panel-system.right .slice-panel {
+            right: 0;
+            border-right: none;
+            box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+            transform: translateX(100%);
+        }
+
+        .slice-panel.open {
+            transform: translateX(0) !important;
+        }
+
+        .slice-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .slice-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .slice-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        /* Panel sizes */
+        .panel-small {
+            width: 280px;
+        }
+
+        .panel-medium {
+            width: 400px;
+        }
+
+        .panel-large {
+            width: 520px;
+        }
+
+        .panel-xlarge {
+            width: 640px;
+        }
+
+        /* Responsive panel sizes */
+        @media (max-width: 768px) {
+
+            .panel-small,
+            .panel-medium,
+            .panel-large,
+            .panel-xlarge {
+                width: 90vw;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .panel-large {
+                width: 60vw;
+            }
+
+            .panel-xlarge {
+                width: 70vw;
+            }
+        }
+
+        /* Panel header */
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        /* Panel content */
+        .panel-content {
+            padding: 20px;
+            color: white;
+        }
+
+        /* Panel sections */
+        .panel-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Form controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .control-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .control-select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .control-select option {
+            background: #2a2a2a;
+            color: white;
+        }
+
+        .control-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .control-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: rgba(255, 255, 255, 0.7);
+        }
+
+        .control-button {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .control-button.primary {
+            background: rgba(67, 56, 202, 0.6);
+            border-color: rgba(67, 56, 202, 0.8);
+        }
+
+        .control-button.primary:hover {
+            background: rgba(67, 56, 202, 0.8);
+        }
+
+        /* Toggle buttons */
+        .toggle-group {
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 999;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .toggle-group.left {
+            left: 0;
+            transform: translateY(-50%) translateX(-90%);
+        }
+
+        .toggle-group.right {
+            right: 0;
+            transform: translateY(-50%) translateX(90%);
+        }
+
+        .toggle-group.visible {
+            transform: translateY(-50%) translateX(0);
+        }
+
+        .panel-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px 8px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            border-radius: 8px;
+            pointer-events: auto;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        .panel-toggle.left {
+            left: 0;
+            transform: translateY(-50%) translateX(-80%);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .panel-toggle.right {
+            right: 0;
+            transform: translateY(-50%) translateX(80%);
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .panel-toggle.left.active {
+            transform: translateY(-50%) translateX(-10%);
+        }
+
+        .panel-toggle.right.active {
+            transform: translateY(-50%) translateX(10%);
+        }
+
+        .panel-toggle.visible {
+            transform: translateY(-50%) translateX(0);
+        }
+
+        .panel-toggle.left:hover {
+            transform: translateY(-50%) translateX(2px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-toggle.right:hover {
+            transform: translateY(-50%) translateX(-2px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Demo content styles */
+        .demo-content {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .demo-content h1 {
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+        }
+
+        .demo-content p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            line-height: 1.6;
+        }
+
+        .demo-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .demo-button {
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .demo-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Panel stack management */
+        .panel-stack {
+            position: relative;
+        }
+
+        .panel-stack .slice-panel {
+            z-index: 1000;
+        }
+
+        .panel-stack .slice-panel.stacked {
+            z-index: 999;
+            transform: translateX(20px) scale(0.95);
+            opacity: 0.7;
+        }
+
+        .panel-stack.left .slice-panel.stacked {
+            transform: translateX(-20px) scale(0.95);
+        }
+
+        /* Notification system */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px 25px;
+            color: white;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(10px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="demo-content">
+            <h1>Enhanced Multi-Panel System</h1>
+            <p>Experience a powerful panel management system with multiple panels, left/right positioning, stacking, and
+                full configurability. Use the buttons below or toggle buttons on the sides.</p>
+
+            <div class="demo-buttons">
+                <button class="demo-button" onclick="openPanel('settings', 'right')">Settings Panel</button>
+                <button class="demo-button" onclick="openPanel('navigation', 'left')">Navigation Panel</button>
+                <button class="demo-button" onclick="openPanel('tools', 'right')">Tools Panel</button>
+        <button class="demo-button" onclick="openPanel('info', 'left')">Info Panel (Left)</button>
+                <button class="demo-button" onclick="closeAllPanels()">Close All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Panel Systems -->
+    <div class="panel-system left" id="leftPanelSystem">
+        <div class="toggle-group left visible">
+            <button class="panel-toggle left" onclick="openPanel('navigation', 'left')">NAV</button>
+            <button class="panel-toggle left" onclick="openPanel('info', 'left')">INFO</button>
+        </div>
+        <div id="panel-navigation" class="slice-panel panel-small" data-panel-id="navigation">
+            <div class="panel-content">
+                <div class="panel-section">
+                    <h3 class="section-title">Quick Links</h3>
+                    <button class="control-button">Dashboard</button>
+                    <button class="control-button">Projects</button>
+                    <button class="control-button">Settings</button>
+                    <button class="control-button">Help</button>
+                    <button class="control-button">Profile</button>
+                    <button class="control-button">Messages</button>
+                    <button class="control-button">Notifications</button>
+                    <button class="control-button">Calendar</button>
+                </div>
+                <div class="panel-section">
+                    <h3 class="section-title">Recent Items</h3>
+                    <div class="control-group">
+                        <label class="control-label">Project A</label>
+                        <input type="text" class="control-input" placeholder="Last modified 2 hours ago">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Project B</label>
+                        <input type="text" class="control-input" placeholder="Last modified 1 day ago">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Project C</label>
+                        <input type="text" class="control-input" placeholder="Last modified 3 days ago">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Project D</label>
+                        <input type="text" class="control-input" placeholder="Last modified 1 week ago">
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <h3 class="section-title">More Options</h3>
+                    <button class="control-button">Export Data</button>
+                    <button class="control-button">Import Data</button>
+                    <button class="control-button">Settings</button>
+                    <button class="control-button">Help Center</button>
+                    <button class="control-button">Documentation</button>
+                    <button class="control-button">Feedback</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-system right" id="rightPanelSystem">
+        <div class="toggle-group right visible">
+            <button class="panel-toggle right" onclick="openPanel('settings', 'right')">CONFIG</button>
+            <button class="panel-toggle right" onclick="openPanel('tools', 'right')">TOOLS</button>
+        </div>
+        <div id="panel-settings" class="slice-panel panel-medium" data-panel-id="settings">
+            <div class="panel-content">
+                <div class="panel-section">
+                    <h3 class="section-title">Display Settings</h3>
+                    <div class="control-group">
+                        <label class="control-label">Theme</label>
+                        <select class="control-select">
+                            <option>Dark Mode</option>
+                            <option>Light Mode</option>
+                            <option>Auto</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Font Size</label>
+                        <select class="control-select">
+                            <option>Small</option>
+                            <option selected>Medium</option>
+                            <option>Large</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-checkbox">
+                            <input type="checkbox" checked>
+                            <span>Enable animations</span>
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-checkbox">
+                            <input type="checkbox" checked>
+                            <span>Show notifications</span>
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-checkbox">
+                            <input type="checkbox">
+                            <span>Compact mode</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <h3 class="section-title">Panel Management</h3>
+                    <button class="control-button primary" onclick="openPanel('tools', 'right')">Open Tools</button>
+                    <button class="control-button" onclick="openPanel('info', 'left')">Open Info</button>
+                    <button class="control-button" onclick="closeAllPanels()">Close All</button>
+                    <div class="control-group" style="margin-top: 15px;">
+                        <label class="control-label">Panel Animation Speed</label>
+                        <select class="control-select">
+                            <option>Slow</option>
+                            <option selected>Normal</option>
+                            <option>Fast</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Default Panel Size</label>
+                        <select class="control-select">
+                            <option>Small</option>
+                            <option selected>Medium</option>
+                            <option>Large</option>
+                            <option>Extra Large</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <h3 class="section-title">Advanced</h3>
+                    <button class="control-button">Reset Settings</button>
+                    <button class="control-button">Export Config</button>
+                    <button class="control-button">Import Config</button>
+                    <div class="control-group" style="margin-top: 15px;">
+                        <label class="control-label">Debug Level</label>
+                        <select class="control-select">
+                            <option>None</option>
+                            <option selected>Basic</option>
+                            <option>Detailed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class EnhancedPanelManager {
+            constructor() {
+                this.panels = new Map();
+                this.openPanels = new Map();
+                this.panelConfigs = new Map();
+                this.zIndexCounter = 1000;
+
+                this.init();
+                this.setupDefaultPanels();
+            }
+
+            init() {
+                // Handle keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        this.closeTopPanel();
+                    }
+                });
+
+                // Setup swipe gestures
+                this.setupSwipeGestures();
+            }
+
+            // Create a new panel
+            createPanel(id, config = {}) {
+                const defaultConfig = {
+                    title: 'Panel',
+                    size: 'medium',
+                    side: 'right',
+                    closable: true,
+                    content: '',
+                    stackable: true
+                };
+
+                const panelConfig = { ...defaultConfig, ...config };
+                this.panelConfigs.set(id, panelConfig);
+
+                const panelSystem = document.getElementById(`${panelConfig.side}PanelSystem`);
+
+                // Check if panel already exists
+                if (this.panels.has(id)) {
+                    return this.panels.get(id);
+                }
+
+                const panel = document.createElement('div');
+                panel.className = `slice-panel panel-${panelConfig.size}`;
+                panel.id = `panel-${id}`;
+                panel.dataset.panelId = id;
+
+                panel.innerHTML = `
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            ${panelConfig.title}
+                            ${panelConfig.closable ? `<button class="close-btn" onclick="closePanel('${id}')">Close</button>` : ''}
+                        </h2>
+                    </div>
+                    <div class="panel-content">
+                        ${panelConfig.content}
+                    </div>
+                `;
+
+                panelSystem.appendChild(panel);
+                this.panels.set(id, panel);
+
+                return panel;
+            }
+
+            // Open a panel
+            openPanel(id, side = 'right') {
+                if (!this.panels.has(id)) {
+                    // Create panel if it doesn't exist
+                    const config = this.getDefaultPanelConfig(id);
+                    config.side = side;
+                    this.createPanel(id, config);
+                }
+
+                const panel = this.panels.get(id);
+                const config = this.panelConfigs.get(id);
+
+                if (!panel) {
+                    console.error(`Panel ${id} not found after creation attempt`);
+                    return;
+                }
+
+                // Handle stacking
+                if (config.stackable) {
+                    this.stackPanels(config.side);
+                }
+
+                // Set z-index
+                panel.style.zIndex = this.zIndexCounter++;
+
+                // Open the panel
+                panel.classList.add('open');
+                this.openPanels.set(id, panel);
+
+                // Hide toggle button for this side
+                this.hideToggleButton(config.side);
+
+                // Show notification
+                this.showNotification(`${config.title} opened`);
+
+                // Focus management
+                setTimeout(() => {
+                    panel.focus();
+                }, 100);
+            }
+
+            // Close a panel
+            closePanel(id) {
+                if (!this.openPanels.has(id)) return;
+
+                const panel = this.openPanels.get(id);
+                const config = this.panelConfigs.get(id);
+
+                panel.classList.remove('open');
+                this.openPanels.delete(id);
+
+                // Unstack panels
+                this.unstackPanels(config.side);
+
+                // Show toggle button if no panels are open on this side
+                if (!this.hasPanelsOpenOnSide(config.side)) {
+                    this.showToggleButton(config.side);
+                }
+
+                this.showNotification(`${config.title} closed`);
+            }
+
+            // Close the topmost panel
+            closeTopPanel() {
+                const openPanelsList = Array.from(this.openPanels.entries());
+                if (openPanelsList.length === 0) return;
+
+                // Find the panel with highest z-index
+                let topPanel = null;
+                let highestZIndex = -1;
+
+                openPanelsList.forEach(([id, panel]) => {
+                    const zIndex = parseInt(panel.style.zIndex || 1000);
+                    if (zIndex > highestZIndex) {
+                        highestZIndex = zIndex;
+                        topPanel = id;
+                    }
+                });
+
+                if (topPanel) {
+                    this.closePanel(topPanel);
+                }
+            }
+
+            // Close all panels
+            closeAllPanels() {
+                const panelIds = Array.from(this.openPanels.keys());
+                panelIds.forEach(id => this.closePanel(id));
+            }
+
+            // Stack panels
+            stackPanels(side) {
+                const sidePanels = Array.from(this.openPanels.entries())
+                    .filter(([id, panel]) => this.panelConfigs.get(id).side === side)
+                    .map(([id, panel]) => panel);
+
+                sidePanels.forEach((panel, index) => {
+                    if (index < sidePanels.length - 1) {
+                        panel.classList.add('stacked');
+                    } else {
+                        panel.classList.remove('stacked');
+                    }
+                });
+            }
+
+            // Unstack panels
+            unstackPanels(side) {
+                setTimeout(() => {
+                    const sidePanels = Array.from(this.openPanels.entries())
+                        .filter(([id, panel]) => this.panelConfigs.get(id).side === side)
+                        .map(([id, panel]) => panel);
+
+                    sidePanels.forEach(panel => {
+                        panel.classList.remove('stacked');
+                    });
+                }, 200);
+            }
+
+            // Check if any panels are open on a side
+            hasPanelsOpenOnSide(side) {
+                return Array.from(this.openPanels.entries())
+                    .some(([id, panel]) => this.panelConfigs.get(id).side === side);
+            }
+
+            // Toggle button management
+            hideToggleButton(side) {
+                const toggleButton = document.querySelector(`.panel-toggle.${side}`);
+                if (toggleButton) {
+                    toggleButton.classList.remove('visible');
+                }
+            }
+
+            showToggleButton(side) {
+                setTimeout(() => {
+                    const toggleButton = document.querySelector(`.panel-toggle.${side}`);
+                    if (toggleButton) {
+                        toggleButton.classList.add('visible');
+                    }
+                }, 200);
+            }
+
+            // Notification system
+            showNotification(message) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.classList.add('show');
+
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 2000);
+            }
+
+            // Setup swipe gestures
+            setupSwipeGestures() {
+                let startX = 0;
+                let startY = 0;
+
+                document.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (!startX || !startY) return;
+
+                    const deltaX = e.touches[0].clientX - startX;
+                    const deltaY = e.touches[0].clientY - startY;
+
+                    // Only handle horizontal swipes
+                    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+                        const target = e.target.closest('.slice-panel');
+                        if (target) {
+                            const panelId = target.dataset.panelId;
+                            const config = this.panelConfigs.get(panelId);
+
+                            // Close based on swipe direction and panel side
+                            if ((config.side === 'right' && deltaX > 0) ||
+                                (config.side === 'left' && deltaX < 0)) {
+                                this.closePanel(panelId);
+                            }
+                        }
+                    }
+                });
+
+                document.addEventListener('touchend', () => {
+                    startX = 0;
+                    startY = 0;
+                });
+            }
+
+            // Get default panel configurations
+            getDefaultPanelConfig(id) {
+                const configs = {
+                    settings: {
+                        title: 'Settings',
+                        size: 'medium',
+                        content: `
+                            <div class="panel-section">
+                                <h3 class="section-title">Display Settings</h3>
+                                <div class="control-group">
+                                    <label class="control-label">Theme</label>
+                                    <select class="control-select">
+                                        <option>Dark Mode</option>
+                                        <option>Light Mode</option>
+                                        <option>Auto</option>
+                                    </select>
+                                </div>
+                                <div class="control-group">
+                                    <label class="control-checkbox">
+                                        <input type="checkbox" checked>
+                                        <span>Enable animations</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="panel-section">
+                                <h3 class="section-title">Panel Management</h3>
+                                <button class="control-button primary" onclick="openPanel('tools', 'right')">Open Tools</button>
+                                <button class="control-button" onclick="closeAllPanels()">Close All</button>
+                            </div>
+                        `
+                    },
+                    navigation: {
+                        title: 'Navigation',
+                        size: 'small',
+                        content: `
+                            <div class="panel-section">
+                                <h3 class="section-title">Quick Links</h3>
+                                <button class="control-button">Dashboard</button>
+                                <button class="control-button">Projects</button>
+                                <button class="control-button">Settings</button>
+                                <button class="control-button">Help</button>
+                            </div>
+                            <div class="panel-section">
+                                <h3 class="section-title">Recent Items</h3>
+                                <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">No recent items</p>
+                            </div>
+                        `
+                    },
+                    tools: {
+                        title: 'Tools',
+                        size: 'large',
+                        content: `
+                            <div class="panel-section">
+                                <h3 class="section-title">Development Tools</h3>
+                                <button class="control-button">Inspector</button>
+                                <button class="control-button">Console</button>
+                                <button class="control-button">Network</button>
+                                <button class="control-button">Performance</button>
+                            </div>
+                            <div class="panel-section">
+                                <h3 class="section-title">Utilities</h3>
+                                <div class="control-group">
+                                    <label class="control-label">Color Picker</label>
+                                    <input type="color" class="control-input" value="#667eea">
+                                </div>
+                                <div class="control-group">
+                                    <label class="control-label">JSON Formatter</label>
+                                    <textarea class="control-input" rows="4" placeholder="Paste JSON here..."></textarea>
+                                </div>
+                            </div>
+                        `
+                    },
+                    info: {
+                        title: 'Information',
+                        size: 'medium',
+                        content: `
+                            <div class="panel-section">
+                                <h3 class="section-title">System Info</h3>
+                                <p style="color: rgba(255,255,255,0.8); line-height: 1.6;">
+                                    <strong>Version:</strong> 2.0.0<br>
+                                    <strong>Build:</strong> 2024.06.17<br>
+                                    <strong>Panels Open:</strong> <span id="panelCount">0</span>
+                                </p>
+                            </div>
+                            <div class="panel-section">
+                                <h3 class="section-title">Features</h3>
+                                <ul style="color: rgba(255,255,255,0.8); line-height: 1.8; list-style: none;">
+                                    <li>✓ Multi-panel support</li>
+                                    <li>✓ Left/right positioning</li>
+                                    <li>✓ Panel stacking</li>
+                                    <li>✓ Swipe gestures</li>
+                                    <li>✓ Keyboard shortcuts</li>
+                                    <li>✓ Responsive design</li>
+                                </ul>
+                            </div>
+                        `
+                    }
+                };
+
+                return configs[id] || { title: id.charAt(0).toUpperCase() + id.slice(1), content: `<p>Panel: ${id}</p>` };
+            }
+
+            // Setup default panels
+            setupDefaultPanels() {
+                // Update panel count in info panel periodically
+                setInterval(() => {
+                    const countElement = document.getElementById('panelCount');
+                    if (countElement) {
+                        countElement.textContent = this.openPanels.size;
+                    }
+                }, 1000);
+
+                // Create all panels upfront
+                this.createPanel('navigation', {
+                    title: 'Navigation',
+                    size: 'small',
+                    side: 'left',
+                    content: document.getElementById('panel-navigation').innerHTML
+                });
+                this.createPanel('settings', {
+                    title: 'Settings',
+                    size: 'medium',
+                    side: 'right',
+                    content: document.getElementById('panel-settings').innerHTML
+                });
+                this.createPanel('tools', this.getDefaultPanelConfig('tools'));
+            this.createPanel('info', {
+                ...this.getDefaultPanelConfig('info'),
+                side: 'left'
+            });
+            }
+        }
+
+        // Initialize the enhanced panel manager
+        let panelManager;
+
+        // Global helper functions
+        function openPanel(id, side) {
+            if (panelManager) {
+                panelManager.openPanel(id, side);
+            }
+        }
+
+        function closePanel(id) {
+            if (panelManager) {
+                panelManager.closePanel(id);
+            }
+        }
+
+        function closeAllPanels() {
+            if (panelManager) {
+                panelManager.closeAllPanels();
+            }
+        }
+
+        // Initialize panel manager
+        document.addEventListener('DOMContentLoaded', () => {
+            panelManager = new EnhancedPanelManager();
+            window.panelManager = panelManager;
+
+            // Toggle button visibility on interaction
+            let interactionTimeout;
+            const handleInteraction = () => {
+                document.querySelectorAll('.panel-toggle').forEach(toggle => {
+                    toggle.classList.add('active');
+                });
+                clearTimeout(interactionTimeout);
+                interactionTimeout = setTimeout(() => {
+                    document.querySelectorAll('.panel-toggle').forEach(toggle => {
+                        toggle.classList.remove('active');
+                    });
+                }, 2000);
+            };
+
+            // Track mouse movement and touch
+            document.addEventListener('mousemove', handleInteraction);
+            document.addEventListener('touchstart', handleInteraction);
+            document.addEventListener('touchmove', handleInteraction);
+
+            // Demo button interactivity
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('control-button') && !e.target.onclick) {
+                    const originalText = e.target.textContent;
+                    e.target.textContent = 'Processing...';
+                    e.target.disabled = true;
+
+                    setTimeout(() => {
+                        e.target.textContent = originalText;
+                        e.target.disabled = false;
+                    }, 1000);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

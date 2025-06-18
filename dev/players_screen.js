@@ -351,3 +351,21 @@ document.addEventListener("DOMContentLoaded", function () {
   renderPlayers();
   updatePlayerCount();
 });
+
+function handleDrop(card, container) {
+  const playerId = parseInt(card.getAttribute("data-id"));
+  const newIndex = Array.from(container.children).indexOf(card);
+
+  if (newIndex >= 0 && newIndex < players.length) {
+    const playerIndex = players.findIndex((p) => p.id === playerId);
+    if (playerIndex !== -1) {
+      // Remove player from old position
+      const [player] = players.splice(playerIndex, 1);
+      // Insert at new position
+      players.splice(newIndex, 0, player);
+      renderPlayers();
+    }
+  }
+}
+
+dragDropSystem.callbacks.onDrop = handleDrop;

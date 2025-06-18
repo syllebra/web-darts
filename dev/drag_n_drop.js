@@ -5,7 +5,12 @@ class DragDropSystem {
     this.touchStartY = 0;
     this.touchStartX = 0;
     this.isDragging = false;
+    this.callbacks = {};
     this.init();
+  }
+
+  registerCallback(eventName, callback) {
+    this.callbacks[eventName] = callback;
   }
 
   init() {
@@ -43,6 +48,10 @@ class DragDropSystem {
 
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/html", e.target.outerHTML);
+
+    if (this.callbacks.onDragStart) {
+      this.callbacks.onDragStart(this.draggedElement);
+    }
   }
 
   handleDragOver(e) {
@@ -116,14 +125,23 @@ class DragDropSystem {
 
     if (deleteZone && this.draggedElement) {
       this.deleteCard(this.draggedElement);
+      if (this.callbacks.onDelete) {
+        this.callbacks.onDelete(this.draggedElement);
+      }
     } else if (container && this.draggedElement) {
       this.moveCard(container);
+      if (this.callbacks.onDrop) {
+        this.callbacks.onDrop(this.draggedElement, container);
+      }
     }
 
     this.cleanup();
   }
 
   handleDragEnd(e) {
+    if (this.callbacks.onDragEnd) {
+      this.callbacks.onDragEnd(this.draggedElement);
+    }
     this.cleanup();
   }
 

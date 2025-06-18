@@ -352,20 +352,32 @@ document.addEventListener("DOMContentLoaded", function () {
   updatePlayerCount();
 });
 
-function handleDrop(card, container) {
-  const playerId = parseInt(card.getAttribute("data-id"));
-  const newIndex = Array.from(container.children).indexOf(card);
-
-  if (newIndex >= 0 && newIndex < players.length) {
-    const playerIndex = players.findIndex((p) => p.id === playerId);
-    if (playerIndex !== -1) {
-      // Remove player from old position
-      const [player] = players.splice(playerIndex, 1);
-      // Insert at new position
-      players.splice(newIndex, 0, player);
-      renderPlayers();
+function recomputePlayersIds(container) {
+  const playerCards = container.querySelectorAll(".player-card");
+  playerCards.forEach((card, index) => {
+    const playerId = parseInt(card.getAttribute("data-id"));
+    const player = players.find((p) => p.id === playerId);
+    if (player) {
+      player.id = index + 1; // Update ID to match position (1-based)
+      card.setAttribute("data-id", player.id); // Update DOM attribute
     }
-  }
+  });
+  players = players.slice().sort((a, b) => {
+    return a.id - b.id;
+  });
+  console.log(players);
+  renderPlayers(); // Ensure UI reflects new IDs
+}
+
+function handleDrop(card, container) {
+  recomputePlayersIds(container);
+}
+function handleDelete(card) {
+  const playerId = parseInt(card.getAttribute("data-id"));
+  var toDel = players.findIndex((p) => p.id === playerId);
+  players.splice(toDel, 1);
+  recomputePlayersIds(document.getElementById("players-grid"));
 }
 
 dragDropSystem.callbacks.onDrop = handleDrop;
+dragDropSystem.callbacks.onDelete = handleDelete;

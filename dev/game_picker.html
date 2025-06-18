@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darts Game Chooser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .title {
+            text-align: center;
+            margin-bottom: 40px;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        .title h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            color: white;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .title p {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 300;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+            margin-bottom: 40px;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(50px);
+            animation: slideInUp 0.6s ease-out forwards;
+        }
+
+        .game-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .game-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .game-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .game-card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .game-card:nth-child(5) {
+            animation-delay: 0.5s;
+        }
+
+        .game-card:nth-child(6) {
+            animation-delay: 0.6s;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .game-card:hover::before {
+            left: 100%;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .game-card:active {
+            transform: translateY(-5px) scale(0.98);
+        }
+
+        .game-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
+        }
+
+        .game-title {
+            font-size: 1.5rem;
+            color: white;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .game-description {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .game-details {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease-out;
+        }
+
+        .game-details.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .details-content {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.8) translateY(50px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .game-details.active .details-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .details-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
+        }
+
+        .details-title {
+            font-size: 2.5rem;
+            color: white;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .details-description {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 15px 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .option-btn.selected {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.2rem;
+            opacity: 0;
+            animation: fadeInLeft 0.6s ease-out 0.5s forwards;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .fade-out {
+            animation: fadeOut 0.4s ease-out forwards;
+        }
+
+        .slide-out {
+            animation: slideOut 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateX(-100px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .game-card {
+                padding: 25px 15px;
+            }
+
+            .details-content {
+                padding: 30px 20px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="back-btn" onclick="goBack()">←</div>
+
+        <div class="title">
+            <h1>DARTS ARENA</h1>
+            <p>Choose Your Game</p>
+        </div>
+
+        <div class="games-grid" id="gamesGrid">
+            <div class="game-card"
+                onclick="selectGame('501', '🎯', 'Classic countdown from 501 to exactly zero', ['301', '501', '701', '1001'])">
+                <div class="game-icon">🎯</div>
+                <div class="game-title">X01</div>
+                <div class="game-description">Classic countdown game - reach exactly zero</div>
+            </div>
+
+            <div class="game-card"
+                onclick="selectGame('Cricket', '🏏', 'Hit numbers 20, 19, 18, 17, 16, 15, and bullseye', ['Standard', 'Cut Throat', 'No Score'])">
+                <div class="game-icon">🏏</div>
+                <div class="game-title">Cricket</div>
+                <div class="game-description">Strategic battle for key numbers</div>
+            </div>
+
+            <div class="game-card"
+                onclick="selectGame('Round the Clock', '🕐', 'Hit numbers 1 through 20 in sequence', ['1-20', '20-1', '1-15'])">
+                <div class="game-icon">🕐</div>
+                <div class="game-title">Round the Clock</div>
+                <div class="game-description">Sequential number challenge</div>
+            </div>
+
+            <div class="game-card"
+                onclick="selectGame('Killer', '⚡', 'Eliminate opponents by hitting their numbers', ['3 Lives', '5 Lives', '7 Lives'])">
+                <div class="game-icon">⚡</div>
+                <div class="game-title">Killer</div>
+                <div class="game-description">Survival elimination game</div>
+            </div>
+
+            <div class="game-card"
+                onclick="selectGame('Around the World', '🌍', 'Hit every number on the board once', ['Singles', 'Doubles', 'Trebles'])">
+                <div class="game-icon">🌍</div>
+                <div class="game-title">Around the World</div>
+                <div class="game-description">Complete the full circle</div>
+            </div>
+
+            <div class="game-card"
+                onclick="selectGame('High Score', '🔥', 'Score the highest total in 3 darts', ['3 Darts', '6 Darts', '9 Darts'])">
+                <div class="game-icon">🔥</div>
+                <div class="game-title">High Score</div>
+                <div class="game-description">Maximum points challenge</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-details" id="gameDetails">
+        <div class="details-content">
+            <div class="details-icon" id="detailsIcon">🎯</div>
+            <div class="details-title" id="detailsTitle">501</div>
+            <div class="details-description" id="detailsDescription">Classic countdown from 501 to exactly zero</div>
+
+            <div class="options-grid" id="optionsGrid">
+                <!-- Options will be populated dynamically -->
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+                <button class="btn btn-secondary" onclick="closeDetails()">Back</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedGame = null;
+        let selectedOptions = {};
+
+        function selectGame(title, icon, description, options) {
+            selectedGame = { title, icon, description, options };
+
+            // Animate cards out
+            const cards = document.querySelectorAll('.game-card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.add('fade-out');
+                }, index * 50);
+            });
+
+            // Hide title
+            document.querySelector('.title').classList.add('slide-out');
+
+            // Show details after animation
+            setTimeout(() => {
+                showGameDetails();
+            }, 600);
+        }
+
+        function showGameDetails() {
+            document.getElementById('detailsIcon').textContent = selectedGame.icon;
+            document.getElementById('detailsTitle').textContent = selectedGame.title;
+            document.getElementById('detailsDescription').textContent = selectedGame.description;
+
+            // Populate options
+            const optionsGrid = document.getElementById('optionsGrid');
+            optionsGrid.innerHTML = '';
+            selectedGame.options.forEach((option, index) => {
+                const optionBtn = document.createElement('div');
+                optionBtn.className = 'option-btn';
+                if (index === 0) {
+                    optionBtn.classList.add('selected');
+                    selectedOptions[selectedGame.title] = option;
+                }
+                optionBtn.textContent = option;
+                optionBtn.onclick = () => selectOption(optionBtn, option);
+                optionsGrid.appendChild(optionBtn);
+            });
+
+            document.getElementById('gameDetails').classList.add('active');
+        }
+
+        function selectOption(btn, option) {
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedOptions[selectedGame.title] = option;
+        }
+
+        function startGame() {
+            // Add a subtle shake animation
+            const content = document.querySelector('.details-content');
+            content.style.animation = 'shake 0.5s ease-in-out';
+
+            setTimeout(() => {
+                alert(`Starting ${selectedGame.title} with ${selectedOptions[selectedGame.title]} option!`);
+                // Here you would typically transition to the actual game
+                closeDetails();
+            }, 500);
+        }
+
+        function closeDetails() {
+            document.getElementById('gameDetails').classList.remove('active');
+            setTimeout(() => {
+                resetView();
+            }, 400);
+        }
+
+        function goBack() {
+            if (document.getElementById('gameDetails').classList.contains('active')) {
+                closeDetails();
+            }
+        }
+
+        function resetView() {
+            // Reset all animations
+            const cards = document.querySelectorAll('.game-card');
+            cards.forEach(card => {
+                card.classList.remove('fade-out');
+                card.style.animation = 'none';
+                card.offsetHeight; // Trigger reflow
+                card.style.animation = null;
+            });
+
+            document.querySelector('.title').classList.remove('slide-out');
+
+            // Re-trigger entrance animations
+            setTimeout(() => {
+                cards.forEach((card, index) => {
+                    card.style.animation = `slideInUp 0.6s ease-out ${(index + 1) * 0.1}s forwards`;
+                });
+            }, 100);
+        }
+
+        // Add shake animation for start game
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                75% { transform: translateX(5px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Close details on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeDetails();
+            }
+        });
+    </script>
+</body>
+
+</html>

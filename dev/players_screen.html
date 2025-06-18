@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Select</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
+            animation: backgroundPulse 8s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes backgroundPulse {
+            0% {
+                opacity: 0.8;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .container {
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .title {
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, #00ff88, #00d4ff, #ff00d4);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+            animation: titleGlow 3s ease-in-out infinite alternate,
+                gradientShift 6s ease-in-out infinite;
+            letter-spacing: 3px;
+        }
+
+        @keyframes titleGlow {
+            0% {
+                text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+            }
+
+            100% {
+                text-shadow: 0 0 50px rgba(0, 255, 136, 0.8), 0 0 80px rgba(0, 212, 255, 0.5);
+            }
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 2rem;
+        }
+
+        .player-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .player-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .player-card:hover::before {
+            left: 100%;
+        }
+
+        .player-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .player-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            transition: all 0.3s ease;
+            animation: iconFloat 2s ease-in-out infinite alternate;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes iconFloat {
+            0% {
+                transform: translateY(0px);
+            }
+
+            100% {
+                transform: translateY(-3px);
+            }
+        }
+
+        .player-card:hover .player-icon {
+            transform: scale(1.1) translateY(-5px);
+            animation-play-state: paused;
+        }
+
+        .player-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .name-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            color: white;
+            font-size: 1rem;
+            width: 100%;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .name-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.02);
+        }
+
+        .name-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .color-picker {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .color-picker:hover {
+            transform: scale(1.1);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .color-picker input[type="color"] {
+            width: 120%;
+            height: 120%;
+            border: none;
+            cursor: pointer;
+            transform: translate(-10%, -10%);
+        }
+
+        .remove-btn {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.4);
+            color: white;
+            border-radius: 8px;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .remove-btn:hover {
+            background: rgba(255, 0, 0, 0.4);
+            transform: scale(1.05);
+        }
+
+        .add-player-btn {
+            background: rgba(0, 255, 136, 0.2);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            border-radius: 20px;
+            padding: 20px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .add-player-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .add-player-btn:hover::before {
+            left: 100%;
+        }
+
+        .add-player-btn:hover {
+            transform: translateY(-5px) scale(1.02);
+            border-color: rgba(0, 255, 136, 0.6);
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.3);
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border: none;
+            border-radius: 50px;
+            padding: 15px 40px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% {
+                box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+            }
+
+            100% {
+                box-shadow: 0 15px 40px rgba(255, 107, 107, 0.6), 0 0 20px rgba(254, 202, 87, 0.4);
+            }
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            animation-play-state: paused;
+        }
+
+        .start-btn:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        @media (max-width: 768px) {
+            .players-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .title {
+                margin-bottom: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .player-card {
+                padding: 15px;
+            }
+
+            .player-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="title">PLAYER SELECT</h1>
+
+        <div class="players-grid" id="playersGrid">
+            <!-- Players will be dynamically added here -->
+        </div>
+
+        <button class="start-btn" id="startBtn">Start Game</button>
+    </div>
+
+    <script>
+        class PlayerSelectMenu {
+            constructor() {
+                this.players = [
+                    { id: 1, name: 'Player 1', color: '#ff6b6b', icon: '🎮' }
+                ];
+                this.nextId = 2;
+                this.maxPlayers = 8;
+                this.init();
+            }
+
+            init() {
+                this.render();
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.startGame();
+                });
+            }
+
+            render() {
+                const grid = document.getElementById('playersGrid');
+                grid.innerHTML = '';
+
+                // Render existing players
+                this.players.forEach(player => {
+                    grid.appendChild(this.createPlayerCard(player));
+                });
+
+                // Render add button if under max players
+                if (this.players.length < this.maxPlayers) {
+                    grid.appendChild(this.createAddButton());
+                }
+            }
+
+            createPlayerCard(player) {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.innerHTML = `
+                    <div class="player-icon" style="background: ${player.color}">
+                        ${player.icon}
+                    </div>
+                    <input type="text" class="name-input" value="${player.name}" 
+                           placeholder="Enter player name" 
+                           onchange="playerMenu.updatePlayerName(${player.id}, this.value)">
+                    <div class="color-picker-container">
+                        <div class="color-picker">
+                            <input type="color" value="${player.color}" 
+                                   onchange="playerMenu.updatePlayerColor(${player.id}, this.value)">
+                        </div>
+                        <input type="text" value="${player.icon}" 
+                               style="width: 60px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; padding: 5px; color: white; text-align: center;"
+                               placeholder="Icon" 
+                               onchange="playerMenu.updatePlayerIcon(${player.id}, this.value)">
+                    </div>
+                    ${this.players.length > 1 ? `
+                        <button class="remove-btn" onclick="playerMenu.removePlayer(${player.id})">
+                            Remove Player
+                        </button>
+                    ` : ''}
+                `;
+                return card;
+            }
+
+            createAddButton() {
+                const button = document.createElement('div');
+                button.className = 'add-player-btn';
+                button.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">➕</div>
+                        <div>Add Player</div>
+                    </div>
+                `;
+                button.addEventListener('click', () => this.addPlayer());
+                return button;
+            }
+
+            addPlayer() {
+                if (this.players.length < this.maxPlayers) {
+                    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#ff6348'];
+                    const icons = ['🎮', '🕹️', '🎯', '⭐', '🚀', '🎲', '👾', '🔥'];
+
+                    const newPlayer = {
+                        id: this.nextId++,
+                        name: `Player ${this.players.length + 1}`,
+                        color: colors[this.players.length % colors.length],
+                        icon: icons[this.players.length % icons.length]
+                    };
+
+                    this.players.push(newPlayer);
+                    this.render();
+                }
+            }
+
+            removePlayer(id) {
+                if (this.players.length > 1) {
+                    this.players = this.players.filter(player => player.id !== id);
+                    this.render();
+                }
+            }
+
+            updatePlayerName(id, name) {
+                const player = this.players.find(p => p.id === id);
+                if (player) {
+                    player.name = name || `Player ${id}`;
+                }
+            }
+
+            updatePlayerColor(id, color) {
+                const player = this.players.find(p => p.id === id);
+                if (player) {
+                    player.color = color;
+                    this.render();
+                }
+            }
+
+            updatePlayerIcon(id, icon) {
+                const player = this.players.find(p => p.id === id);
+                if (player) {
+                    player.icon = icon || '🎮';
+                    this.render();
+                }
+            }
+
+            startGame() {
+                const playerNames = this.players.map(p => p.name).join(', ');
+                alert(`Starting game with players: ${playerNames}`);
+                // Here you would typically navigate to the game or emit an event
+            }
+        }
+
+        // Initialize the player select menu
+        const playerMenu = new PlayerSelectMenu();
+    </script>
+</body>
+
+</html>

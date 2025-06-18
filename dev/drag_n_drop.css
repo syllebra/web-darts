@@ -28,10 +28,11 @@
 }
 
 .drop-zone {
-    height: 60px;
-    border: 2px dashed #6c757d;
-    border-radius: 8px;
-    background-color: #e9ecef;
+    height: 200px;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -47,8 +48,9 @@
 }
 
 .drop-zone.drag-over {
-    border-color: #198754;
-    background-color: #d1e7dd;
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
 }
 
 .delete-zone {
@@ -113,14 +115,13 @@
 }
 
 .card-placeholder {
-    height: 4px;
     background-color: #0d6efd;
-    border-radius: 2px;
-    margin: 5px 0;
+    border-radius: 20px;
+    margin: 0px 0;
     opacity: 0;
     transition: opacity 0.2s ease;
 }
 
 .card-placeholder.active {
-    opacity: 1;
+    opacity: 0.6;
 }

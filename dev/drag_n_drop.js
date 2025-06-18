@@ -67,8 +67,8 @@ class DragDropSystem {
 
     this.placeholder.classList.add("active");
 
-    console.log("Container:", container);
-    console.log("afterElement:", afterElement);
+    // console.log("Container:", container);
+    // console.log("afterElement:", afterElement);
 
     try {
       if (afterElement == null) {

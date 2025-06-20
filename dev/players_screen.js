@@ -9,6 +9,9 @@ let players = [
 let editingPlayer = null;
 let currentPickerPlayer = null;
 
+// Configuration
+const MAX_PLAYERS = 8; // Maximum number of players allowed
+
 const predefinedColors = [
   "#ff4444",
   "#44ff44",
@@ -66,6 +69,11 @@ function updatePlayerCount() {
 }
 
 function addPlayer() {
+  // Check if we've reached the maximum number of players
+  if (players.length >= MAX_PLAYERS) {
+    return; // Don't add more players if limit is reached
+  }
+
   const newId = Math.max(...players.map((p) => p.id)) + 1;
   const randomColor = predefinedColors[Math.floor(Math.random() * predefinedColors.length)];
   const randomIcon = availableIcons[Math.floor(Math.random() * availableIcons.length)];
@@ -166,14 +174,22 @@ function createPlayerCard(player, index) {
 }
 
 function createAddPlayerCard() {
+  const isDisabled = players.length >= MAX_PLAYERS;
+  const disabledClass = isDisabled ? "disabled" : "";
+  const clickHandler = isDisabled ? "" : 'onclick="addPlayer()"';
+  const opacity = isDisabled ? "0.5" : "1";
+  const cursor = isDisabled ? "not-allowed" : "pointer";
+  const text = isDisabled ? `MAX PLAYERS (${MAX_PLAYERS})` : "ADD PLAYER";
+
   return `
-            <div class="card add-player-card rounded-4 border-0 h-100 d-flex align-items-center justify-content-center" 
-                 onclick="addPlayer()">
+            <div class="card add-player-card ${disabledClass} rounded-4 border-0 h-100 d-flex align-items-center justify-content-center" 
+                 ${clickHandler}
+                 style="opacity: ${opacity}; cursor: ${cursor};">
                 <div class="text-center text-white">
                     <div class="player-icon mb-3">
-                        <i class="fas fa-plus fa-2x text-white-50"></i>
+                        <i class="fas fa-${isDisabled ? "ban" : "plus"} fa-2x text-white-50"></i>
                     </div>
-                    <h5 class="text-white-50 fw-bold">ADD PLAYER</h5>
+                    <h5 class="text-white-50 fw-bold">${text}</h5>
                 </div>
             </div>
     `;
@@ -376,7 +392,8 @@ function handleDelete(card) {
   const playerId = parseInt(card.getAttribute("data-id"));
   var toDel = players.findIndex((p) => p.id === playerId);
   players.splice(toDel, 1);
-  recomputePlayersIds(document.getElementById("players-grid"));
+  updatePlayerCount(); // Update player count to reflect the deletion
+  recomputePlayersIds(document.getElementById("players-grid")); // This will call renderPlayers() to update the add card
 }
 
 dragDropSystem.callbacks.onDrop = handleDrop;

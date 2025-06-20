@@ -454,4 +454,22 @@ class DartsApp {
     console.log("External throw detected:", this.formatThrow(dartThrow));
     this.addThrow(dartThrow);
   }
+
+  score(sc) {
+    var multiplier = 1;
+    var score = 0;
+    if (sc.includes("D")) multiplier = 2;
+    if (sc.includes("T")) multiplier = 3;
+
+    var raw = sc.replace("T", "").replace("D", "");
+    if (raw == "B" || raw == "BULL") {
+      score = 25;
+    } else score = parseInt(raw);
+
+    score *= multiplier;
+
+    const dartThrow = new Throw(0, 0, raw, multiplier, score);
+    console.log("Scoring:", this.formatThrow(dartThrow));
+    this.addThrow(dartThrow);
+  }
 }

@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light+Two&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"
+        type="text/javascript"></script>
     <link rel="stylesheet" href="ui/Dartboard.css">
     <style>
         * {
@@ -333,7 +335,52 @@
         console.log('- Responsive design for mobile/desktop');
         console.log('');
         console.log('Click on the dartboard to simulate throws!');
-    </script> 
+    </script>
+
+    <script>
+        // Create a client instance
+        console.log(location.hostname)
+        console.log(location.port)
+        client = new Paho.MQTT.Client(location.hostname, 8083, "Web Client Test");
+
+        // set callback handlers
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
+
+        // connect the client
+        console.log("Connecting...")
+        client.connect({ onSuccess: onConnect });
+
+
+        // called when the client connects
+        function onConnect() {
+            // Once a connection has been made, make a subscription and send a message.
+            console.log("onConnect");
+            client.subscribe("dartnet/hit");
+            message = new Paho.MQTT.Message("Hello");
+            message.destinationName = "World";
+            client.send(message);
+        }
+
+        // called when the client loses its connection
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                console.log("onConnectionLost:" + responseObject.errorMessage);
+            }
+        }
+
+        // called when a message arrives
+        function onMessageArrived(message) {
+            console.log("onMessageArrived:" + message.payloadString);
+            console.log(message)
+            console.log(message.destinationName)
+            if(message.destinationName == "dartnet/hit") {
+                console.log("HIT:",message.payloadString)
+                app.score(message.payloadString);
+            }
+                
+        }
+    </script>    
 </body>
 
 </html>

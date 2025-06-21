@@ -282,13 +282,30 @@ class DartboardRenderer {
         : "#ffffff";
     this.createParticles(x - rect.left, y - rect.top, color);
 
-    return new Throw(
-      clickX,
-      clickY,
-      info.score === 0 ? 0 : this.numberOrder[info.index],
-      info.score === 50 ? 2 : info.score === 25 ? 1 : info.ring === "triple" ? 3 : info.ring === "double" ? 2 : 1,
-      info.score
-    );
+    // Convert cartesian coordinates to normalized angular coordinates
+    const d = Math.sqrt(clickX * clickX + clickY * clickY) / (this.radius * this.ringRadii.doubleOuter);
+    let alpha = (Math.atan2(clickY, clickX) * 180) / Math.PI;
+    if (alpha < 0) alpha += 360; // Normalize to 0-360
+
+    // Generate zone string based on the hit information
+    let zone;
+    if (info.score === 0) {
+      zone = "OUT";
+    } else if (info.score === 50) {
+      zone = "DB"; // Bull's eye
+    } else if (info.score === 25) {
+      zone = "B"; // Simple bull
+    } else if (info.ring === "triple") {
+      zone = `T${this.numberOrder[info.index]}`;
+    } else if (info.ring === "double") {
+      zone = `D${this.numberOrder[info.index]}`;
+    } else {
+      // Single areas (inner or outer)
+      const region = info.ring === "innerSingle" ? "IN" : "OUT";
+      zone = `S${this.numberOrder[info.index]}${region}`;
+    }
+
+    return new Throw(alpha, d, zone);
   }
 
   handleMouseMove(e) {

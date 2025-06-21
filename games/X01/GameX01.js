@@ -15,7 +15,8 @@ class GameX01 extends GameBase {
 
   processThrow(dartThrow, replay = false) {
     const currentPlayer = this.getCurrentPlayer();
-    const newScore = this.scores[currentPlayer] - dartThrow.score;
+    const throwScore = this.calculateThrowScore(dartThrow);
+    const newScore = this.scores[currentPlayer] - throwScore;
 
     if (newScore === 0) {
       this.scores[currentPlayer] = 0;
@@ -41,6 +42,20 @@ class GameX01 extends GameBase {
         isCurrent: p === this.getCurrentPlayer(),
       })),
     });
+  }
+
+  calculateThrowScore(dartThrow) {
+    const zoneInfo = dartThrow.parseZone();
+    
+    if (zoneInfo.type === "out" || zoneInfo.type === "invalid") {
+      return 0;
+    }
+    
+    if (zoneInfo.type === "bull") {
+      return zoneInfo.sector * zoneInfo.multiplier; // 25 * 1 = 25 or 25 * 2 = 50
+    }
+    
+    return zoneInfo.sector * zoneInfo.multiplier;
   }
 
   getCurrentScore() {

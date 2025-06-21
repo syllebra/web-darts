@@ -39,15 +39,41 @@ DartsApp/
 ### Throw Object
 ```javascript
 class Throw {
-    constructor(x, y, sector, multiplier, score, targetPoint = null, timestamp = Date.now()) {
-        this.x = x;                    // Dartboard coordinates
-        this.y = y;
-        this.sector = sector;          // 1-20, or 25 (bull)
-        this.multiplier = multiplier;  // 1=single, 2=double, 3=triple
-        this.score = score;           // Calculated score
-        this.targetPoint = targetPoint; // For precision statistics
-        this.timestamp = timestamp;
+    constructor(alpha, d, zone, targetZone = null) {
+        // Normalized angular coordinates
+        this.alpha = alpha; // Angle in degrees (0-360)
+        this.d = d;         // Distance to center normalized by distance to outer double line (0-1+)
+        
+        // Zone encoding:
+        // T<number> for trebles (e.g., T20)
+        // D<number> for doubles (e.g., D20)
+        // S<sector><IN or OUT> for simple (e.g., S20IN, S20OUT)
+        // "DB" for bull's eye (double bull)
+        // "B" for simple bull
+        // "OUT" for throws outside the dartboard
+        this.zone = zone;
+        
+        // Optional target zone (same encoding as zone)
+        this.targetZone = targetZone;
+        
+        // Metadata
+        this.timestamp = Date.now();
         this.id = this.generateId();
+    }
+    
+    // Helper method to parse zone information
+    parseZone() {
+        // Returns { type, sector, multiplier, region }
+    }
+    
+    // Helper method to get cartesian coordinates from angular coordinates
+    getCartesianCoordinates() {
+        // Returns { x, y }
+    }
+    
+    // Static method to create a Throw from cartesian coordinates
+    static fromCartesian(x, y, zone, targetZone = null) {
+        // Converts cartesian to angular coordinates
     }
 }
 ```

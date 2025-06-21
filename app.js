@@ -32,6 +32,7 @@ class DartsApp {
       if (!this.currentGame || this.currentGame.isGameComplete()) return;
 
       const dartThrow = this.dartboard.getThrowFromClick(e.clientX, e.clientY);
+      console.log(dartThrow);
       this.addThrow(dartThrow);
     });
 
@@ -330,9 +331,13 @@ class DartsApp {
     const dartThrow = this.throwHistory.find((t) => t.id === throwId);
     if (!dartThrow) return;
 
-    const newScore = prompt(`Edit throw score (current: ${dartThrow.score}):`, dartThrow.score);
-    if (newScore !== null && !isNaN(newScore)) {
-      dartThrow.score = parseInt(newScore);
+    const currentZone = dartThrow.zone;
+    const newZone = prompt(
+      `Edit throw zone (current: ${currentZone}):\nFormat: T<num> (treble), D<num> (double), S<num>IN/OUT (single), B (bull), DB (bull's eye), OUT (miss)`,
+      currentZone
+    );
+    if (newZone !== null && newZone.trim() !== "") {
+      dartThrow.zone = newZone.trim().toUpperCase();
       this.recalculateGameState();
       this.updateUI();
     }
@@ -364,9 +369,10 @@ class DartsApp {
     recentThrows.forEach((dartThrow) => {
       const throwItem = document.createElement("div");
       throwItem.className = "throw-item";
+      const throwScore = this.currentGame ? this.currentGame.calculateThrowScore(dartThrow) : 0;
       throwItem.innerHTML = `
                 <span>${this.formatThrow(dartThrow)}</span>
-                <span>${dartThrow.score}</span>
+                <span>${throwScore}</span>
             `;
 
       if (this.editMode) {
@@ -379,12 +385,7 @@ class DartsApp {
   }
 
   formatThrow(dartThrow) {
-    if (dartThrow.score === 0) return "Miss";
-    if (dartThrow.score === 25) return "Bull";
-    if (dartThrow.score === 50) return "Bull's Eye";
-
-    const multiplierText = dartThrow.multiplier === 1 ? "S" : dartThrow.multiplier === 2 ? "D" : "T";
-    return `${multiplierText}${dartThrow.sector}`;
+    return dartThrow.getDescription();
   }
 
   updateStats() {
@@ -441,34 +442,53 @@ class DartsApp {
     const sectors = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
     const sector = sectors[Math.floor(Math.random() * sectors.length)];
     const multiplier = Math.random() > 0.8 ? (Math.random() > 0.5 ? 2 : 3) : 1;
-    const score = sector * multiplier;
 
-    const dartThrow = new Throw(
-      Math.random() * 100 - 50, // Random position
-      Math.random() * 100 - 50,
-      sector,
-      multiplier,
-      score
-    );
+    // Generate zone string based on multiplier
+    let zone;
+    if (multiplier === 3) {
+      zone = `T${sector}`;
+    } else if (multiplier === 2) {
+      zone = `D${sector}`;
+    } else {
+      // Random single (inner or outer)
+      const region = Math.random() > 0.5 ? "IN" : "OUT";
+      zone = `S${sector}${region}`;
+    }
+
+    // Generate random angular coordinates
+    const alpha = Math.random() * 360;
+    const d = Math.random() * 0.8 + 0.1; // Random distance within dartboard
+
+    const dartThrow = new Throw(alpha, d, zone);
 
     console.log("External throw detected:", this.formatThrow(dartThrow));
     this.addThrow(dartThrow);
   }
 
   score(sc) {
-    var multiplier = 1;
-    var score = 0;
-    if (sc.includes("D")) multiplier = 2;
-    if (sc.includes("T")) multiplier = 3;
+    let zone;
 
-    var raw = sc.replace("T", "").replace("D", "");
-    if (raw == "B" || raw == "BULL") {
-      score = 25;
-    } else score = parseInt(raw);
+    if (sc.includes("T")) {
+      const sector = sc.replace("T", "");
+      zone = `T${sector}`;
+    } else if (sc.includes("D")) {
+      const sector = sc.replace("D", "");
+      zone = `D${sector}`;
+    } else {
+      const raw = sc.replace("T", "").replace("D", "");
+      if (raw === "B" || raw === "BULL") {
+        zone = "B"; // Simple bull
+      } else {
+        // Default to single inner
+        zone = `S${raw}IN`;
+      }
+    }
 
-    score *= multiplier;
+    // Generate default angular coordinates (center of dartboard)
+    const alpha = 0;
+    const d = 0.5;
 
-    const dartThrow = new Throw(0, 0, raw, multiplier, score);
+    const dartThrow = new Throw(alpha, d, zone);
     console.log("Scoring:", this.formatThrow(dartThrow));
     this.addThrow(dartThrow);
   }

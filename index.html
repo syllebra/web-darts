@@ -11,7 +11,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"
         type="text/javascript"></script>
     <link rel="stylesheet" href="ui/Dartboard.css">
-    <link rel="stylesheet" href="dev/dev_cricket.css">
     <style>
         * {
             margin: 0;
@@ -241,11 +240,12 @@
         /* Animation styles moved to ui/RoundAnimation.css */
     </style>
     <link rel="stylesheet" href="ui/RoundAnimation.css">
+    <link rel="stylesheet" href="dev/game_x01.css">
 </head>
 
 <body>
     <div class="game-container">
-        <iframe src="/dev/dev_cricket.html"
+        <iframe src="/dev/dev_x01.html"
             onload="this.before((this.contentDocument.body||this.contentDocument).children[0]);this.remove()"></iframe>
     </div>
     <div class="app-container">
@@ -334,6 +334,7 @@
     <script src="utils/StatisticsEngine.js"></script>
     <script src="utils/NetworkManager.js"></script>
     <script src="app.js"></script>
+
 
     <script>
         // Initialize the application

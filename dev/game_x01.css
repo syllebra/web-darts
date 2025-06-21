@@ -4,7 +4,7 @@
     box-sizing: border-box;
 }
 
-body {
+body, .main-frame {
     font-family: Arial, sans-serif;
     background: #000 url('../images/backdrops/background_pdc_01.jpg') no-repeat center center fixed;
     background-size: cover;

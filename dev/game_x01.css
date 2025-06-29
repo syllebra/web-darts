@@ -387,14 +387,14 @@ body, .main-frame {
 .glass-panel::after {
     background: radial-gradient(ellipse at bottom right, rgba(255, 255, 255, 0.05), transparent 70%);
 }
-
+/* 
 .dartboard-panel {
     position: fixed;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-}
+} */
 
 @media (max-width: 800px) {
     .scoreboard-container {

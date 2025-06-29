@@ -34,14 +34,27 @@ class DartboardRenderer {
     this.sectorAngle = (2 * Math.PI) / this.sectorCount;
     this.angleOffset = -Math.PI / 2 - this.sectorAngle / 2;
 
+    // this.ringRadii = {
+    //   bull: 0.024,
+    //   outerBull: 0.06,
+    //   innerSingle: 0.4,
+    //   tripleInner: 0.4,
+    //   tripleOuter: 0.44,
+    //   outerSingle: 0.72,
+    //   doubleInner: 0.72,
+    //   doubleOuter: 0.76,
+    //   board: 0.76,
+    // };
+
+    // Bigger radii for tactile (TODO: detect tactile)
     this.ringRadii = {
-      bull: 0.024,
-      outerBull: 0.06,
+      bull: 0.1,
+      outerBull: 0.2,
       innerSingle: 0.4,
       tripleInner: 0.4,
-      tripleOuter: 0.44,
-      outerSingle: 0.72,
-      doubleInner: 0.72,
+      tripleOuter: 0.5,
+      outerSingle: 0.65,
+      doubleInner: 0.65,
       doubleOuter: 0.76,
       board: 0.76,
     };

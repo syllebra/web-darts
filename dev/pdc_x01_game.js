@@ -522,3 +522,182 @@ window.DartsScoreboard = {
   resetScores: () => gameX01.resetScores(),
   toggleRoutes: () => gameX01.toggleRoutes(),
 };
+
+// UI Rendering functions
+function initializeScoreboard() {
+  updateGameInfo();
+  renderPlayers();
+  positionTurnMarker();
+  updateRoutesVisibility();
+}
+
+function updateGameInfo() {
+  const config = DartsScoreboard.getConfig();
+  document.getElementById("gameHeader").textContent = config.gameHeader;
+  document.getElementById("matchTitle").textContent = config.matchTitle;
+  document.getElementById("broadcaster").textContent = config.broadcaster;
+}
+
+function positionTurnMarker() {
+  const marker = document.querySelector(".pdc-x01-turn-marker");
+  if (!marker) return;
+
+  const playerRows = document.querySelectorAll(".pdc-x01-player-row");
+  if (playerRows.length === 0) return;
+
+  const config = DartsScoreboard.getConfig();
+  const currentRow = playerRows[config.currentPlayerTurn];
+  const scoreboard = document.getElementById("scoreboard");
+  const scoreboardTop = scoreboard.getBoundingClientRect().top;
+  const rowTop = currentRow.getBoundingClientRect().top - scoreboardTop;
+  const rowHeight = currentRow.offsetHeight;
+
+  const targetY = rowTop + rowHeight / 2 - marker.offsetHeight / 2;
+  const currentTransform = marker.style.transform;
+
+  if (!currentTransform) {
+    marker.style.transform = `translateY(${targetY}px)`;
+    return;
+  }
+
+  marker.getBoundingClientRect();
+  marker.style.transform = `translateY(${targetY}px)`;
+}
+
+function updateRoutesVisibility() {
+  const routes = document.querySelectorAll(".pdc-x01-player-routes");
+  const config = DartsScoreboard.getConfig();
+  routes.forEach((route) => {
+    route.classList.remove("show", "hide");
+    route.classList.add(config.showRoutes ? "show" : "hide");
+  });
+}
+
+function renderPlayers() {
+  const container = document.getElementById("x01PlayersContainer");
+  const config = DartsScoreboard.getConfig();
+  const existingRows = Array.from(container.children);
+  const players = config?.players || [];
+
+  players.forEach((player, index) => {
+    let playerRow = existingRows[index];
+
+    if (!playerRow) {
+      playerRow = document.createElement("div");
+      playerRow.className = "pdc-x01-player-row";
+      container.appendChild(playerRow);
+      playerRow.innerHTML = `
+                          <div class="pdc-x01-player-info">
+                              <span class="pdc-x01-player-name">${player.name}</span>
+                              <div class="pdc-x01-player-flag pdc-x01-flag-${player.flag}"></div>
+                          </div>
+                          <div class="pdc-x01-sets-score">${player.legs}</div>
+                          <div class="pdc-x01-legs-score">${player.score}</div>
+                          <div class="pdc-x01-player-routes"></div>
+                      `;
+    }
+
+    playerRow.querySelector(".pdc-x01-player-name").textContent = player.name;
+    playerRow.querySelector(".pdc-x01-sets-score").textContent = player.legs;
+    playerRow.querySelector(".pdc-x01-legs-score").textContent = player.score;
+
+    const routesContainer = playerRow.querySelector(".pdc-x01-player-routes");
+    const finishRoute = player.finishRoute || [];
+
+    if (
+      routesContainer.children.length !== finishRoute.length ||
+      Array.from(routesContainer.children).some((item, i) => item.textContent !== finishRoute[i])
+    ) {
+      routesContainer.innerHTML = "";
+      finishRoute.forEach((route) => {
+        const routeItem = document.createElement("div");
+        routeItem.className = "pdc-x01-route-item";
+        routeItem.textContent = route;
+        routesContainer.appendChild(routeItem);
+      });
+    }
+
+    playerRow.classList.toggle("active", index === config.currentPlayerTurn);
+    routesContainer.classList.remove("show", "hide");
+    routesContainer.classList.add(config.showRoutes ? "show" : "hide");
+  });
+
+  while (container.children.length > players.length) {
+    container.removeChild(container.lastChild);
+  }
+}
+
+// Control functions
+function addPlayer() {
+  const name = prompt("Enter player name:") || `Player ${DartsScoreboard.getConfig().players.length + 1}`;
+  const score = parseInt(prompt("Enter current score:") || "100");
+  DartsScoreboard.addPlayer(name, score);
+  renderPlayers();
+  positionTurnMarker();
+}
+
+function removePlayer() {
+  DartsScoreboard.removePlayer();
+  renderPlayers();
+  positionTurnMarker();
+}
+
+function toggleTurn() {
+  DartsScoreboard.toggleTurn();
+  renderPlayers();
+  positionTurnMarker();
+}
+
+function updateScores() {
+  DartsScoreboard.updateScores();
+  renderPlayers();
+}
+
+function resetScores() {
+  DartsScoreboard.resetScores();
+  renderPlayers();
+}
+
+function toggleRoutes() {
+  DartsScoreboard.toggleRoutes();
+  updateRoutesVisibility();
+}
+
+// Game format control functions
+function setGameFormat() {
+  const format = document.getElementById("gameFormat").value;
+  DartsScoreboard.setGameFormat(parseInt(format));
+}
+
+function setDartsPerRound() {
+  const darts = document.getElementById("dartsPerRound").value;
+  DartsScoreboard.setDartsPerRound(parseInt(darts));
+}
+
+function toggleDoubleIn() {
+  const btn = document.getElementById("doubleInBtn");
+  const current = btn.textContent.includes("ON");
+  DartsScoreboard.setDoubleIn(!current);
+  btn.textContent = `Double In: ${current ? "OFF" : "ON"}`;
+}
+
+function toggleDoubleOut() {
+  const btn = document.getElementById("doubleOutBtn");
+  const current = btn.textContent.includes("ON");
+  DartsScoreboard.setDoubleOut(!current);
+  btn.textContent = `Double Out: ${current ? "OFF" : "ON"}`;
+}
+
+function startPlayerGame() {
+  const config = DartsScoreboard.getConfig();
+  const playerIndex = prompt("Enter player index (0-based):", "0");
+  const firstDartIsDouble = confirm("First dart is double?");
+  if (playerIndex !== null) {
+    DartsScoreboard.startPlayerGame(parseInt(playerIndex), firstDartIsDouble);
+  }
+}
+
+// Initialize on load
+initializeScoreboard();
+setGameFormat();
+setDartsPerRound();

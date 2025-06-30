@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darts Scoreboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light+Two&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="pdc_x01_game.css">
+
+</head>
+
+<body>
+    <div class="pdc-x01-main-frame">
+        <div class="pdc-x01-controls">
+            <button class="pdc-x01-control-btn" onclick="addPlayer()">Add Player</button>
+            <button class="pdc-x01-control-btn" onclick="removePlayer()">Remove Player</button>
+            <button class="pdc-x01-control-btn" onclick="toggleTurn()">Toggle Turn</button>
+            <button class="pdc-x01-control-btn" onclick="updateScores()">Random Scores</button>
+            <button class="pdc-x01-control-btn" onclick="resetScores()">Reset Scores</button>
+            <button class="pdc-x01-control-btn" onclick="toggleRoutes()">Toggle Routes</button>
+
+            <select class="pdc-x01-control-btn" id="gameFormat" onchange="setGameFormat()">
+                <option value="301">301</option>
+                <option value="501" selected>501</option>
+                <option value="701">701</option>
+                <option value="901">901</option>
+                <option value="1001">1001</option>
+                <option value="1501">1501</option>
+            </select>
+
+            <select class="pdc-x01-control-btn" id="dartsPerRound" onchange="setDartsPerRound()">
+                <option value="1">1 Dart</option>
+                <option value="2">2 Darts</option>
+                <option value="3" selected>3 Darts</option>
+                <option value="4">4 Darts</option>
+                <option value="5">5 Darts</option>
+                <option value="6">6 Darts</option>
+            </select>
+
+            <button class="pdc-x01-control-btn" id="doubleInBtn" onclick="toggleDoubleIn()">Double In: OFF</button>
+            <button class="pdc-x01-control-btn" id="doubleOutBtn" onclick="toggleDoubleOut()">Double Out: ON</button>
+            <button class="pdc-x01-control-btn" onclick="startPlayerGame()">Start Game</button>
+        </div>
+
+        <div class="pdc-x01-scoreboard-container">
+            <div class="pdc-x01-main-scoreboard pdc-x01-glass-panel">
+                <div class="pdc-x01-turn-indicators" id="turnIndicators">
+                    <div class="pdc-x01-turn-marker" id="turnMarker">
+                        </divclass>
+                    </div>
+
+                    <div class="pdc-x01-scoreboard" id="scoreboard">
+                        <div class="pdc-x01-scoreboard-header">
+                            <div>
+                                <span id="gameHeader">First to 11</span>
+                            </div>
+                            <div>Legs</div>
+                            <div>Score</div>
+                        </div>
+                        <div class="pdc-x01-players-container" id="x01PlayersContainer">
+                            <!-- Players will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div class="pdc-x01-match-info">
+                        <span class="pdc-x01-match-title" id="matchTitle">2025 Premier League Final</span>
+                        <span class="pdc-x01-broadcaster" id="broadcaster">BX Sports</span>
+                    </div>
+
+                </div>
+                <div class="pdc-x01-reflection-layer-container">
+                    <div class="pdc-x01-reflection-layer"></div>
+                </div>
+            </div>
+
+            <script src="pdc_x01_game.js"></script>
+       </div>
+</body>
+
+</html>

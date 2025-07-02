@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular Darts Application</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light+Two&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"
+        type="text/javascript"></script>
+    <link rel="stylesheet" href="ui/main.css">
+    <link rel="stylesheet" href="ui/Dartboard.css">
+    <link rel="stylesheet" href="ui/RoundAnimation.css">
+    <link rel="stylesheet" href="dev/slide_panel.css">
+    <link rel="stylesheet" href="dev/pdc_x01_game.css">
+</head>
+
+<body>
+    <div class="game-container">
+        <iframe src="/dev/pdc_x01_game.html"
+            onload="this.before((this.contentDocument.body||this.contentDocument).children[0]);this.remove()"></iframe>
+    </div>
+    <div class="app-container">
+        
+        <div class="header">
+            <h1>Modular Darts App</h1>
+            <div class="status-indicator">
+                <span>MQTT:</span>
+                <div class="connection-status" id="mqttStatus"></div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="game-selector">
+                <h3>Select Game</h3>
+                <select id="gameSelect">
+                    <option value="X01">X01 Game</option>
+                    <option value="cricket">Cricket</option>
+                    <option value="around-the-clock">Around the Clock</option>
+                </select>
+            </div>
+
+            <div class="game-info">
+                <h3 id="currentGame">501 Game</h3>
+                <p id="gameVariant">Standard</p>
+                <p id="currentPlayer">Player 1</p>
+                <h2 id="currentScore">501</h2>
+            </div>
+
+            <div class="throw-history">
+                <h4>Recent Throws</h4>
+                <div id="throwList"></div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="game-controls">
+                <button class="btn" onclick="app.undo()">Undo</button>
+                <button class="btn secondary" onclick="app.redo()">Redo</button>
+                <button class="btn danger" onclick="app.resetGame()">Reset Game</button>
+                <button class="btn secondary" onclick="app.toggleEditMode()">Edit Mode</button>
+            </div>
+
+            <div id="gameSpecificUI"></div>
+        </div>
+        <div class="game-info">
+            <h3 id="currentGame">501 Game</h3>
+            <div class="players-container" id="playersContainer">
+                <!-- Player scores will be dynamically inserted here -->
+            </div>
+            <h2 id="currentScore">501</h2>
+        </div>
+        <div class="sidebar">
+            <div class="stats-panel">
+                <h3>Statistics</h3>
+                <div id="statsContainer">
+                    <!-- Player stats will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+        <!-- Sliding Dartboard Panel -->
+        <div class="dartboard-overlay" id="dartboardOverlay"></div>
+        <div class="dartboard-panel" id="dartboardPanel">
+            <div class="dartboard-container">
+                <canvas id="dartboard" width="400" height="400"></canvas>
+            </div>
+        </div>
+        <!-- Dartboard Panel Toggle -->
+        <div class="dartboard-toggle" id="dartboardToggle">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2" />
+            </svg>
+        </div>
+
+    </div>
+
+
+    <div class="slidep-panel-container">
+        <!-- Left Panel System -->
+        <div class="slidep-panel-system slidep-left">
+            <div class="slidep-toggle-group slidep-left slidep-visible">
+                <button class="slidep-panel-toggle slidep-left" onclick="togglePanel('navigation')">NAV</button>
+                <button class="slidep-panel-toggle slidep-left" onclick="togglePanel('info')">INFO</button>
+            </div>
+        
+            <!-- Navigation Panel -->
+            <div id="navigation" class="slidep-slice-panel slidep-left slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Navigation
+                        <button class="slidep-close-btn" onclick="closePanel('navigation')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Quick Links</h3>
+                        <button class="slidep-control-button">Dashboard</button>
+                        <button class="slidep-control-button">Projects</button>
+                        <button class="slidep-control-button">Settings</button>
+                        <button class="slidep-control-button">Help</button>
+                        <button class="slidep-control-button">Profile</button>
+                        <button class="slidep-control-button">Messages</button>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Recent Items</h3>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Project A</label>
+                            <input type="text" class="slidep-control-input" placeholder="Last modified 2 hours ago">
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Project B</label>
+                            <input type="text" class="slidep-control-input" placeholder="Last modified 1 day ago">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Info Panel -->
+            <div id="info" class="slidep-slice-panel slidep-left slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Information
+                        <button class="slidep-close-btn" onclick="closePanel('info')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">System Info</h3>
+                        <p style="color: rgba(255,255,255,0.8); line-height: 1.6;">
+                            <strong>Version:</strong> 2.0.0<br>
+                            <strong>Build:</strong> 2024.12.30<br>
+                            <strong>Panels Open:</strong> <span id="panelCount">0</span>
+                        </p>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Features</h3>
+                        <ul style="color: rgba(255,255,255,0.8); line-height: 1.8; list-style: none;">
+                            <li>✓ Simple class-based management</li>
+                            <li>✓ Left/right positioning</li>
+                            <li>✓ Panel stacking</li>
+                            <li>✓ Keyboard shortcuts</li>
+                            <li>✓ Responsive design</li>
+                            <li>✓ No DOM recreation</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel System -->
+        <div class="slidep-panel-system slidep-right">
+            <div class="slidep-toggle-group slidep-right slidep-visible">
+                <button class="slidep-panel-toggle slidep-right" onclick="togglePanel('settings')">SET</button>
+                <button class="slidep-panel-toggle slidep-right" onclick="togglePanel('tools')">TOOL</button>
+            </div>
+        
+            <!-- Settings Panel -->
+            <div id="settings" class="slidep-slice-panel slidep-right slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Settings
+                        <button class="slidep-close-btn" onclick="closePanel('settings')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Display Settings</h3>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Theme</label>
+                            <select class="slidep-control-select">
+                                <option>Dark Mode</option>
+                                <option>Light Mode</option>
+                                <option>Auto</option>
+                            </select>
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Font Size</label>
+                            <select class="slidep-control-select">
+                                <option>Small</option>
+                                <option selected>Medium</option>
+                                <option>Large</option>
+                            </select>
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-checkbox">
+                                <input type="checkbox" checked>
+                                <span>Enable animations</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Panel Management</h3>
+                        <button class="slidep-control-button slidep-primary" onclick="togglePanel('tools')">Open
+                            Tools</button>
+                        <button class="slidep-control-button" onclick="togglePanel('info')">Open Info</button>
+                        <button class="slidep-control-button" onclick="closeAllPanels()">Close All</button>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Tools Panel -->
+            <div id="tools" class="slidep-slice-panel slidep-right slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Tools
+                        <button class="slidep-close-btn" onclick="closePanel('tools')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Development Tools</h3>
+                        <button class="slidep-control-button">Inspector</button>
+                        <button class="slidep-control-button">Console</button>
+                        <button class="slidep-control-button">Network</button>
+                        <button class="slidep-control-button">Performance</button>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Utilities</h3>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Color Picker</label>
+                            <input type="color" class="slidep-control-input" value="#667eea">
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">JSON Formatter</label>
+                            <textarea class="slidep-control-input" rows="4" placeholder="Paste JSON here..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include all JavaScript files -->
+    <script src="ui/RoundAnimation.js"></script>
+    <script src="utils/EventEmitter.js"></script>
+    <script src="core/Throw.js"></script>
+    <script src="games/GameBase.js"></script>
+    <script src="games/X01/GameX01.js"></script>
+    <script src="games/GameRegistry.js"></script>
+    <script src="ui/DartboardRenderer.js"></script>
+    <script src="utils/StatisticsEngine.js"></script>
+    <script src="utils/NetworkManager.js"></script>
+    <script src="dev/slide_panel.js"></script>
+    <script src="app.js"></script>
+
+
+    <script>
+        // Initialize the application
+        const app = new DartsApp();
+
+        // Add some demo functionality
+        console.log('Modular Darts Application Loaded');
+        console.log('Features demonstrated:');
+        console.log('- Modular game system (501 game implemented)');
+        console.log('- Clickable dartboard with throw detection');
+        console.log('- Undo/Redo functionality');
+        console.log('- Throw editing in edit mode');
+        console.log('- Statistics calculation');
+        console.log('- Network simulation (MQTT status indicator)');
+        console.log('- Responsive design for mobile/desktop');
+        console.log('');
+        console.log('Click on the dartboard to simulate throws!');
+    </script>
+
+    <script>
+        // Create a client instance
+        console.log(location.hostname)
+        console.log(location.port)
+        client = new Paho.MQTT.Client(location.hostname, 8083, "Web Client Test");
+
+        // set callback handlers
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
+
+        // connect the client
+        console.log("Connecting...")
+        client.connect({ onSuccess: onConnect });
+
+
+        // called when the client connects
+        function onConnect() {
+            // Once a connection has been made, make a subscription and send a message.
+            console.log("onConnect");
+            client.subscribe("dartnet/hit");
+            message = new Paho.MQTT.Message("Hello");
+            message.destinationName = "World";
+            client.send(message);
+        }
+
+        // called when the client loses its connection
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                console.log("onConnectionLost:" + responseObject.errorMessage);
+            }
+        }
+
+        // called when a message arrives
+        function onMessageArrived(message) {
+            console.log("onMessageArrived:" + message.payloadString);
+            console.log(message)
+            console.log(message.destinationName)
+            if(message.destinationName == "dartnet/hit") {
+                console.log("HIT:",message.payloadString)
+                app.score(message.payloadString);
+            }
+                
+        }
+    </script>    
+</body>
+
+</html>

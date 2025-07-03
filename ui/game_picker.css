@@ -182,6 +182,7 @@ body::before {
 .games-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    margin-top: -4s0px;
     gap: 2rem;
     max-width: 1200px;
     width: 100%;

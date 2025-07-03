@@ -8,6 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/ui/game_picker.css">
+    <link rel="stylesheet" href="/dev/slide_panel.css">
     <style>
         
     </style>
@@ -97,6 +98,171 @@
         </div>
     </div>
 
+<div class="slidep-panel-container">
+        <!-- Left Panel System -->
+        <div class="slidep-panel-system slidep-left">
+            <div class="slidep-toggle-group slidep-left slidep-visible">
+                <button class="slidep-panel-toggle slidep-left" onclick="togglePanel('navigation')">NAV</button>
+                <button class="slidep-panel-toggle slidep-left" onclick="togglePanel('info')">INFO</button>
+            </div>
+        
+            <!-- Navigation Panel -->
+            <div id="navigation" class="slidep-slice-panel slidep-left slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Navigation
+                        <button class="slidep-close-btn" onclick="closePanel('navigation')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Quick Links</h3>
+                        <button class="slidep-control-button">Dashboard</button>
+                        <button class="slidep-control-button">Projects</button>
+                        <button class="slidep-control-button">Settings</button>
+                        <button class="slidep-control-button">Help</button>
+                        <button class="slidep-control-button">Profile</button>
+                        <button class="slidep-control-button">Messages</button>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Recent Items</h3>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Project A</label>
+                            <input type="text" class="slidep-control-input" placeholder="Last modified 2 hours ago">
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Project B</label>
+                            <input type="text" class="slidep-control-input" placeholder="Last modified 1 day ago">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Info Panel -->
+            <div id="info" class="slidep-slice-panel slidep-left slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Information
+                        <button class="slidep-close-btn" onclick="closePanel('info')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">System Info</h3>
+                        <p style="color: rgba(255,255,255,0.8); line-height: 1.6;">
+                            <strong>Version:</strong> 2.0.0<br>
+                            <strong>Build:</strong> 2024.12.30<br>
+                            <strong>Panels Open:</strong> <span id="panelCount">0</span>
+                        </p>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Features</h3>
+                        <ul style="color: rgba(255,255,255,0.8); line-height: 1.8; list-style: none;">
+                            <li>✓ Simple class-based management</li>
+                            <li>✓ Left/right positioning</li>
+                            <li>✓ Panel stacking</li>
+                            <li>✓ Keyboard shortcuts</li>
+                            <li>✓ Responsive design</li>
+                            <li>✓ No DOM recreation</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel System -->
+        <div class="slidep-panel-system slidep-right">
+            <div class="slidep-toggle-group slidep-right slidep-visible">
+                <button class="slidep-panel-toggle slidep-right" onclick="togglePanel('settings')">SET</button>
+                <button class="slidep-panel-toggle slidep-right" onclick="togglePanel('tools')">TOOL</button>
+            </div>
+        
+            <!-- Settings Panel -->
+            <div id="settings" class="slidep-slice-panel slidep-right slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Settings
+                        <button class="slidep-close-btn" onclick="closePanel('settings')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Display Settings</h3>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Theme</label>
+                            <select class="slidep-control-select">
+                                <option>Dark Mode</option>
+                                <option>Light Mode</option>
+                                <option>Auto</option>
+                            </select>
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Font Size</label>
+                            <select class="slidep-control-select">
+                                <option>Small</option>
+                                <option selected>Medium</option>
+                                <option>Large</option>
+                            </select>
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-checkbox">
+                                <input type="checkbox" checked>
+                                <span>Enable animations</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Panel Management</h3>
+                        <button class="slidep-control-button slidep-primary" onclick="togglePanel('tools')">Open
+                            Tools</button>
+                        <button class="slidep-control-button" onclick="togglePanel('info')">Open Info</button>
+                        <button class="slidep-control-button" onclick="closeAllPanels()">Close All</button>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Tools Panel -->
+            <div id="tools" class="slidep-slice-panel slidep-right slidep-panel-small">
+                <div class="slidep-panel-header">
+                    <h2 class="slidep-panel-title">
+                        Tools
+                        <button class="slidep-close-btn" onclick="closePanel('tools')">Close</button>
+                    </h2>
+                </div>
+                <div class="slidep-panel-content">
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Development Tools</h3>
+                        <button class="slidep-control-button">Inspector</button>
+                        <button class="slidep-control-button">Console</button>
+                        <button class="slidep-control-button">Network</button>
+                        <button class="slidep-control-button">Performance</button>
+                    </div>
+                    <div class="slidep-panel-section">
+                        <h3 class="slidep-section-title">Utilities</h3>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">Color Picker</label>
+                            <input type="color" class="slidep-control-input" value="#667eea">
+                        </div>
+                        <div class="slidep-control-group">
+                            <label class="slidep-control-label">JSON Formatter</label>
+                            <textarea class="slidep-control-input" rows="4" placeholder="Paste JSON here..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Include all JavaScript files -->
+    <!-- <script src="ui/RoundAnimation.js"></script>
+    <script src="utils/EventEmitter.js"></script>
+    <script src="core/Throw.js"></script>
+    <script src="games/GameBase.js"></script>
+    <script src="games/X01/GameX01.js"></script>
+    <script src="games/GameRegistry.js"></script>
+    <script src="ui/DartboardRenderer.js"></script>
+    <script src="utils/StatisticsEngine.js"></script>
+    <script src="utils/NetworkManager.js"></script>-->
+    <script src="dev/slide_panel.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
         let selectedGame = null;

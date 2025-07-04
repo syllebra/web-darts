@@ -18,6 +18,15 @@
 </head>
 
 <body>
+
+    <div class="text-center container-fluid mb-5" id="titleSection">
+        <div class="title" id="title">
+            <h1>Dart</h1>
+            <h1>Net</h1>
+        </div>
+        <div class="subtitle">AI powered Darts game</div>
+    </div>
+
     <div class="full-layer overlay-controls">
         <div class="back-btn position-fixed top-0 start-0 m-3 d-none align-items-center justify-content-center"
             id="backBtn" onclick="goBack()">←</div>
@@ -182,9 +191,6 @@
     </div>
     <div class="full-layer container-fluid min-vh-100 d-flex flex-column justify-content-center align-items-center p-4"
         id="gamePicker">
-        <div class="title text-center mb-5" id="titleSection">
-            <h1 class="display-1 mb-3">WEB-DARTS<p class="fs-6 fst-italic">DartNet Compatible</p></h1>
-        </div>
 
         <div class="games-grid" id="gamesGrid">
             <div class="game-card d-flex flex-column justify-content-center align-items-center p-4 text-center"
@@ -353,13 +359,13 @@
 
             setTimeout(() => {
                 alert(`Starting ${selectedGame.title} with ${selectedOptions[selectedGame.title]} option!`);
-                gameDetailsModal.hide(complete=resetView());
+                gameDetailsModal.hide(complete = resetView());
                 ;
             }, 500);
         }
 
         function goBack() {
-            gameDetailsModal.hide(complete=resetView());
+            gameDetailsModal.hide(complete = resetView());
         }
 
         function resetView() {
@@ -374,7 +380,7 @@
         // Close modal on escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && gameDetailsModal._isShown) {
-                gameDetailsModal.hide(complete=resetView());
+                gameDetailsModal.hide(complete = resetView());
             }
         });
 

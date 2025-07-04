@@ -1,3 +1,8 @@
+@font-face {
+    font-family: CannetAgency;
+    src: url("/fonts/CannetAgency.ttf") format("truetype");
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -24,6 +29,93 @@ body {
 
 .overlay-controls {
     z-index: 2000;
+}
+
+
+.title {
+
+    display: flex;
+    align-items: center;
+    animation: smooth_alive 30s ease-in-out infinite;
+    z-index: 1;
+}
+
+@keyframes smooth_alive {
+    0%,
+    100% {
+        transform: scale(0.7);
+        opacity: 0.9;
+    }
+
+    25%,
+    75% {
+        transform: scale(0.68) translateX(-4px) translateY(-5px) rotate(1deg);
+        opacity: 1.0;
+    }
+
+    50% {
+        transform: scale(0.77) translateX(30px) rotate(-1.3deg);
+        opacity: 0.8;
+    }
+}
+
+.title h1 {
+    position: relative;
+    font-weight: 100;
+    letter-spacing: .25em;
+    /* text-transform: uppercase; */
+    font-family: CannetAgency, sans-serif;
+    --scalar: 2vw;
+    font-size: clamp(1.5rem,
+            calc(1rem + var(--scalar)),
+            8rem);
+
+    @media (width > 480px) {
+        & {
+            --scalar: 4vw;
+        }
+    }
+
+    color:rgb(255, 255, 255);
+    mix-blend-mode: normal;
+    animation: glow 6s infinite ease;
+}
+
+/* animates box shadow glow effect */
+@keyframes glow {
+    0%,
+    100% {
+        text-shadow: 0 0 5px #fff,
+            0 0 10px #fff,
+            0 0 15px #fff,
+            0 0 20px #228dff,
+            0 0 35px #228dff,
+            0 0 40px #228dff;
+    }
+
+    50% {
+        text-shadow: 0 0 5px #fff,
+            0 0 6px #fff,
+            0 0 9px #fff,
+            0 0 12px #228dff,
+            0 0 15px #228dff,
+            0 0 24px #228dff;
+    }
+}
+
+.title h1::first-letter {
+    font-size: 170%
+}
+.subtitle {
+    font-family: 'Orbitron', monospace;
+    color: white;
+    font-style: italic;
+    font-size: 1rem;
+    text-shadow: 0 0 25px #fff;
+    animation: glow 6s infinite ease;
+    top: -15px;
+    left: 16%;
+    position: relative;
 }
 
 .fullscreen-btn {

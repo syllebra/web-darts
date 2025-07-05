@@ -1,6 +1,6 @@
 @font-face {
     font-family: CannetAgency;
-    src: url("/fonts/CannetAgency.ttf") format("truetype");
+    src: url("../fonts/CannetAgency.ttf") format("truetype");
 }
 
 * {

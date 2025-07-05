@@ -15,7 +15,7 @@
 body {
     font-family: 'Exo 2', 'Arial', sans-serif;
     /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
-    background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), url('/images/backdrops/pub_02.png');
+    background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), url('../images/backdrops/pub_02.png');
     background-size: cover;
     background-repeat: no-repeat;
     min-height: 100vh;

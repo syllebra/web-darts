@@ -42,18 +42,18 @@ body {
 @keyframes smooth_alive {
     0%,
     100% {
-        transform: scale(0.7);
+        transform: scale(1.0);
         opacity: 0.9;
     }
 
     25%,
     75% {
-        transform: scale(0.68) translateX(-4px) translateY(-5px) rotate(1deg);
+        transform: scale(0.94) translateX(-4px) translateY(-5px) rotate(1deg);
         opacity: 1.0;
     }
 
     50% {
-        transform: scale(0.77) translateX(30px) rotate(-1.3deg);
+        transform: scale(1.03) translateX(30px) rotate(-1.3deg);
         opacity: 0.8;
     }
 }
@@ -110,8 +110,8 @@ body {
 .title-section-fixed {
     position: fixed;
     top: 0;
-    left: 0;
-    right: 0;
+    left: 10vw;
+    right: 10vw;
     z-index: 1000;
     padding: 15px 0;
     margin-bottom: 0 !important;

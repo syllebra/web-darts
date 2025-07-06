@@ -1,15 +1,15 @@
 :root {
 
     /* Container dimensions */
-        --container-width: 100vw;
-        --container-height: calc(100vh - var(--title-gap));
-    
-        /* Card configuration */
-        --card-width: calc(var(--container-width) / 3.5);
-        --card-height: max(180px, calc(var(--container-height) / 3.5));
-        --gap: 1.5rem;
-        --padding: 1.5rem;
-        --title-gap: 120px;
+    --container-width: 100vw;
+    --container-height: calc(100vh - var(--title-gap));
+
+    /* Card configuration */
+    --card-width: calc(var(--container-width) / 3.5);
+    --card-height: max(180px, calc(var(--container-height) / 3.5));
+    --gap: 1.5rem;
+    --padding: 1.5rem;
+    --title-gap: 120px;
 }
 
 body {
@@ -79,6 +79,35 @@ body::before {
         --padding: 1.5rem;
     }
 } */
+@media (max-height: 420px) {
+    .games-grid-container {
+        --card-height: calc(var(--container-height) - 2* var(--gap));
+        --card-width: max(150px,calc(var(--container-width) / 4.5));
+
+        overflow-x: auto;
+        overflow-y: hidden;
+        justify-content: flex-start;
+    }
+
+    .games-grid {
+        display: flex !important;
+        flex-direction: row;
+        gap: 15px;
+        flex-wrap: nowrap;
+        align-items: center;
+
+        /* Remove grid properties */
+        grid-template-columns: none;
+        grid-auto-rows: none;
+
+        width: auto !important;
+        height: 100%;
+    }
+
+    .game-card {
+        flex: 0 0 var(--card-width);
+    }
+}
 
 .games-grid-container {
     width: var(--container-width);
@@ -94,7 +123,7 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--padding) !important; 
+    padding: var(--padding) !important;
 }
 
 .games-grid {
@@ -110,6 +139,7 @@ body::before {
     grid-template-columns: repeat(auto-fit, minmax(var(--card-width), 1fr));
     grid-auto-rows: var(--card-height);
 }
+
 /* Custom scrollbar for both orientations */
 .games-grid-container::-webkit-scrollbar {
     width: 12px;

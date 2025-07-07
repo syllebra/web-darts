@@ -287,11 +287,18 @@
         let gamePicker;
         let gameDetailsModalElement;
 
+
         // Initialize modal
         document.addEventListener('DOMContentLoaded', function () {
             gamePicker = document.getElementById('gamePicker');
             gameDetailsModalElement = document.getElementById('gameDetailsModal')
             gameDetailsModal = new bootstrap.Modal(gameDetailsModalElement);
+
+
+            gameDetailsModalElement.addEventListener('hidden.bs.modal', function (event) {
+                goBack();
+            })
+
             // Add entrance animation to cards
             const cards = document.querySelectorAll('.game-card');
             cards.forEach((card, index) => {
@@ -315,9 +322,8 @@
         function showGameDetails() {
 
             gameDetailsModalElement.style.backgroundRepeat = "no-repeat";
-            gameDetailsModalElement.style.backgroundSize = "auto";
             gameDetailsModalElement.style.background = 'linear-gradient( rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5) ), url("' + selectedGame.background + '")'
-
+            gameDetailsModalElement.style.backgroundSize = "cover";
 
             //document.getElementById('detailsBackground').src = selectedGame.background;
             document.getElementById('detailsTitle').textContent = selectedGame.title;
@@ -359,7 +365,7 @@
 
             setTimeout(() => {
                 alert(`Starting ${selectedGame.title} with ${selectedOptions[selectedGame.title]} option!`);
-                gameDetailsModal.hide(complete = resetView());
+                gameDetailsModal.hide();
                 ;
             }, 500);
         }
@@ -369,31 +375,21 @@
         }
 
         function resetView() {
-            // Hide back button
-            // document.getElementById('backBtn').classList.add('d-none');
-            // document.getElementById('backBtn').classList.remove('d-flex');
             console.log("Reset view...")
-            // Reset all animations
             gamePicker.classList.remove('slide-out');
         }
 
-        // Close modal on escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && gameDetailsModal._isShown) {
-                gameDetailsModal.hide(complete = resetView());
-            }
-        });
 
         // Add some extra arcade flair with random sparkles
         function createSparkle() {
             const sparkle = document.createElement('div');
             sparkle.style.position = 'fixed';
-            sparkle.style.width = '4px';
-            sparkle.style.height = '4px';
+            sparkle.style.width = '10px';
+            sparkle.style.height = '10px';
             sparkle.style.background = 'white';
             sparkle.style.borderRadius = '50%';
             sparkle.style.pointerEvents = 'none';
-            sparkle.style.zIndex = '1000';
+            sparkle.style.zIndex = '3000';
             sparkle.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.8)';
 
             sparkle.style.left = Math.random() * window.innerWidth + 'px';
@@ -412,7 +408,7 @@
         }
 
         // Create sparkles randomly
-        setInterval(createSparkle, 3000);
+        setInterval(createSparkle, 1000);
     </script>
 </body>
 

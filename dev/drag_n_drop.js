@@ -211,12 +211,22 @@ class DragDropSystem {
 
     if (deleteZone && this.draggedElement) {
       this.deleteCard(this.draggedElement);
+      if (this.callbacks.onDelete) {
+        this.callbacks.onDelete(this.draggedElement);
+      }
     } else if (container && this.draggedElement) {
       this.moveCard(container);
+      if (this.callbacks.onDrop) {
+        this.callbacks.onDrop(this.draggedElement, container);
+      }
     }
 
     this.isDragging = false;
     this.cleanup();
+    
+    if (this.callbacks.onDragEnd) {
+      this.callbacks.onDragEnd(this.draggedElement);
+    }
   }
 
   getDragAfterElement(container, y) {

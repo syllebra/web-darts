@@ -1,13 +1,14 @@
 // Game state
 let players = [
-  { id: 1, name: "MARIO", color: "#ff4444", icon: "🍄" },
-  { id: 2, name: "LUIGI", color: "#44ff44", icon: "⭐" },
-  { id: 3, name: "PEACH", color: "#ff69b4", icon: "👑" },
-  { id: 4, name: "TOAD", color: "#4169e1", icon: "🎯" },
+  { id: 1, name: "MARIO", color: "#ff4444", icon: "🍄", country: "jp" },
+  { id: 2, name: "LUIGI", color: "#44ff44", icon: "⭐", country: "it" },
+  { id: 3, name: "PEACH", color: "#ff69b4", icon: "👑", country: "fr" },
+  { id: 4, name: "TOAD", color: "#4169e1", icon: "🎯", country: "pf" },
 ];
 
 let editingPlayer = null;
 let currentPickerPlayer = null;
+let countries = null;
 
 // Configuration
 const MAX_PLAYERS = 8; // Maximum number of players allowed
@@ -34,6 +35,297 @@ const predefinedColors = [
   "#9b59b6",
   "#34495e",
 ];
+
+let countriesCodes = ["fr", "gb", "us"];
+
+function isValidCountryCode(code) {
+  const validCodes = [
+    "ad",
+    "ae",
+    "af",
+    "ag",
+    "ai",
+    "al",
+    "am",
+    "ao",
+    "aq",
+    "ar",
+    "as",
+    "at",
+    "au",
+    "aw",
+    "ax",
+    "az",
+    "ba",
+    "bb",
+    "bd",
+    "be",
+    "bf",
+    "bg",
+    "bh",
+    "bi",
+    "bj",
+    "bl",
+    "bm",
+    "bn",
+    "bo",
+    "bq",
+    "br",
+    "bs",
+    "bt",
+    "bv",
+    "bw",
+    "by",
+    "bz",
+    "ca",
+    "cc",
+    "cd",
+    "cf",
+    "cg",
+    "ch",
+    "ci",
+    "ck",
+    "cl",
+    "cm",
+    "cn",
+    "co",
+    "cr",
+    "cu",
+    "cv",
+    "cw",
+    "cx",
+    "cy",
+    "cz",
+    "de",
+    "dj",
+    "dk",
+    "dm",
+    "do",
+    "dz",
+    "ec",
+    "ee",
+    "eg",
+    "eh",
+    "er",
+    "es",
+    "et",
+    "fi",
+    "fj",
+    "fk",
+    "fm",
+    "fo",
+    "fr",
+    "ga",
+    "gb",
+    "gd",
+    "ge",
+    "gf",
+    "gg",
+    "gh",
+    "gi",
+    "gl",
+    "gm",
+    "gn",
+    "gp",
+    "gq",
+    "gr",
+    "gs",
+    "gt",
+    "gu",
+    "gw",
+    "gy",
+    "hk",
+    "hm",
+    "hn",
+    "hr",
+    "ht",
+    "hu",
+    "id",
+    "ie",
+    "il",
+    "im",
+    "in",
+    "io",
+    "iq",
+    "ir",
+    "is",
+    "it",
+    "je",
+    "jm",
+    "jo",
+    "jp",
+    "ke",
+    "kg",
+    "kh",
+    "ki",
+    "km",
+    "kn",
+    "kp",
+    "kr",
+    "kw",
+    "ky",
+    "kz",
+    "la",
+    "lb",
+    "lc",
+    "li",
+    "lk",
+    "lr",
+    "ls",
+    "lt",
+    "lu",
+    "lv",
+    "ly",
+    "ma",
+    "mc",
+    "md",
+    "me",
+    "mf",
+    "mg",
+    "mh",
+    "mk",
+    "ml",
+    "mm",
+    "mn",
+    "mo",
+    "mp",
+    "mq",
+    "mr",
+    "ms",
+    "mt",
+    "mu",
+    "mv",
+    "mw",
+    "mx",
+    "my",
+    "mz",
+    "na",
+    "nc",
+    "ne",
+    "nf",
+    "ng",
+    "ni",
+    "nl",
+    "no",
+    "np",
+    "nr",
+    "nu",
+    "nz",
+    "om",
+    "pa",
+    "pe",
+    "pf",
+    "pg",
+    "ph",
+    "pk",
+    "pl",
+    "pm",
+    "pn",
+    "pr",
+    "ps",
+    "pt",
+    "pw",
+    "py",
+    "qa",
+    "re",
+    "ro",
+    "rs",
+    "ru",
+    "rw",
+    "sa",
+    "sb",
+    "sc",
+    "sd",
+    "se",
+    "sg",
+    "sh",
+    "si",
+    "sj",
+    "sk",
+    "sl",
+    "sm",
+    "sn",
+    "so",
+    "sr",
+    "ss",
+    "st",
+    "sv",
+    "sx",
+    "sy",
+    "sz",
+    "tc",
+    "td",
+    "tf",
+    "tg",
+    "th",
+    "tj",
+    "tk",
+    "tl",
+    "tm",
+    "tn",
+    "to",
+    "tr",
+    "tt",
+    "tv",
+    "tw",
+    "tz",
+    "ua",
+    "ug",
+    "um",
+    "us",
+    "uy",
+    "uz",
+    "va",
+    "vc",
+    "ve",
+    "vg",
+    "vi",
+    "vn",
+    "vu",
+    "wf",
+    "ws",
+    "ye",
+    "yt",
+    "za",
+    "zm",
+    "zw",
+  ];
+  return validCodes.includes(code);
+}
+
+async function loadCountries() {
+  try {
+    const response = await fetch(
+      //"https://restcountries.com/v3.1/all?fields=name,cca2,region,subregion,population,capital"
+      "../countries/countries.json"
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    countries = data
+      .map((country) => ({
+        name: country.name.common,
+        code: country.cca2.toLowerCase(),
+      }))
+      .filter((country) => isValidCountryCode(country.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    //filteredCountries = [...countries];
+    countriesCodes = Array.from(data, (country) => country.cca2.toLowerCase());
+  } catch (error) {
+    console.error("Error loading countries:", error);
+  } finally {
+  }
+}
+
+(async () => {
+  await loadCountries();
+  console.log(countries, countriesCodes);
+})();
 
 const availableIcons = [
   "🍄",
@@ -77,12 +369,14 @@ function addPlayer() {
   const newId = Math.max(...players.map((p) => p.id)) + 1;
   const randomColor = predefinedColors[Math.floor(Math.random() * predefinedColors.length)];
   const randomIcon = availableIcons[Math.floor(Math.random() * availableIcons.length)];
+  const randomCountry = countriesCodes[Math.floor(Math.random() * countriesCodes.length)];
 
   const newPlayer = {
     id: newId,
     name: `PLAYER ${newId}`,
     color: randomColor,
     icon: randomIcon,
+    country: randomCountry,
   };
 
   players.push(newPlayer);
@@ -114,7 +408,7 @@ function createPlayerCard(player, index) {
               player.id
             }" 
                  style="border-color: ${player.color}40 !important;">
-                
+                <span class="fi fi-${player.country} player-flag"></span>
                 <!-- Player Number -->
                 <div class="player-number" style="background-color: ${player.color}60; border-color: ${
     player.color
@@ -358,7 +652,7 @@ document.getElementById("start-game-btn").addEventListener("click", function () 
     "Starting game with " +
       players.length +
       " players!\n\nPlayers:\n" +
-      players.map((p) => `${p.name} (${p.icon})`).join("\n")
+      players.map((p) => `${p.name} (${p.icon} ${p.country})`).join("\n")
   );
 });
 

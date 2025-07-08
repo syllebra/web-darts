@@ -223,7 +223,7 @@ class DragDropSystem {
 
     this.isDragging = false;
     this.cleanup();
-    
+
     if (this.callbacks.onDragEnd) {
       this.callbacks.onDragEnd(this.draggedElement);
     }
@@ -311,33 +311,3 @@ class DragDropSystem {
 
 // Initialize the drag-drop system
 const dragDropSystem = new DragDropSystem();
-
-// // Helper functions
-// function addNewCard() {
-//   const containers = document.querySelectorAll(".card-container");
-//   const container = containers[0]; // Add to first container
-//   const cardId = Date.now();
-
-//   const newCard = document.createElement("div");
-//   newCard.className = "card draggable-card";
-//   newCard.draggable = true;
-//   newCard.setAttribute("data-id", cardId);
-
-//   newCard.innerHTML = `
-//         <div class="card-body">
-//             <div class="d-flex align-items-center">
-//                 <i class="fas fa-grip-vertical drag-handle"></i>
-//                 <div>
-//                     <h6 class="card-title mb-1">New Player</h6>
-//                     <small class="text-muted">Position</small>
-//                 </div>
-//             </div>
-//         </div>
-//     `;
-
-//   container.appendChild(newCard);
-// }
-
-// function resetCards() {
-//   location.reload();
-// }

@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flag Selector - Bootstrap Edition</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icons/6.6.6/css/flag-icons.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+        rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+
+        .flag-icon {
+            width: 28px;
+            height: 21px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .flag-icon-lg {
+            width: 48px;
+            height: 36px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dropdown-toggle::after {
+            transition: transform 0.3s ease;
+        }
+
+        .dropdown-toggle[aria-expanded="true"]::after {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-menu {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .dropdown-item.active {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .country-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: 0.25em solid transparent;
+            border-top: 0.25em solid #6c757d;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .result-metadata {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .country-count {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+
+        .btn-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+        }
+
+        .btn-custom:hover {
+            background: linear-gradient(45deg, #5a6fd8, #6a4190);
+            color: white;
+        }
+
+        .search-highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        /* Custom scrollbar */
+        .dropdown-menu::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dropdown-menu::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .dropdown-menu::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        .dropdown-menu::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h3 class="card-title mb-0">
+                            <i class="bi bi-flag-fill text-primary me-2"></i>
+                            World Flag Selector
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading State -->
+                        <div id="loadingContainer" class="text-center py-5">
+                            <div class="loading-spinner mb-3"></div>
+                            <p class="text-muted">Loading countries...</p>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="errorContainer" class="alert alert-danger" style="display: none;">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Error!</strong> Failed to load countries. Please check your internet connection.
+                            <button class="btn btn-sm btn-outline-danger mt-2 d-block"
+                                onclick="flagSelector.loadCountries()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Retry
+                            </button>
+                        </div>
+
+                        <!-- Main Selector -->
+                        <div id="selectorContainer" style="display: none;">
+                            <div class="country-count text-center mb-3" id="countryCount"></div>
+
+                            <!-- Dropdown Selector -->
+                            <div class="dropdown">
+                                <button
+                                    class="btn btn-outline-secondary dropdown-toggle w-100 d-flex align-items-center justify-content-between"
+                                    type="button" id="countryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <div class="d-flex align-items-center" id="selectedContent">
+                                        <span class="text-muted">Select a country...</span>
+                                    </div>
+                                </button>
+
+                                <div class="dropdown-menu w-100" aria-labelledby="countryDropdown">
+                                    <!-- Search Input -->
+                                    <div class="px-3 py-2">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">
+                                                <i class="bi bi-search"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="searchInput"
+                                                placeholder="Search countries..." autocomplete="off">
+                                        </div>
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+
+                                    <!-- Options Container -->
+                                    <div id="optionsContainer">
+                                        <!-- Options will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Filter Buttons -->
+                            <div class="mt-3">
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="flagSelector.filterByRegion('all')">
+                                        All Regions
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="flagSelector.filterByRegion('Europe')">
+                                        Europe
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="flagSelector.filterByRegion('Asia')">
+                                        Asia
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="flagSelector.filterByRegion('Africa')">
+                                        Africa
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="flagSelector.filterByRegion('Americas')">
+                                        Americas
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="flagSelector.filterByRegion('Oceania')">
+                                        Oceania
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result Card -->
+                <div class="card mt-4" id="resultCard" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                            Selected Country
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <span class="flag-icon-lg" id="resultFlag"></span>
+                            </div>
+                            <div class="col">
+                                <h4 class="mb-1" id="resultName"></h4>
+                                <div class="mb-2">
+                                    <span class="badge bg-secondary" id="resultCode"></span>
+                                </div>
+                                <div class="result-metadata" id="resultMetadata"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-4 text-center" id="actionButtons" style="display: none;">
+                    <button class="btn btn-custom me-2" onclick="flagSelector.getSelectedCountryInfo()">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Get Country Info
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="flagSelector.reset()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>
+                        Reset Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        class FlagSelector {
+            constructor() {
+                this.countries = [];
+                this.selectedCountry = null;
+                this.filteredCountries = [];
+                this.currentRegionFilter = 'all';
+                this.isLoading = false;
+                this.searchTerm = '';
+
+                this.elements = {};
+                this.init();
+            }
+
+            init() {
+                this.elements = {
+                    loadingContainer: document.getElementById('loadingContainer'),
+                    errorContainer: document.getElementById('errorContainer'),
+                    selectorContainer: document.getElementById('selectorContainer'),
+                    countryCount: document.getElementById('countryCount'),
+                    countryDropdown: document.getElementById('countryDropdown'),
+                    selectedContent: document.getElementById('selectedContent'),
+                    searchInput: document.getElementById('searchInput'),
+                    optionsContainer: document.getElementById('optionsContainer'),
+                    resultCard: document.getElementById('resultCard'),
+                    resultFlag: document.getElementById('resultFlag'),
+                    resultName: document.getElementById('resultName'),
+                    resultCode: document.getElementById('resultCode'),
+                    resultMetadata: document.getElementById('resultMetadata'),
+                    actionButtons: document.getElementById('actionButtons')
+                };
+
+                this.loadCountries();
+                this.bindEvents();
+            }
+
+            async loadCountries() {
+                if (this.isLoading) return;
+
+                this.isLoading = true;
+                this.showLoading();
+
+                try {
+                    const response = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,region,subregion,population,capital');
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    this.countries = data
+                        .map(country => ({
+                            name: country.name.common,
+                            code: country.cca2.toLowerCase(),
+                            region: country.region,
+                            subregion: country.subregion,
+                            population: country.population,
+                            capital: country.capital?.[0] || 'N/A'
+                        }))
+                        .filter(country => this.isValidCountryCode(country.code))
+                        .sort((a, b) => a.name.localeCompare(b.name));
+
+                    this.filteredCountries = [...this.countries];
+
+                    this.showSelector();
+                    this.renderOptions();
+
+                } catch (error) {
+                    console.error('Error loading countries:', error);
+                    this.showError();
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+
+            isValidCountryCode(code) {
+                const validCodes = [
+                    'ad', 'ae', 'af', 'ag', 'ai', 'al', 'am', 'ao', 'aq', 'ar', 'as', 'at', 'au', 'aw', 'ax', 'az',
+                    'ba', 'bb', 'bd', 'be', 'bf', 'bg', 'bh', 'bi', 'bj', 'bl', 'bm', 'bn', 'bo', 'bq', 'br', 'bs',
+                    'bt', 'bv', 'bw', 'by', 'bz', 'ca', 'cc', 'cd', 'cf', 'cg', 'ch', 'ci', 'ck', 'cl', 'cm', 'cn',
+                    'co', 'cr', 'cu', 'cv', 'cw', 'cx', 'cy', 'cz', 'de', 'dj', 'dk', 'dm', 'do', 'dz', 'ec', 'ee',
+                    'eg', 'eh', 'er', 'es', 'et', 'fi', 'fj', 'fk', 'fm', 'fo', 'fr', 'ga', 'gb', 'gd', 'ge', 'gf',
+                    'gg', 'gh', 'gi', 'gl', 'gm', 'gn', 'gp', 'gq', 'gr', 'gs', 'gt', 'gu', 'gw', 'gy', 'hk', 'hm',
+                    'hn', 'hr', 'ht', 'hu', 'id', 'ie', 'il', 'im', 'in', 'io', 'iq', 'ir', 'is', 'it', 'je', 'jm',
+                    'jo', 'jp', 'ke', 'kg', 'kh', 'ki', 'km', 'kn', 'kp', 'kr', 'kw', 'ky', 'kz', 'la', 'lb', 'lc',
+                    'li', 'lk', 'lr', 'ls', 'lt', 'lu', 'lv', 'ly', 'ma', 'mc', 'md', 'me', 'mf', 'mg', 'mh', 'mk',
+                    'ml', 'mm', 'mn', 'mo', 'mp', 'mq', 'mr', 'ms', 'mt', 'mu', 'mv', 'mw', 'mx', 'my', 'mz', 'na',
+                    'nc', 'ne', 'nf', 'ng', 'ni', 'nl', 'no', 'np', 'nr', 'nu', 'nz', 'om', 'pa', 'pe', 'pf', 'pg',
+                    'ph', 'pk', 'pl', 'pm', 'pn', 'pr', 'ps', 'pt', 'pw', 'py', 'qa', 're', 'ro', 'rs', 'ru', 'rw',
+                    'sa', 'sb', 'sc', 'sd', 'se', 'sg', 'sh', 'si', 'sj', 'sk', 'sl', 'sm', 'sn', 'so', 'sr', 'ss',
+                    'st', 'sv', 'sx', 'sy', 'sz', 'tc', 'td', 'tf', 'tg', 'th', 'tj', 'tk', 'tl', 'tm', 'tn', 'to',
+                    'tr', 'tt', 'tv', 'tw', 'tz', 'ua', 'ug', 'um', 'us', 'uy', 'uz', 'va', 'vc', 've', 'vg', 'vi',
+                    'vn', 'vu', 'wf', 'ws', 'ye', 'yt', 'za', 'zm', 'zw'
+                ];
+                return validCodes.includes(code);
+            }
+
+            showLoading() {
+                this.elements.loadingContainer.style.display = 'block';
+                this.elements.errorContainer.style.display = 'none';
+                this.elements.selectorContainer.style.display = 'none';
+            }
+
+            showError() {
+                this.elements.loadingContainer.style.display = 'none';
+                this.elements.errorContainer.style.display = 'block';
+                this.elements.selectorContainer.style.display = 'none';
+            }
+
+            showSelector() {
+                this.elements.loadingContainer.style.display = 'none';
+                this.elements.errorContainer.style.display = 'none';
+                this.elements.selectorContainer.style.display = 'block';
+                this.updateCountryCount();
+            }
+
+            updateCountryCount() {
+                const total = this.countries.length;
+                const filtered = this.filteredCountries.length;
+                this.elements.countryCount.innerHTML = `
+                    <i class="bi bi-globe me-1"></i>
+                    ${filtered} of ${total} countries
+                    ${this.currentRegionFilter !== 'all' ? `<span class="badge bg-primary ms-2">${this.currentRegionFilter}</span>` : ''}
+                `;
+            }
+
+            bindEvents() {
+                // Search functionality
+                this.elements.searchInput.addEventListener('input', (e) => {
+                    this.searchTerm = e.target.value;
+                    this.applyFilters();
+                });
+
+                // Prevent dropdown from closing when clicking inside
+                this.elements.searchInput.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+
+                // Clear search when dropdown opens
+                document.addEventListener('shown.bs.dropdown', () => {
+                    this.elements.searchInput.focus();
+                });
+            }
+
+            applyFilters() {
+                let filtered = [...this.countries];
+
+                // Apply region filter
+                if (this.currentRegionFilter !== 'all') {
+                    filtered = filtered.filter(country => country.region === this.currentRegionFilter);
+                }
+
+                // Apply search filter
+                if (this.searchTerm.trim()) {
+                    const searchLower = this.searchTerm.toLowerCase().trim();
+                    filtered = filtered.filter(country =>
+                        country.name.toLowerCase().includes(searchLower) ||
+                        country.region.toLowerCase().includes(searchLower) ||
+                        country.subregion.toLowerCase().includes(searchLower) ||
+                        country.capital.toLowerCase().includes(searchLower)
+                    );
+                }
+
+                this.filteredCountries = filtered;
+                this.renderOptions();
+                this.updateCountryCount();
+            }
+
+            renderOptions() {
+                this.elements.optionsContainer.innerHTML = '';
+
+                if (this.filteredCountries.length === 0) {
+                    this.elements.optionsContainer.innerHTML = `
+                        <div class="px-3 py-4 text-center text-muted">
+                            <i class="bi bi-search me-2"></i>
+                            No countries found
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.filteredCountries.forEach(country => {
+                    const option = document.createElement('a');
+                    option.className = 'dropdown-item';
+                    option.href = '#';
+                    option.innerHTML = `
+                        <div class="country-option">
+                            <span class="fi fi-${country.code} flag-icon"></span>
+                            <div>
+                                <div class="fw-medium">${this.highlightSearch(country.name)}</div>
+                                <small class="text-muted">${country.region} • ${country.capital}</small>
+                            </div>
+                        </div>
+                    `;
+
+                    option.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.selectCountry(country);
+                    });
+
+                    this.elements.optionsContainer.appendChild(option);
+                });
+            }
+
+            highlightSearch(text) {
+                if (!this.searchTerm.trim()) return text;
+
+                const regex = new RegExp(`(${this.searchTerm.trim()})`, 'gi');
+                return text.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+
+            selectCountry(country) {
+                this.selectedCountry = country;
+
+                // Update dropdown button
+                this.elements.selectedContent.innerHTML = `
+                    <span class="fi fi-${country.code} flag-icon me-2"></span>
+                    <span>${country.name}</span>
+                `;
+
+                // Update result card
+                this.elements.resultFlag.className = `fi fi-${country.code} flag-icon-lg`;
+                this.elements.resultName.textContent = country.name;
+                this.elements.resultCode.textContent = country.code.toUpperCase();
+                this.elements.resultMetadata.innerHTML = `
+                    <div class="row g-0">
+                        <div class="col-sm-6">
+                            <strong>Capital:</strong> ${country.capital}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>Region:</strong> ${country.region}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>Subregion:</strong> ${country.subregion}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>Population:</strong> ${this.formatNumber(country.population)}
+                        </div>
+                    </div>
+                `;
+
+                // Show result card and action buttons
+                this.elements.resultCard.style.display = 'block';
+                this.elements.actionButtons.style.display = 'block';
+
+                // Close dropdown
+                const dropdown = bootstrap.Dropdown.getInstance(this.elements.countryDropdown);
+                if (dropdown) dropdown.hide();
+
+                // Clear search
+                this.elements.searchInput.value = '';
+                this.searchTerm = '';
+                this.applyFilters();
+
+                // Trigger event
+                this.onCountrySelected(country);
+            }
+
+            formatNumber(num) {
+                if (num >= 1000000000) {
+                    return (num / 1000000000).toFixed(1) + 'B';
+                } else if (num >= 1000000) {
+                    return (num / 1000000).toFixed(1) + 'M';
+                } else if (num >= 1000) {
+                    return (num / 1000).toFixed(1) + 'K';
+                } else {
+                    return num.toLocaleString();
+                }
+            }
+
+            filterByRegion(region) {
+                this.currentRegionFilter = region;
+                this.applyFilters();
+
+                // Update button states
+                document.querySelectorAll('.btn-outline-primary').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                event.target.classList.add('active');
+            }
+
+            onCountrySelected(country) {
+                const event = new CustomEvent('countrySelected', {
+                    detail: { country }
+                });
+                document.dispatchEvent(event);
+
+                console.log('Country selected:', country);
+            }
+
+            getSelectedCountryInfo() {
+                if (!this.selectedCountry) {
+                    alert('No country selected');
+                    return;
+                }
+
+                // Show detailed info in modal or alert
+                const info = `
+Country: ${this.selectedCountry.name}
+Code: ${this.selectedCountry.code.toUpperCase()}
+Region: ${this.selectedCountry.region}
+Subregion: ${this.selectedCountry.subregion}
+Capital: ${this.selectedCountry.capital}
+Population: ${this.selectedCountry.population.toLocaleString()}
+                `;
+
+                alert(info);
+            }
+
+            // Public API methods
+            getSelectedCountry() {
+                return this.selectedCountry;
+            }
+
+            setSelectedCountry(countryCode) {
+                const country = this.countries.find(c => c.code === countryCode.toLowerCase());
+                if (country) {
+                    this.selectCountry(country);
+                }
+            }
+
+            reset() {
+                this.selectedCountry = null;
+                this.currentRegionFilter = 'all';
+                this.searchTerm = '';
+
+                // Reset UI
+                this.elements.selectedContent.innerHTML = '<span class="text-muted">Select a country...</span>';
+                this.elements.resultCard.style.display = 'none';
+                this.elements.actionButtons.style.display = 'none';
+                this.elements.searchInput.value = '';
+
+                // Reset filter buttons
+                document.querySelectorAll('.btn-outline-primary').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                this.applyFilters();
+            }
+
+            getCountriesByRegion(region) {
+                return this.countries.filter(country =>
+                    country.region.toLowerCase() === region.toLowerCase()
+                );
+            }
+
+            getAllCountries() {
+                return this.countries;
+            }
+        }
+
+        // Initialize the flag selector
+        const flagSelector = new FlagSelector();
+
+        // Event listeners
+        document.addEventListener('countrySelected', (e) => {
+            const country = e.detail.country;
+            console.log('Bootstrap Flag Selector - Country selected:', country);
+
+            // Integration example for player cards
+            // updatePlayerCard({
+            //     flagClass: `fi fi-${country.code}`,
+            //     countryName: country.name,
+            //     countryCode: country.code.toUpperCase(),
+            //     region: country.region,
+            //     capital: country.capital,
+            //     population: country.population
+            // });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera OpenCV ONNX App - Debug Mode</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .debug-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button,
+        select {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+
+        .video-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .video-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        video,
+        canvas {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .video-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Camera Debug App</h1>
+            <p>Debugging camera access step by step</p>
+        </div>
+
+        <div class="debug-info" id="debugInfo">Starting debug mode...\n</div>
+
+        <div class="status" id="status">
+            Click "Check System" to start debugging
+        </div>
+
+        <div class="controls">
+            <button id="checkSystem">1. Check System</button>
+            <button id="requestPermission" disabled>2. Request Permission</button>
+            <button id="listCameras" disabled>3. List Cameras</button>
+            <select id="cameraSelect" disabled>
+                <option value="">Select Camera</option>
+            </select>
+            <button id="startCamera" disabled>4. Start Camera</button>
+            <button id="testBasic">Test Basic Camera</button>
+        </div>
+
+        <div class="video-container">
+            <div class="video-box">
+                <h3>Camera Feed</h3>
+                <video id="videoElement" autoplay muted></video>
+            </div>
+            <div class="video-box">
+                <h3>Debug Canvas</h3>
+                <canvas id="outputCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+        <!-- OpenCV.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/opencv.js/4.8.0/opencv.js"></script>
+        <!-- ONNX Runtime Web -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.14.0/ort.min.js"></script>
+    <script>
+        class CameraDebugApp {
+            constructor() {
+                this.videoElement = document.getElementById('videoElement');
+                this.outputCanvas = document.getElementById('outputCanvas');
+                this.ctx = this.outputCanvas.getContext('2d');
+                this.currentStream = null;
+                this.debugInfo = document.getElementById('debugInfo');
+
+                this.setupEventListeners();
+                this.log('App initialized');
+            }
+
+            log(message) {
+                console.log(message);
+                this.debugInfo.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+                this.debugInfo.scrollTop = this.debugInfo.scrollHeight;
+            }
+
+            updateStatus(message, type = '') {
+                const statusElement = document.getElementById('status');
+                statusElement.textContent = message;
+                statusElement.className = `status ${type}`;
+                this.log('Status: ' + message);
+            }
+
+            setupEventListeners() {
+                document.getElementById('checkSystem').addEventListener('click', () => this.checkSystem());
+                document.getElementById('requestPermission').addEventListener('click', () => this.requestPermission());
+                document.getElementById('listCameras').addEventListener('click', () => this.listCameras());
+                document.getElementById('startCamera').addEventListener('click', () => this.startCamera());
+                document.getElementById('testBasic').addEventListener('click', () => this.testBasicCamera());
+            }
+
+            checkSystem() {
+                this.log('=== SYSTEM CHECK ===');
+
+                // Check protocol
+                this.log('Protocol: ' + window.location.protocol);
+                this.log('Hostname: ' + window.location.hostname);
+
+                // Check navigator
+                this.log('Navigator exists: ' + !!navigator);
+                this.log('MediaDevices exists: ' + !!navigator.mediaDevices);
+                this.log('getUserMedia exists: ' + !!navigator.mediaDevices?.getUserMedia);
+
+                // Check permissions API
+                this.log('Permissions API exists: ' + !!navigator.permissions);
+
+                // User agent
+                this.log('User Agent: ' + navigator.userAgent);
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    this.updateStatus('❌ MediaDevices API not available', 'error');
+                    return;
+                }
+
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    this.updateStatus('⚠️ Insecure context - camera may not work', 'error');
+                } else {
+                    this.updateStatus('✅ System check passed', 'success');
+                    document.getElementById('requestPermission').disabled = false;
+                }
+            }
+
+            async requestPermission() {
+                this.log('=== PERMISSION REQUEST ===');
+
+                try {
+                    this.updateStatus('Requesting camera permission...');
+
+                    // Try the most basic camera request
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: true
+                    });
+
+                    this.log('Permission granted successfully');
+                    this.log('Stream tracks: ' + stream.getTracks().length);
+
+                    // Stop the stream
+                    stream.getTracks().forEach(track => {
+                        this.log('Stopping track: ' + track.kind);
+                        track.stop();
+                    });
+
+                    this.updateStatus('✅ Permission granted', 'success');
+                    document.getElementById('listCameras').disabled = false;
+
+                } catch (error) {
+                    this.log('Permission error: ' + error.name);
+                    this.log('Error message: ' + error.message);
+                    this.updateStatus('❌ Permission denied: ' + error.name, 'error');
+                }
+            }
+
+            async listCameras() {
+                this.log('=== CAMERA ENUMERATION ===');
+
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    this.log('Total devices found: ' + devices.length);
+
+                    const cameras = devices.filter(device => device.kind === 'videoinput');
+                    this.log('Video input devices: ' + cameras.length);
+
+                    const cameraSelect = document.getElementById('cameraSelect');
+                    cameraSelect.innerHTML = '<option value="">Select Camera</option>';
+
+                    cameras.forEach((camera, index) => {
+                        this.log(`Camera ${index}: ${camera.label || 'Unnamed'} (${camera.deviceId})`);
+
+                        const option = document.createElement('option');
+                        option.value = camera.deviceId;
+                        option.textContent = camera.label || `Camera ${index + 1}`;
+                        cameraSelect.appendChild(option);
+                    });
+
+                    if (cameras.length > 0) {
+                        this.updateStatus(`✅ Found ${cameras.length} camera(s)`, 'success');
+                        document.getElementById('cameraSelect').disabled = false;
+                        document.getElementById('startCamera').disabled = false;
+                    } else {
+                        this.updateStatus('❌ No cameras found', 'error');
+                    }
+
+                } catch (error) {
+                    this.log('Enumeration error: ' + error.message);
+                    this.updateStatus('❌ Error listing cameras: ' + error.message, 'error');
+                }
+            }
+
+            async startCamera() {
+                this.log('=== CAMERA START ===');
+
+                const cameraSelect = document.getElementById('cameraSelect');
+                const selectedCamera = cameraSelect.value;
+
+                if (!selectedCamera) {
+                    this.updateStatus('❌ Please select a camera', 'error');
+                    return;
+                }
+
+                try {
+                    if (this.currentStream) {
+                        this.currentStream.getTracks().forEach(track => track.stop());
+                    }
+
+                    const constraints = {
+                        video: {
+                            deviceId: { exact: selectedCamera }
+                        }
+                    };
+
+                    this.log('Using constraints: ' + JSON.stringify(constraints));
+
+                    this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    this.videoElement.srcObject = this.currentStream;
+
+                    this.videoElement.onloadedmetadata = () => {
+                        this.log('Video metadata loaded');
+                        this.log('Video dimensions: ' + this.videoElement.videoWidth + 'x' + this.videoElement.videoHeight);
+                        this.outputCanvas.width = this.videoElement.videoWidth;
+                        this.outputCanvas.height = this.videoElement.videoHeight;
+                        this.updateStatus('✅ Camera started successfully', 'success');
+                    };
+
+                } catch (error) {
+                    this.log('Camera start error: ' + error.name);
+                    this.log('Error message: ' + error.message);
+                    this.updateStatus('❌ Error starting camera: ' + error.message, 'error');
+                }
+            }
+
+            async testBasicCamera() {
+                this.log('=== BASIC CAMERA TEST ===');
+
+                try {
+                    // Most basic camera request - no constraints
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    this.videoElement.srcObject = stream;
+                    this.currentStream = stream;
+
+                    this.videoElement.onloadedmetadata = () => {
+                        this.log('Basic camera test successful');
+                        this.updateStatus('✅ Basic camera working', 'success');
+                    };
+
+                } catch (error) {
+                    this.log('Basic camera test failed: ' + error.name);
+                    this.log('Error message: ' + error.message);
+                    this.updateStatus('❌ Basic camera test failed: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            new CameraDebugApp();
+        });
+    </script>
+</body>
+
+</html>

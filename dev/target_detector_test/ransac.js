@@ -1,4 +1,4 @@
-// Mathematical utilities
+// Extended Mathematical utilities for perspective transformation
 const MathUtils = {
   random: (min, max) => Math.random() * (max - min) + min,
 
@@ -23,6 +23,68 @@ const MathUtils = {
   sqrt: Math.sqrt,
 
   abs: Math.abs,
+
+  // Matrix operations for perspective transform
+  matrixMultiply: (A, B) => {
+    const result = [];
+    for (let i = 0; i < A.length; i++) {
+      result[i] = [];
+      for (let j = 0; j < B[0].length; j++) {
+        result[i][j] = 0;
+        for (let k = 0; k < B.length; k++) {
+          result[i][j] += A[i][k] * B[k][j];
+        }
+      }
+    }
+    return result;
+  },
+
+  // Solve linear system Ax = b using Gaussian elimination
+  solveLinearSystem: (A, b) => {
+    const n = A.length;
+    const augmented = A.map((row, i) => [...row, b[i]]);
+
+    // Forward elimination
+    for (let i = 0; i < n; i++) {
+      // Find pivot
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+
+      // Swap rows
+      [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+      // Make diagonal element 1
+      const pivot = augmented[i][i];
+      if (Math.abs(pivot) < 1e-10) return null; // Singular matrix
+
+      for (let j = i; j < n + 1; j++) {
+        augmented[i][j] /= pivot;
+      }
+
+      // Eliminate column
+      for (let k = i + 1; k < n; k++) {
+        const factor = augmented[k][i];
+        for (let j = i; j < n + 1; j++) {
+          augmented[k][j] -= factor * augmented[i][j];
+        }
+      }
+    }
+
+    // Back substitution
+    const x = new Array(n);
+    for (let i = n - 1; i >= 0; i--) {
+      x[i] = augmented[i][n];
+      for (let j = i + 1; j < n; j++) {
+        x[i] -= augmented[i][j] * x[j];
+      }
+    }
+
+    return x;
+  },
 };
 
 // Abstract Model class
@@ -792,6 +854,169 @@ class FixedCenterCircleModel extends Model {
     return errors;
   }
 }
+
+// Perspective transformation utilities
+const PerspectiveUtils = {
+  // Calculate perspective transform matrix from 4 point correspondences
+  getPerspectiveTransform: (src, dst) => {
+    if (src.length !== 4 || dst.length !== 4) {
+      throw new Error("Need exactly 4 point correspondences");
+    }
+
+    // Set up the system of equations for perspective transformation
+    // We need to solve for 8 unknowns (h11, h12, h13, h21, h22, h23, h31, h32)
+    // h33 is set to 1 for normalization
+    const A = [];
+    const b = [];
+
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i];
+      const [u, v] = dst[i];
+
+      // First equation: u = (h11*x + h12*y + h13) / (h31*x + h32*y + 1)
+      // Rearranged: h11*x + h12*y + h13 - u*h31*x - u*h32*y = u
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]);
+      b.push(u);
+
+      // Second equation: v = (h21*x + h22*y + h23) / (h31*x + h32*y + 1)
+      // Rearranged: h21*x + h22*y + h23 - v*h31*x - v*h32*y = v
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]);
+      b.push(v);
+    }
+
+    const solution = MathUtils.solveLinearSystem(A, b);
+    if (!solution) return null;
+
+    // Construct the 3x3 transformation matrix
+    return [
+      [solution[0], solution[1], solution[2]],
+      [solution[3], solution[4], solution[5]],
+      [solution[6], solution[7], 1],
+    ];
+  },
+
+  // Transform points using perspective transformation matrix
+  transformPoints: (points, matrix) => {
+    if (!matrix) return null;
+
+    return points.map((point) => {
+      const [x, y] = point;
+      const w = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2];
+      const u = (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / w;
+      const v = (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / w;
+      return [u, v];
+    });
+  },
+};
+
+// Simple nearest neighbor implementation
+class NearestNeighbors {
+  constructor(points) {
+    this.points = points;
+  }
+
+  kneighbors(queryPoints, k = 1) {
+    const distances = [];
+    const indices = [];
+
+    queryPoints.forEach((queryPoint) => {
+      const pointDistances = this.points.map((point, index) => ({
+        distance: MathUtils.distance(queryPoint, point),
+        index: index,
+      }));
+
+      pointDistances.sort((a, b) => a.distance - b.distance);
+
+      distances.push([pointDistances[0].distance]);
+      indices.push(pointDistances[0].index);
+    });
+
+    return { distances, indices };
+  }
+}
+
+// PerspectiveBoardFit model implementation
+class PerspectiveBoardFit extends Model {
+  constructor(src, dst, minDist = 5) {
+    super();
+    this.N = 4; // Need 4 point correspondences for perspective transform
+    this.M = null; // Transformation matrix
+    this.src = src; // Source points
+    this.dst = dst; // Destination points
+    this.minDist = minDist;
+  }
+
+  build(pairs) {
+    if (pairs.length !== 4) {
+      return null;
+    }
+
+    // Extract source and destination points from pairs
+    const srcPoints = pairs.map((pair) => this.src[pair[0]]);
+    const dstPoints = pairs.map((pair) => this.dst[pair[1]]);
+
+    // Validate that we have exactly 4 points
+    if (srcPoints.length !== 4 || dstPoints.length !== 4) {
+      return null;
+    }
+
+    // Calculate perspective transformation matrix
+    this.M = PerspectiveUtils.getPerspectiveTransform(srcPoints, dstPoints);
+    return this.M;
+  }
+
+  calcErrors(pairs) {
+    if (!this.M) {
+      throw new Error("Model not built yet. Call build() first.");
+    }
+
+    // Transform all source points using the perspective matrix
+    const projectedPoints = PerspectiveUtils.transformPoints(this.src, this.M);
+
+    if (!projectedPoints) {
+      return Array(this.dst.length).fill(10000);
+    }
+
+    // Find nearest neighbors
+    const nbrs = new NearestNeighbors(projectedPoints);
+    const { distances, indices } = nbrs.kneighbors(this.dst, 1);
+
+    // Count occurrences of each index to detect multiple matches
+    const indexCounts = {};
+    indices.forEach((idx) => {
+      indexCounts[idx] = (indexCounts[idx] || 0) + 1;
+    });
+
+    // Penalize points that are matched multiple times
+    const penalizedDistances = distances.map((dist, i) => {
+      const idx = indices[i];
+      if (indexCounts[idx] !== 1) {
+        return 10000; // High error for multiple matches
+      }
+      return dist[0];
+    });
+
+    return penalizedDistances;
+  }
+}
+
+// Example usage:
+/*
+const src = [[0, 0], [100, 0], [100, 100], [0, 100]]; // Square
+const dst = [[10, 10], [110, 5], [105, 110], [5, 105]]; // Slightly distorted square
+
+const model = new PerspectiveBoardFit(src, dst);
+
+// Example pairs (indices into src and dst arrays)
+const pairs = [[0, 0], [1, 1], [2, 2], [3, 3]];
+
+const transformMatrix = model.build(pairs);
+if (transformMatrix) {
+  console.log("Transform matrix:", transformMatrix);
+  const errors = model.calcErrors(pairs);
+  console.log("Errors:", errors);
+}
+*/
 
 // RANSAC Implementation
 function ransacFit(model, points, successProbability = 0.98, outlierRatio = 0.45, inlierThreshold = 3.0) {

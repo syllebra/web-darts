@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>YOLOv8 Object Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script src="../ext/ort.min.js"></script>
     <style>
         canvas {
@@ -17,7 +18,21 @@
 <body>
     <input id="uploadInput" type="file" />
     <canvas></canvas>
+    <script>eruda.init();</script>
     <script>
+        async function checkGPU() {
+            if (!navigator.gpu) {
+                throw Error("WebGPU not supported.");
+            }
+
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) {
+                throw Error("Couldn't request WebGPU adapter.");
+            }
+
+            const device = await adapter.requestDevice();
+        }
+        checkGPU()
         /**
          * "Upload" button onClick handler: uploads selected image file
          * to backend, receives array of detected objects

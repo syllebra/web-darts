@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved ICP Algorithm Test App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #555;
+        }
+        input, button {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        canvas {
+            border: 2px solid #333;
+            background: white;
+        }
+        .info {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .status {
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .parameter-info {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Improved ICP Algorithm Test Application</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="maxIterations">Max Iterations:</label>
+                <input type="number" id="maxIterations" value="100" min="1" max="1000">
+            </div>
+            <div class="control-group">
+                <label for="distanceThreshold">Distance Threshold:</label>
+                <input type="number" id="distanceThreshold" value="50" min="1" max="200" step="1">
+            </div>
+            <div class="control-group">
+                <label for="convergenceTranslation">Conv. Translation:</label>
+                <input type="number" id="convergenceTranslation" value="0.05" min="0.01" max="5" step="0.01">
+            </div>
+            <div class="control-group">
+                <label for="convergenceRotation">Conv. Rotation:</label>
+                <input type="number" id="convergenceRotation" value="0.001" min="0.0001" max="0.1" step="0.0001">
+            </div>
+            <div class="control-group">
+                <label for="pointPairsThreshold">Min Point Pairs:</label>
+                <input type="number" id="pointPairsThreshold" value="5" min="1" max="50">
+            </div>
+            <div class="control-group">
+                <label for="outlierRejection">Outlier Rejection:</label>
+                <input type="checkbox" id="outlierRejection" checked>
+            </div>
+            <button onclick="generateTestData()">Generate Test Data</button>
+            <button onclick="runICP()" id="runButton">Run ICP</button>
+            <button onclick="stepICP()" id="stepButton">Step ICP</button>
+            <button onclick="resetVisualization()">Reset</button>
+        </div>
+
+        <div class="parameter-info">
+            <strong>Note:</strong> Distance threshold is now properly scaled for pixel coordinates. 
+            For real-world applications with normalized coordinates (0-1 range), use values like 0.01-0.1.
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="info">
+            <h3>Key Improvements:</h3>
+            <ul>
+                <li><strong>Proper Distance Threshold:</strong> Now used for outlier rejection after finding nearest neighbors</li>
+                <li><strong>Outlier Rejection:</strong> Statistical outlier removal based on distance distribution</li>
+                <li><strong>Better Convergence:</strong> More realistic convergence thresholds</li>
+                <li><strong>Robust Matching:</strong> All points get matched first, then filtered for quality</li>
+            </ul>
+            <p><strong>Algorithm Flow:</strong></p>
+            <ol>
+                <li>Find nearest neighbor for each source point</li>
+                <li>Apply distance threshold to reject very poor matches</li>
+                <li>Optionally apply statistical outlier rejection</li>
+                <li>Compute transformation from remaining valid pairs</li>
+                <li>Transform source points and check convergence</li>
+            </ol>
+            <p><strong>Visualization:</strong></p>
+            <ul>
+                <li>Blue circles: Reference points</li>
+                <li>Red circles: Source points (initial position)</li>
+                <li>Green circles: Aligned points (after ICP)</li>
+                <li>Gray lines: Valid correspondences used for transformation</li>
+                <li>Red lines: Rejected correspondences (too far)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ICP Algorithm Class -->
+    <script src="icp.js"></script>
+    <script>
+        // Visualization and UI
+        let canvas, ctx;
+        let referencePoints = [];
+        let sourcePoints = [];
+        let alignedPoints = [];
+        let pointPairs = [];
+        let rejectedPairs = [];
+        let icpInstance = new ICPAlgorithm();
+
+        window.onload = function() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            generateTestData();
+        };
+
+
+        function generateTestData() {
+            referencePoints = [];
+            sourcePoints = [];
+            alignedPoints = [];
+            transformationHistory = [];
+            currentIteration = 0;
+            pointPairs = [];
+            rejectedPairs = [];
+
+            const centerX = 400, centerY = 300;
+            const dartboardRadius = 150;
+            
+            // Generate dartboard reference points (perfect circles and lines)
+            const patterns = [
+                // Standard dartboard pattern
+                () => {
+                    // Generate concentric circles (bullseye, triple ring, double ring)
+                    const circleRadii = [10, 30, 100, 110, 140, 150]; // Bullseye, 25, triple, double
+                    for (let r of circleRadii) {
+                        for (let i = 0; i < 20; i++) {
+                            const angle = (i / 20) * 2 * Math.PI;
+                            referencePoints.push([
+                                centerX + r * Math.cos(angle),
+                                centerY + r * Math.sin(angle)
+                            ]);
+                        }
+                    }
+
+                    // Generate radial lines (20 segments)
+                    for (let i = 0; i < 20; i++) {
+                        const angle = (i / 20) * 2 * Math.PI;
+                        referencePoints.push([
+                            centerX + 10 * Math.cos(angle),
+                            centerY + 10 * Math.sin(angle)
+                        ]);
+                        referencePoints.push([
+                            centerX + dartboardRadius * Math.cos(angle),
+                            centerY + dartboardRadius * Math.sin(angle)
+                        ]);
+                    }
+                },
+                // Perspective distorted dartboard (viewed from angle)
+                () => {
+                    // Apply perspective transform to standard dartboard
+                    const perspectiveFactor = 0.1 + Math.random() * 0.2; // Reduced perspective effect
+                    
+                    // Concentric circles with perspective
+                    const circleRadii = [10, 30, 100, 110, 140, 150];
+                    for (let r of circleRadii) {
+                        for (let i = 0; i < 20; i++) {
+                            const angle = (i / 20) * 2 * Math.PI;
+                            const x = r * Math.cos(angle);
+                            const y = r * Math.sin(angle);
+                            // Apply perspective distortion (y coordinate affects x scaling)
+                            const distortedX = x * (1 - y/dartboardRadius * perspectiveFactor);
+                            referencePoints.push([
+                                centerX + distortedX,
+                                centerY + y
+                            ]);
+                        }
+                    }
+
+                    // Radial lines with perspective
+                    for (let i = 0; i < 20; i++) {
+                        const angle = (i / 20) * 2 * Math.PI;
+                        const x1 = 10 * Math.cos(angle);
+                        const y1 = 10 * Math.sin(angle);
+                        const x2 = dartboardRadius * Math.cos(angle);
+                        const y2 = dartboardRadius * Math.sin(angle);
+                        
+                        // Apply same perspective to both points
+                        const distortedX1 = x1 * (1 - y1/dartboardRadius * perspectiveFactor);
+                        const distortedX2 = x2 * (1 - y2/dartboardRadius * perspectiveFactor);
+                        
+                        referencePoints.push([centerX + distortedX1, centerY + y1]);
+                        referencePoints.push([centerX + distortedX2, centerY + y2]);
+                    }
+                }
+            ];
+
+            // Choose a pattern (50/50 chance for standard or perspective)
+            const patternIndex = Math.random() > 0.5 ? 0 : 1;
+            patterns[patternIndex]();
+
+            // Generate source points with perspective transformation
+            const angle = (Math.random() - 0.5) * Math.PI / 12; // ±15 degrees (reduced from ±30)
+            const tx = (Math.random() - 0.5) * 20; // ±10 pixels (reduced from ±20)
+            const ty = (Math.random() - 0.5) * 20; // ±10 pixels (reduced from ±20)
+            const perspectiveFactor = 0.1 + Math.random() * 0.1; // Reduced perspective effect
+            
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            
+            // Take 60-75% of reference points and transform them (reduced from 80-90%)
+            const overlapRatio = 0.6 + Math.random() * 0.15;
+            const numSourcePoints = Math.floor(referencePoints.length * overlapRatio);
+            
+            // Randomly select points to ensure realistic partial overlap
+            const selectedIndices = [];
+            while (selectedIndices.length < numSourcePoints) {
+                const idx = Math.floor(Math.random() * referencePoints.length);
+                if (!selectedIndices.includes(idx)) {
+                    selectedIndices.push(idx);
+                }
+            }
+            
+            for (let idx of selectedIndices) {
+                const refPoint = referencePoints[idx];
+                const x = refPoint[0] - centerX;
+                const y = refPoint[1] - centerY;
+                
+                // Apply rotation and translation
+                let transformedX = x * cos - y * sin + tx;
+                let transformedY = x * sin + y * cos + ty;
+                
+                // Apply perspective distortion
+                transformedX *= (1 - transformedY/dartboardRadius * perspectiveFactor);
+                
+                // Add noise scaled by distance from center (more noise at edges)
+                const distance = Math.sqrt(x*x + y*y);
+                const noiseLevel = 0.2 + distance/dartboardRadius * 0.5; // Further reduced noise
+                
+                sourcePoints.push([
+                    centerX + transformedX + (Math.random() - 0.5) * noiseLevel,
+                    centerY + transformedY + (Math.random() - 0.5) * noiseLevel
+                ]);
+            }
+
+            // Add some outlier points (5-10%) (reduced from 10-15%)
+            const numOutliers = Math.floor(sourcePoints.length * (0.05 + Math.random() * 0.05));
+            for (let i = 0; i < numOutliers; i++) {
+                // Outliers near the dartboard area
+                const angle = Math.random() * 2 * Math.PI;
+                const radius = dartboardRadius * (0.5 + Math.random());
+                const outlierX = centerX + radius * Math.cos(angle);
+                const outlierY = centerY + radius * Math.sin(angle);
+                sourcePoints.push([outlierX, outlierY]);
+            }
+
+            drawVisualization();
+            updateStatus(`Test data generated. Pattern: ${['Standard dartboard', 'Perspective distorted'][patternIndex]}. Transform: ${(angle * 180 / Math.PI).toFixed(1)}°, (${tx.toFixed(1)}, ${ty.toFixed(1)})px, Perspective: ${perspectiveFactor.toFixed(2)}. ${referencePoints.length} reference, ${sourcePoints.length} source points.`, 'info');
+        }
+
+        function runICP() {
+            const runButton = document.getElementById('runButton');
+            const stepButton = document.getElementById('stepButton');
+            
+            if (icpInstance.isRunning) return;
+            
+            icpInstance.isRunning = true;
+            runButton.disabled = true;
+            stepButton.disabled = true;
+            
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+            const distanceThreshold = parseFloat(document.getElementById('distanceThreshold').value);
+            const convergenceTranslation = parseFloat(document.getElementById('convergenceTranslation').value);
+            const convergenceRotation = parseFloat(document.getElementById('convergenceRotation').value);
+            const pointPairsThreshold = parseInt(document.getElementById('pointPairsThreshold').value);
+            const useOutlierRejection = document.getElementById('outlierRejection').checked;
+
+            console.log(referencePoints)
+            console.log(sourcePoints)
+            const result = icpInstance.run(
+                referencePoints, 
+                sourcePoints, 
+                maxIterations, 
+                distanceThreshold, 
+                convergenceTranslation, 
+                convergenceRotation, 
+                pointPairsThreshold,
+                useOutlierRejection
+            );
+
+            alignedPoints = result.alignedPoints;
+            pointPairs = result.validPairs;
+            rejectedPairs = result.rejectedPairs;
+
+            drawVisualization();
+            updateStatus(`ICP completed in ${result.transformationHistory.length} iterations. Valid pairs: ${pointPairs.length}, Rejected: ${rejectedPairs.length}`, 'success');
+            
+            icpInstance.isRunning = false;
+            runButton.disabled = false;
+            stepButton.disabled = false;
+        }
+
+        function stepICP() {
+            if (icpInstance.currentIteration === 0) {
+                alignedPoints = sourcePoints.map(p => [...p]);
+                icpInstance.transformationHistory = [];
+                pointPairs = [];
+                rejectedPairs = [];
+            }
+
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+            const distanceThreshold = parseFloat(document.getElementById('distanceThreshold').value);
+            const convergenceTranslation = parseFloat(document.getElementById('convergenceTranslation').value);
+            const convergenceRotation = parseFloat(document.getElementById('convergenceRotation').value);
+            const pointPairsThreshold = parseInt(document.getElementById('pointPairsThreshold').value);
+            const useOutlierRejection = document.getElementById('outlierRejection').checked;
+
+            if (icpInstance.currentIteration >= maxIterations) {
+                updateStatus('Maximum iterations reached.', 'error');
+                return;
+            }
+
+            const neighbors = ICPAlgorithm.findNearestNeighbors(alignedPoints, referencePoints);
+            const { validPairs, rejectedPairs: newRejectedPairs } = ICPAlgorithm.filterPointPairs(
+                alignedPoints, referencePoints, neighbors, distanceThreshold, useOutlierRejection
+            );
+
+            if (validPairs.length < pointPairsThreshold) {
+                updateStatus(`Stopped: Too few valid pairs (${validPairs.length}/${pointPairsThreshold})`, 'error');
+                return;
+            }
+
+            const pointPairsForTransform = validPairs.map(pair => [pair.sourcePoint, pair.refPoint]);
+            const { rotAngle, translationX, translationY } = ICPAlgorithm.pointBasedMatching(pointPairsForTransform);
+            
+            if (rotAngle === null || translationX === null || translationY === null) {
+                updateStatus('Stopped: No valid transformation found.', 'error');
+                return;
+            }
+
+            alignedPoints = ICPAlgorithm.transformPoints(alignedPoints, rotAngle, translationX, translationY);
+            pointPairs = validPairs;
+            rejectedPairs = newRejectedPairs;
+
+            icpInstance.currentIteration++;
+            drawVisualization();
+            
+            if (Math.abs(rotAngle) < convergenceRotation &&
+                Math.abs(translationX) < convergenceTranslation &&
+                Math.abs(translationY) < convergenceTranslation) {
+                updateStatus(`Converged at iteration ${icpInstance.currentIteration}!`, 'success');
+            } else {
+                updateStatus(`Iteration ${icpInstance.currentIteration}: Rot: ${(rotAngle * 180 / Math.PI).toFixed(2)}°, Trans: (${translationX.toFixed(1)}, ${translationY.toFixed(1)}), Valid: ${validPairs.length}`, 'info');
+            }
+        }
+
+        function resetVisualization() {
+            alignedPoints = [];
+            transformationHistory = [];
+            pointPairs = [];
+            rejectedPairs = [];
+            currentIteration = 0;
+            drawVisualization();
+            updateStatus('Visualization reset.', 'info');
+        }
+
+        function drawVisualization() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw rejected correspondences in red
+            if (rejectedPairs.length > 0) {
+                ctx.strokeStyle = '#ff9999';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 2]);
+                for (let pair of rejectedPairs) {
+                    ctx.beginPath();
+                    ctx.moveTo(pair.refPoint[0], pair.refPoint[1]);
+                    ctx.lineTo(pair.sourcePoint[0], pair.sourcePoint[1]);
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+            }
+
+            // Draw valid correspondences in gray
+            if (pointPairs.length > 0) {
+                ctx.strokeStyle = '#999999';
+                ctx.lineWidth = 1;
+                for (let pair of pointPairs) {
+                    ctx.beginPath();
+                    ctx.moveTo(pair.refPoint[0], pair.refPoint[1]);
+                    ctx.lineTo(pair.sourcePoint[0], pair.sourcePoint[1]);
+                    ctx.stroke();
+                }
+            }
+
+            // Draw reference points (blue)
+            ctx.fillStyle = '#0066cc';
+            for (let point of referencePoints) {
+                ctx.beginPath();
+                ctx.arc(point[0], point[1], 5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Draw source points (red)
+            ctx.fillStyle = '#cc0000';
+            for (let point of sourcePoints) {
+                ctx.beginPath();
+                ctx.arc(point[0], point[1], 4, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Draw aligned points (green)
+            if (alignedPoints.length > 0) {
+                ctx.fillStyle = '#00cc00';
+                for (let point of alignedPoints) {
+                    ctx.beginPath();
+                    ctx.arc(point[0], point[1], 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+
+            // Draw legend
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.fillText('Blue: Reference points', 10, 20);
+            ctx.fillText('Red: Source points', 10, 35);
+            ctx.fillText('Green: Aligned points', 10, 50);
+            ctx.fillText('Gray lines: Valid correspondences', 10, 65);
+            ctx.fillText('Red dashed: Rejected correspondences', 10, 80);
+        }
+
+        function updateStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+    </script>
+</body>
+</html>

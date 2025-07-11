@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YoloTargetDetector JavaScript</title>
+    <script src="../../ext/ort.min.js"></script>
+</head>
+
+<body>
+    <div id="demo">
+        <h1>YoloTargetDetector JavaScript</h1>
+        <input type="file" id="imageInput" accept="image/*">
+        <canvas id="canvas" width="640" height="640"></canvas>
+        <div id="results"></div>
+    </div>
+
+    <script src="../../ext/opencv.js"></script>
+    <script>
+        // Wait for OpenCV to load
+        let cvLoaded = false;
+
+        function onOpenCvReady() {
+            cvLoaded = true;
+            console.log('OpenCV.js is ready');
+            //document.getElementById('results').innerHTML = 'OpenCV loaded - Ready to use!';
+        }
+
+        // Check if OpenCV is already loaded or wait for it
+        if (typeof cv !== 'undefined') {
+            onOpenCvReady();
+        } else {
+            window.addEventListener('load', () => {
+                if (typeof cv !== 'undefined') {
+                    onOpenCvReady();
+                } else {
+                    // Fallback check
+                    const checkCV = setInterval(() => {
+                        if (typeof cv !== 'undefined') {
+                            clearInterval(checkCV);
+                            onOpenCvReady();
+                        }
+                    }, 100);
+                }
+            });
+        }
+    </script>
+
+    <script src="ransac.js"></script>
+    <script src="icp.js"></script>
+
+    <script>
+        // Configuration des secteurs du dartboard
+        const SECTORS_DICT = {
+            0: "20", 1: "1", 2: "18", 3: "4", 4: "13", 5: "6", 6: "10", 7: "15", 8: "2", 9: "17",
+            10: "3", 11: "19", 12: "7", 13: "16", 14: "8", 15: "11", 16: "14", 17: "9", 18: "12", 19: "5"
+        };
+
+        class Board {
+            constructor(boardPath = "dummy") {
+                this.boardPath = boardPath;
+                this.r_board = 170.0;
+                this.r_double = 162.0;
+                this.r_treble = 107.0;
+                this.r_outer_bull = 15.9;
+                this.r_inner_bull = 6.35;
+                this.w_double_treble = 8.0;
+                this.board_cal_pts = [
+                    [162, 0], [0, 162], [-162, 0], [0, -162]
+                ];
+                this.initializeCrossSections();
+            }
+
+            initializeCrossSections() {
+                this.pts = [];
+                this.outer_ids = [];
+
+                // Générer les points d'intersection des lignes radiales avec les cercles
+                for (let i = 0; i < 20; i++) {
+                    const angle = (i * 18) * Math.PI / 180;
+                    const cos_a = Math.cos(angle);
+                    const sin_a = Math.sin(angle);
+
+                    // Points sur différents rayons
+                    const radii = [this.r_double, this.r_double-this.w_double_treble, this.r_treble, this.r_treble-this.w_double_treble];//, this.r_outer_bull];
+                    radii.forEach(r => {
+                        this.pts.push([r * cos_a, r * sin_a]);
+                    });
+
+                    if (i % 5 === 0) {
+                        this.outer_ids.push(this.pts.length - 3);
+                    }
+                }
+            }
+
+            getCrossSectionsPts() {
+                return [this.pts, this.outer_ids];
+            }
+
+            transformCals(matrix, inverse = false) {
+                return this.board_cal_pts.map(pt => this.transformPoint(pt, matrix));
+            }
+
+            transformPoint(point, matrix) {
+                // Transformation de point basique avec matrice 3x3
+                const [x, y] = point;
+                const w = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2];
+                return [
+                    (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / w,
+                    (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / w
+                ];
+            }
+
+            draw(canvas, pts, detectedCenter = null) {
+                const ctx = canvas.getContext('2d');
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+
+                // Dessiner les points de calibration
+                pts.forEach(pt => {
+                    ctx.beginPath();
+                    ctx.arc(pt[0], pt[1], 5, 0, 2 * Math.PI);
+                    ctx.stroke();
+                });
+
+                if (detectedCenter) {
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(detectedCenter[0], detectedCenter[1], 10, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+            }
+
+            getDartScores(calibPts, tipsPts, numeric = false) {
+                // Implémentation simplifiée du calcul des scores
+                const scores = [];
+                tipsPts.forEach(tip => {
+                    // Calcul basique - à améliorer selon la logique métier
+                    const distance = Math.sqrt(tip[0] * tip[0] + tip[1] * tip[1]);
+                    if (distance > this.r_double) {
+                        scores.push("0");
+                    } else if (distance <= this.r_inner_bull) {
+                        scores.push("DB");
+                    } else if (distance <= this.r_outer_bull) {
+                        scores.push("B");
+                    } else {
+                        scores.push("20"); // Valeur par défaut
+                    }
+                });
+                return scores;
+            }
+        }
+
+        class YoloTargetDetector {
+            constructor(board, modelPath = "../../models/best_n_tip_boxes_cross_640_B.onnx", autoAmCalib = false, initCallback = null) {
+                console.log("Chargement du modèle YoloTargetDetector...");
+                this.modelPath = modelPath;
+                this.session = null;
+                this.board = board instanceof Board ? board : new Board();
+                this.autoAmCalib = autoAmCalib;
+
+                this.bouter = null;
+                this.binner = null;
+                this.ptsCal = null;
+                this.coarseCenter = null;
+
+                const [pts, outerIds] = this.board.getCrossSectionsPts();
+                this.pts = pts;
+                this.outerIds = outerIds;
+                this.initCallback = initCallback;
+                this.initializeModel();
+            }
+
+            async initializeModel() {
+                try {
+                    //this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ['webgpu'] });
+                    this.session = await ort.InferenceSession.create(this.modelPath);
+                    console.log("Modèle ONNX chargé avec succès", this.session);
+                    if (this.initCallback)
+                        this.initCallback();
+                } catch (error) {
+                    console.error("Erreur lors du chargement du modèle:", error);
+                    // Utiliser un modèle de démo si le vrai modèle n'est pas disponible
+                    this.session = null;
+                    if (this.initCallback)
+                        this.initCallback();
+                }
+            }
+
+            buildImg(pts, size = [512, 512]) {
+                const canvas = document.createElement('canvas');
+                canvas.width = size[0];
+                canvas.height = size[1];
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, size[0], size[1]);
+
+                ctx.fillStyle = 'white';
+                pts.forEach(pt => {
+                    ctx.beginPath();
+                    ctx.arc(pt[0], pt[1], 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+
+                return canvas;
+            }
+
+            async infer(imageData) {
+                // Simulation d'inférence si pas de modèle réel
+                if (!this.session) {
+                    return this.mockInference(imageData);
+                }
+
+                try {
+                    const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
+                    const results = await this.session.run({ images: tensor });
+
+                    return this.processOnnxResults(results);
+                } catch (error) {
+                    console.error("Erreur lors de l'inférence:", error);
+                    return this.mockInference(imageData);
+                }
+            }
+
+            mockInference(imageData) {
+                // Simulation de résultats pour la démo
+                const cross = [];
+                const bouter = [100, 100, 200, 200];
+                const binner = [120, 120, 180, 180];
+                const inferedCalib = [
+                    [150, 50],
+                    [50, 150],
+                    [150, 250],
+                    [250, 150]
+                ];
+                const inferedCalibConf = [0.8, 0.7, 0.6, 0.9];
+
+                // Générer quelques points de croix aléatoirement
+                for (let i = 0; i < 20; i++) {
+                    cross.push([
+                        Math.random() * 300 + 100,
+                        Math.random() * 300 + 100
+                    ]);
+                }
+
+                return {
+                    cross,
+                    bouter,
+                    binner,
+                    inferedCalib,
+                    inferedCalibConf
+                };
+            }
+
+            processOnnxResults(results) {
+                const inferedCalib = [null, null, null, null];
+                const inferedCalibConf = [0, 0, 0, 0];
+
+                // Traitement des résultats ONNX
+                // Cette partie dépend du format de sortie du modèle ONNX
+                //const output = results.output;
+
+                /**
+                 * Function calculates "Intersection-over-union" coefficient for specified two boxes
+                 * https://pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/.
+                 * @param box1 First box in format: [x1,y1,x2,y2,object_class,probability]
+                 * @param box2 Second box in format: [x1,y1,x2,y2,object_class,probability]
+                 * @returns Intersection over union ratio as a float number
+                 */
+                function iou(box1, box2) {
+                    return intersection(box1, box2) / union(box1, box2);
+                }
+
+                /**
+                 * Function calculates union area of two boxes.
+                 *     :param box1: First box in format [x1,y1,x2,y2,object_class,probability]
+                 *     :param box2: Second box in format [x1,y1,x2,y2,object_class,probability]
+                 *     :return: Area of the boxes union as a float number
+                 * @param box1 First box in format [x1,y1,x2,y2,object_class,probability]
+                 * @param box2 Second box in format [x1,y1,x2,y2,object_class,probability]
+                 * @returns Area of the boxes union as a float number
+                 */
+                function union(box1, box2) {
+                    const [box1_x1, box1_y1, box1_x2, box1_y2] = box1;
+                    const [box2_x1, box2_y1, box2_x2, box2_y2] = box2;
+                    const box1_area = (box1_x2 - box1_x1) * (box1_y2 - box1_y1)
+                    const box2_area = (box2_x2 - box2_x1) * (box2_y2 - box2_y1)
+                    return box1_area + box2_area - intersection(box1, box2)
+                }
+
+                /**
+                 * Function calculates intersection area of two boxes
+                 * @param box1 First box in format [x1,y1,x2,y2,object_class,probability]
+                 * @param box2 Second box in format [x1,y1,x2,y2,object_class,probability]
+                 * @returns Area of intersection of the boxes as a float number
+                 */
+                function intersection(box1, box2) {
+                    const [box1_x1, box1_y1, box1_x2, box1_y2] = box1;
+                    const [box2_x1, box2_y1, box2_x2, box2_y2] = box2;
+                    const x1 = Math.max(box1_x1, box2_x1);
+                    const y1 = Math.max(box1_y1, box2_y1);
+                    const x2 = Math.min(box1_x2, box2_x2);
+                    const y2 = Math.min(box1_y2, box2_y2);
+                    return (x2 - x1) * (y2 - y1)
+                }
+
+                /**
+                 * Function used to convert RAW output from YOLOv8 to an array of detected objects.
+                 * Each object contains the bounding box, class, and confidence score.
+                 * @param output Raw output of YOLOv8 network (Float32Array)
+                 * @param img_width Width of original image
+                 * @param img_height Height of original image
+                 * @returns Array of detected objects in format [[x1,y1,x2,y2,class_id,confidence], ...]
+                 */
+                function process_output(outputs, img_width, img_height, inferred) {
+                    // YOLOv8 output format explanation:
+                    // - The output is a flat array of length 8400 * (num_classes + 4)
+                    // - For each of the 8400 anchor boxes, we have:
+                    //   - 4 box coordinates (xc, yc, w, h)
+                    //   - num_classes confidence scores
+                    // - In your case, num_classes is 9 (from your yolo_classes array)
+
+                    const output = outputs["output0"].data;
+                    const num_classes = outputs["output0"]["dims"][1] - 4;//yolo_classes.length;
+                    let boxes = [];
+
+                    // Iterate through all 8400 anchor boxes
+                    for (let index = 0; index < 8400; index++) {
+                        // Get the class with highest confidence
+                        let max_class = 0;
+                        let max_confidence = 0;
+
+                        // Check class confidences (they start at offset 4*8400)
+                        for (let class_id = 0; class_id < num_classes; class_id++) {
+                            const confidence = output[8400 * (4 + class_id) + index];
+                            if (confidence > max_confidence) {
+                                max_confidence = confidence;
+                                max_class = class_id;
+                            }
+                        }
+                        // Skip boxes with low confidence
+                        if (max_confidence < 0.5) {
+                            continue;
+                        }
+
+                        const xc = output[index];          // x-center
+                        const yc = output[8400 + index];   // y-center
+                        const w = output[2 * 8400 + index];  // width
+                        const h = output[3 * 8400 + index];  // height
+
+                        // Convert from center+width to xyxy format
+                        const x1 = (xc - w / 2) * img_width / 640;
+                        const y1 = (yc - h / 2) * img_height / 640;
+                        const x2 = (xc + w / 2) * img_width / 640;
+                        const y2 = (yc + h / 2) * img_height / 640;
+                        const box = [x1, y1, x2, y2, max_class, max_confidence];
+                        boxes.push(box);
+                    }
+
+                    // Non-maximum suppression to remove overlapping boxes
+                    boxes.sort((a, b) => b[5] - a[5]); // Sort by confidence (descending)
+
+                    const final_boxes = [];
+                    while (boxes.length > 0) {
+                        final_boxes.push(boxes[0]);
+                        // Remove boxes that overlap too much with the current box
+                        boxes = boxes.filter(box => iou(boxes[0], box) < 0.85);
+                    }
+
+                    return [final_boxes, inferred];
+                    // return [boxes, inferred];
+                }
+
+
+                var outputs = process_output(results, 640, 640, null)
+                var boxes = outputs[0];
+                const cross = boxes.filter(b => b[4] === 6).map(b => [(b[2] + b[0]) * 0.5, (b[3] + b[1]) * 0.5]);
+                let binner = boxes.filter(b => b[4] === 7)
+                let bouter = boxes.filter(b => b[4] === 8)
+                binner = binner.length >= 2 ? binner : null;
+                bouter = bouter.length >= 2 ? bouter : null;
+                console.log(binner)
+                console.log(bouter)
+                return {
+                    cross,
+                    bouter,
+                    binner,
+                    inferedCalib,
+                    inferedCalibConf
+                };
+            }
+
+            filterPercentiles(distances) {
+                const sorted = [...distances].sort((a, b) => a - b);
+                const q1 = sorted[Math.floor(sorted.length * 0.25)];
+                const q3 = sorted[Math.floor(sorted.length * 0.75)];
+                const iqr = q3 - q1;
+                const lowerBound = q1 - 1.5 * iqr;
+                const upperBound = q3 + 1.5 * iqr;
+
+                return distances.map((d, i) => d < lowerBound || d > upperBound ? i : -1)
+                    .filter(i => i !== -1);
+            }
+
+            async detect(prepared_input, refinePts = true, canvas = null) {
+                const [input, img_width, img_height, imgData] = prepared_input;
+                this.bouter = null;
+                this.binner = null;
+                this.ptsCal = null;
+
+                // Step 1: Infer using trained model to find board intersections
+                //  -------------
+                const inferenceResults = await this.infer(input);
+                const { cross: corners, bouter, binner, inferedCalib, inferedCalibConf } = inferenceResults;
+
+                this.bouter = bouter;
+                this.binner = binner;
+
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.putImageData(imgData, 0, 0)
+                    ctx.strokeStyle = '#ffff00';
+                    corners.forEach(corner => {
+                        ctx.beginPath();
+                        ctx.arc(corner[0], corner[1], 3, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    });
+                }
+
+                // Step 2: Coarse initialisation using rough center/scale
+                // -------------
+                const orig = this.pts.map(pt => [pt[0] / this.board.r_board, pt[1] / this.board.r_board]);
+                let center = [0, 0];
+
+                if (corners.length > 0) {
+                    center = corners.reduce((acc, corner) => [acc[0] + corner[0], acc[1] + corner[1]], [0, 0]);
+                    center = [center[0] / corners.length, center[1] / corners.length];
+                }
+
+                // try finer center
+                let finer = false;
+                if (bouter) {
+                    center = [(bouter[0] + bouter[2]) * 0.5, (bouter[1] + bouter[3]) * 0.5];
+                    finer = true;
+                } else if (binner) {
+                    center = [(binner[0] + binner[2]) * 0.5, (binner[1] + binner[3]) * 0.5];
+                    finer = true;
+                }
+
+                console.log("B", center)
+
+                // try removing outliers for better finding in more global captures
+                const distances = corners.map(corner =>
+                    Math.sqrt(Math.pow(corner[0] - center[0], 2) + Math.pow(corner[1] - center[1], 2))
+                );
+                const filteredIndices = this.filterPercentiles(distances);
+                const filteredCorners = corners.filter((_, i) => !filteredIndices.includes(i));
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.putImageData(imgData, 0, 0)
+                    ctx.fillStyle = '#ff8800';
+                    filteredCorners.forEach(corner => {
+                        ctx.beginPath();
+                        ctx.arc(corner[0], corner[1], 3, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
+
+
+                if (!finer && filteredCorners.length > 0) {
+                    center = filteredCorners.reduce((acc, corner) => [acc[0] + corner[0], acc[1] + corner[1]], [0, 0]);
+                    center = [center[0] / filteredCorners.length, center[1] / filteredCorners.length];
+                }
+
+                console.log("C", center)
+
+                // Calcul de l'échelle
+                const maxDistances = filteredCorners.reduce((max, corner) => {
+                    const dx = Math.abs(corner[0] - center[0]);
+                    const dy = Math.abs(corner[1] - center[1]);
+                    return [Math.max(max[0], dx), Math.max(max[1], dy)];
+                }, [0, 0]);
+
+                const scale = [Math.max(maxDistances[0]), Math.max(maxDistances[1])];
+                const pts = orig.map(pt => [pt[0] * scale[0] * 1.2 + center[0], pt[1] * scale[1] * 1.2 + center[1]]);
+
+                // if (canvas) {
+                //     const ctx = canvas.getContext('2d');
+                //     ctx.strokeStyle = '#0088FF';
+                //     pts.forEach(corner => {
+                //         ctx.beginPath();
+                //         ctx.arc(corner[0], corner[1], 5, 0, 2 * Math.PI);
+                //         ctx.stroke();
+                //     });
+                // }
+
+                // Step 3: Iterative closest point algorithm to find some matching pairs
+                // -------------
+                // transformation_history, aligned_points, closest_point_pairs = icp(
+                //     pts, corners, distance_threshold=15, point_pairs_threshold=10, verbose=False
+                // )
+                let icpInstance = new ICPAlgorithm();
+                const result = icpInstance.run(
+                    pts,
+                    corners,
+                    100,
+                    30,
+                    0.001,
+                    0.0001,
+                    10,
+                    true
+                );
+                console.log(result)
+
+                const alignedPoints = result.alignedPoints;
+                const pointPairs = result.validPairs;
+                const rejectedPairs = result.rejectedPairs;
+
+                
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.strokeStyle = '#FF88FF';
+                    alignedPoints.forEach(corner => {
+                        //const corner = alignedPoints[pair.sourceIndex];
+                        ctx.beginPath();
+                        ctx.arc(corner[0], corner[1], 5, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    });
+                }
+
+                this.coarseCenter = center;
+                console.log(this.coarseCenter)
+                // Étapes 3-8: Algorithmes de correspondance et RANSAC
+                // Implémentation simplifiée - dans un vrai projet, il faudrait implémenter ICP, RANSAC, etc.
+
+                // Simulation d'une transformation perspective
+                const M = this.estimateTransformation(pts, filteredCorners);
+
+                this.ptsCal = this.board.transformCals(M);
+
+                if (canvas) {
+                    this.drawBoard(canvas);
+                }
+
+                return {
+                    calibrationPoints: this.ptsCal,
+                    transformation: M,
+                    confidence: filteredCorners.length
+                };
+            }
+
+            estimateTransformation(srcPts, dstPts) {
+                // Estimation simplifiée d'une transformation perspective
+                // Dans un vrai projet, utiliser cv.findHomography ou un algorithme similaire
+
+                // Matrice identité par défaut
+                return [
+                    [1, 0, 0],
+                    [0, 1, 0],
+                    [0, 0, 1]
+                ];
+            }
+
+            drawBoard(canvas) {
+                const ctx = canvas.getContext('2d');
+
+                if (this.ptsCal) {
+                    const detectedCenter = this.bouter ?
+                        [(this.bouter[0] + this.bouter[2]) * 0.5, (this.bouter[1] + this.bouter[3]) * 0.5] :
+                        null;
+
+                    this.board.draw(canvas, this.ptsCal, detectedCenter);
+                }
+
+                if (this.bouter) {
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(this.bouter[0], this.bouter[1],
+                        this.bouter[2] - this.bouter[0],
+                        this.bouter[3] - this.bouter[1]);
+                }
+
+                if (this.binner) {
+                    ctx.strokeStyle = '#0000ff';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(this.binner[0], this.binner[1],
+                        this.binner[2] - this.binner[0],
+                        this.binner[3] - this.binner[1]);
+                }
+
+                if (this.coarseCenter) {
+                    ctx.strokeStyle = 'ffF00ff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.coarseCenter[0], this.coarseCenter[1], 5, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+
+
+            }
+
+            getDartScores(tipsPts, numeric = false) {
+                if (!this.bouter && !this.binner) {
+                    return this.board.getDartScores(this.ptsCal, tipsPts, numeric);
+                }
+
+                // Implémentation plus précise avec le centre détecté
+                let detectedCenter = null;
+                if (this.bouter) {
+                    detectedCenter = [(this.bouter[0] + this.bouter[2]) * 0.5, (this.bouter[1] + this.bouter[3]) * 0.5];
+                } else if (this.binner) {
+                    detectedCenter = [(this.binner[0] + this.binner[2]) * 0.5, (this.binner[1] + this.binner[3]) * 0.5];
+                }
+
+                // Calcul des scores basé sur la distance au centre détecté
+                const scores = [];
+                tipsPts.forEach(tip => {
+                    const distance = Math.sqrt(
+                        Math.pow(tip[0] - detectedCenter[0], 2) +
+                        Math.pow(tip[1] - detectedCenter[1], 2)
+                    );
+
+                    if (distance > this.board.r_double) {
+                        scores.push("0");
+                    } else if (distance <= this.board.r_inner_bull) {
+                        scores.push("DB");
+                    } else if (distance <= this.board.r_outer_bull) {
+                        scores.push("B");
+                    } else {
+                        // Calcul du secteur et du multiplicateur
+                        const angle = Math.atan2(tip[1] - detectedCenter[1], tip[0] - detectedCenter[0]);
+                        const sector = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * 20);
+                        const number = SECTORS_DICT[sector] || "20";
+
+                        if (distance <= this.board.r_double && distance > this.board.r_double - this.board.w_double_treble) {
+                            scores.push("D" + number);
+                        } else if (distance <= this.board.r_treble && distance > this.board.r_treble - this.board.w_double_treble) {
+                            scores.push("T" + number);
+                        } else {
+                            scores.push(number);
+                        }
+                    }
+                });
+
+                if (numeric) {
+                    return scores.map(s => {
+                        if (s.includes("DB")) return 50;
+                        if (s.includes("B")) return 25;
+                        if (s.includes("D")) return parseInt(s.substring(1)) * 2;
+                        if (s.includes("T")) return parseInt(s.substring(1)) * 3;
+                        return parseInt(s) || 0;
+                    });
+                }
+
+                return scores;
+            }
+        }
+
+
+        const board = new Board();
+        const detector = new YoloTargetDetector(board, modelPath = "../../models/best_n_tip_boxes_cross_640_B.onnx", autoAmCalib = false, initCallback = () => { load_and_detect_image("03.jpg") });
+
+
+        async function prepare_input(buf) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.src = typeof (buf) == "string" ? buf : URL.createObjectURL(buf);
+                img.onload = () => {
+                    const [img_width, img_height] = [img.width, img.height]
+                    const canvas = document.createElement("canvas");
+                    canvas.width = 640;
+                    canvas.height = 640;
+                    const context = canvas.getContext("2d");
+                    context.drawImage(img, 0, 0, 640, 640);
+                    const imgData = context.getImageData(0, 0, 640, 640);
+                    const pixels = imgData.data;
+
+                    const red = [], green = [], blue = [];
+                    for (let index = 0; index < pixels.length; index += 4) {
+                        red.push(pixels[index] / 255.0);
+                        green.push(pixels[index + 1] / 255.0);
+                        blue.push(pixels[index + 2] / 255.0);
+                    }
+                    const input = [...red, ...green, ...blue];
+                    resolve([input, img_width, img_height, imgData])
+                }
+            })
+        }
+
+        async function load_and_detect_image(file) {
+            if (!file) return;
+
+
+            const canvas = document.getElementById('canvas');
+            const results = document.getElementById('results');
+
+            prepared_input = await prepare_input(file)
+
+
+            // Détection
+            const result = await detector.detect(prepared_input, true, canvas);
+
+            // Afficher les résultats
+            results.innerHTML = `
+                    <h3>Résultats de détection:</h3>
+                    <p>Points de calibration: ${result.calibrationPoints ? result.calibrationPoints.length : 0}</p>
+                    <p>Confiance: ${result.confidence}</p>
+                `;
+
+            // Test des scores de fléchettes
+            const testTips = [[150, 150], [200, 200]];
+            const scores = detector.getDartScores(testTips, false);
+            results.innerHTML += `<p>Scores test: ${scores.join(', ')}</p>`;
+        }
+
+        // Démonstration d'utilisation
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            const imageInput = document.getElementById('imageInput');
+            imageInput.addEventListener('change', async (event) => {
+                load_and_detect_image(event.target.files[0]);
+            });
+
+            console.log("YoloTargetDetector JavaScript initialisé");
+        });
+    </script>
+</body>
+
+</html>app

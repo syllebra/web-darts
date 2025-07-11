@@ -1,9 +1,7 @@
 class ICPAlgorithm {
   constructor() {
     this.transformationHistory = [];
-    this.currentIteration = 0;
-    this.pointPairs = [];
-    this.rejectedPairs = [];
+    this.verbose = false;
   }
 
   static euclideanDistance(point1, point2) {
@@ -12,19 +10,10 @@ class ICPAlgorithm {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  static calculateMedian(values) {
-    const sorted = values.slice().sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-  }
-
-  static calculateMAD(values, median) {
-    const deviations = values.map((v) => Math.abs(v - median));
-    return ICPAlgorithm.calculateMedian(deviations);
-  }
-
   static pointBasedMatching(pointPairs) {
-    if (pointPairs.length === 0) {
+    const n = pointPairs.length;
+
+    if (n === 0) {
       return { rotAngle: null, translationX: null, translationY: null };
     }
 
@@ -32,8 +21,8 @@ class ICPAlgorithm {
       yMean = 0,
       xpMean = 0,
       ypMean = 0;
-    const n = pointPairs.length;
 
+    // Calculate means
     for (let pair of pointPairs) {
       const [x, y] = pair[0];
       const [xp, yp] = pair[1];
@@ -48,6 +37,7 @@ class ICPAlgorithm {
     xpMean /= n;
     ypMean /= n;
 
+    // Calculate covariance terms
     let sXXp = 0,
       sYYp = 0,
       sXYp = 0,
@@ -70,6 +60,7 @@ class ICPAlgorithm {
 
   static findNearestNeighbors(points, referencePoints) {
     const neighbors = [];
+
     for (let i = 0; i < points.length; i++) {
       let minDistance = Infinity;
       let nearestIndex = -1;
@@ -86,45 +77,6 @@ class ICPAlgorithm {
     return neighbors;
   }
 
-  static filterPointPairs(points, referencePoints, neighbors, distanceThreshold, useOutlierRejection) {
-    const allPairs = [];
-    const allDistances = [];
-
-    for (let i = 0; i < neighbors.length; i++) {
-      if (neighbors[i].index !== -1) {
-        allPairs.push({
-          sourcePoint: points[i],
-          refPoint: referencePoints[neighbors[i].index],
-          sourceIndex: i,
-          refIndex: neighbors[i].index,
-          distance: neighbors[i].distance,
-        });
-        allDistances.push(neighbors[i].distance);
-      }
-    }
-
-    const thresholdFiltered = allPairs.filter((pair) => pair.distance < distanceThreshold);
-
-    if (!useOutlierRejection || thresholdFiltered.length < 4) {
-      return {
-        validPairs: thresholdFiltered,
-        rejectedPairs: allPairs.filter((pair) => pair.distance >= distanceThreshold),
-      };
-    }
-
-    const filteredDistances = thresholdFiltered.map((p) => p.distance);
-    const median = ICPAlgorithm.calculateMedian(filteredDistances);
-    const mad = ICPAlgorithm.calculateMAD(filteredDistances, median);
-    const outlierThreshold = median + 2.5 * mad;
-
-    const validPairs = thresholdFiltered.filter((pair) => pair.distance <= outlierThreshold);
-    const rejectedPairs = allPairs.filter(
-      (pair) => pair.distance >= distanceThreshold || pair.distance > outlierThreshold
-    );
-
-    return { validPairs, rejectedPairs };
-  }
-
   static transformPoints(points, rotAngle, translationX, translationY) {
     const cos = Math.cos(rotAngle);
     const sin = Math.sin(rotAngle);
@@ -135,63 +87,101 @@ class ICPAlgorithm {
     ]);
   }
 
-  run(
-    referencePoints,
-    points,
-    maxIterations = 100,
-    distanceThreshold = 50,
-    convergenceTranslationThreshold = 0.1,
-    convergenceRotationThreshold = 1e-3,
-    pointPairsThreshold = 5,
-    useOutlierRejection = true
-  ) {
+  static degreesToRadians(degrees) {
+    return (degrees * Math.PI) / 180;
+  }
+
+  static radiansToDegrees(radians) {
+    return (radians * 180) / Math.PI;
+  }
+
+  icp(referencePoints, points, options = {}) {
+    // Set default parameters to match Python version
+    const {
+      maxIterations = 100,
+      distanceThreshold = 0.3,
+      convergenceTranslationThreshold = 1e-3,
+      convergenceRotationThreshold = 1e-4,
+      pointPairsThreshold = 10,
+      verbose = false,
+    } = options;
+
+    this.verbose = verbose;
     this.transformationHistory = [];
+
+    // Create a copy of points to avoid modifying the original
     let currentPoints = points.map((p) => [...p]);
-    let lastValidPairs = [];
-    let lastRejectedPairs = [];
+    let closestPointPairsId = [];
 
     for (let iterNum = 0; iterNum < maxIterations; iterNum++) {
-      console.log(iterNum);
-      const neighbors = ICPAlgorithm.findNearestNeighbors(currentPoints, referencePoints);
-      const { validPairs, rejectedPairs } = ICPAlgorithm.filterPointPairs(
-        currentPoints,
-        referencePoints,
-        neighbors,
-        distanceThreshold,
-        useOutlierRejection
-      );
+      if (this.verbose) {
+        console.log(`------ iteration ${iterNum} ------`);
+      }
 
-      if (validPairs.length < pointPairsThreshold) {
+      // Find nearest neighbors
+      const neighbors = ICPAlgorithm.findNearestNeighbors(currentPoints, referencePoints);
+
+      // Filter point pairs based on distance threshold
+      const closestPointPairs = [];
+      closestPointPairsId = [];
+
+      for (let i = 0; i < neighbors.length; i++) {
+        if (neighbors[i].distance < distanceThreshold) {
+          closestPointPairs.push([currentPoints[i], referencePoints[neighbors[i].index]]);
+          closestPointPairsId.push([neighbors[i].index, i]);
+        }
+      }
+
+      if (this.verbose) {
+        console.log(`number of pairs found: ${closestPointPairs.length}`);
+      }
+
+      // Check if we have enough point pairs
+      if (closestPointPairs.length < pointPairsThreshold) {
+        if (this.verbose) {
+          console.log("No better solution can be found (very few point pairs)!");
+        }
         break;
       }
 
-      lastValidPairs = validPairs;
-      lastRejectedPairs = rejectedPairs;
+      // Compute transformation using point correspondences
+      const { rotAngle, translationX, translationY } = ICPAlgorithm.pointBasedMatching(closestPointPairs);
 
-      const pointPairs = validPairs.map((pair) => [pair.sourcePoint, pair.refPoint]);
-      const { rotAngle, translationX, translationY } = ICPAlgorithm.pointBasedMatching(pointPairs);
+      if (this.verbose && rotAngle !== null) {
+        console.log(`Rotation: ${ICPAlgorithm.radiansToDegrees(rotAngle)} degrees`);
+        console.log(`Translation: ${translationX} ${translationY}`);
+      }
 
       if (rotAngle === null || translationX === null || translationY === null) {
+        if (this.verbose) {
+          console.log("No better solution can be found!");
+        }
         break;
       }
 
+      // Transform points
       currentPoints = ICPAlgorithm.transformPoints(currentPoints, rotAngle, translationX, translationY);
 
-      this.transformationHistory.push({
-        rotation: [
-          [Math.cos(rotAngle), -Math.sin(rotAngle)],
-          [Math.sin(rotAngle), Math.cos(rotAngle)],
-        ],
-        translation: [translationX, translationY],
-        validPairs: validPairs,
-        rejectedPairs: rejectedPairs,
-      });
+      // Store transformation history in the same format as Python version
+      const cos = Math.cos(rotAngle);
+      const sin = Math.sin(rotAngle);
+      const transformationMatrix = [
+        [cos, -sin, translationX],
+        [sin, cos, translationY],
+        [0, 0, 1],
+      ];
 
+      this.transformationHistory.push(transformationMatrix);
+
+      // Check convergence
       if (
         Math.abs(rotAngle) < convergenceRotationThreshold &&
         Math.abs(translationX) < convergenceTranslationThreshold &&
         Math.abs(translationY) < convergenceTranslationThreshold
       ) {
+        if (this.verbose) {
+          console.log("Converged!");
+        }
         break;
       }
     }
@@ -199,8 +189,54 @@ class ICPAlgorithm {
     return {
       transformationHistory: this.transformationHistory,
       alignedPoints: currentPoints,
-      validPairs: lastValidPairs,
-      rejectedPairs: lastRejectedPairs,
+      closestPointPairsId: closestPointPairsId,
     };
   }
+
+  // Convenience method to run ICP with the same interface as the old version
+  run(
+    referencePoints,
+    points,
+    maxIterations = 100,
+    distanceThreshold = 0.3,
+    convergenceTranslationThreshold = 1e-3,
+    convergenceRotationThreshold = 1e-4,
+    pointPairsThreshold = 10,
+    useOutlierRejection = false,
+    verbose = false
+  ) {
+    const options = {
+      maxIterations,
+      distanceThreshold,
+      convergenceTranslationThreshold,
+      convergenceRotationThreshold,
+      pointPairsThreshold,
+      verbose,
+    };
+
+    return this.icp(referencePoints, points, options);
+  }
 }
+
+// Example usage:
+/*
+const icp = new ICPAlgorithm();
+
+// Reference points and points to align
+const referencePoints = [[0, 0], [1, 0], [0, 1], [1, 1]];
+const points = [[0.1, 0.1], [1.1, 0.1], [0.1, 1.1], [1.1, 1.1]];
+
+// Run ICP
+const result = icp.icp(referencePoints, points, {
+  maxIterations: 100,
+  distanceThreshold: 0.3,
+  convergenceTranslationThreshold: 1e-3,
+  convergenceRotationThreshold: 1e-4,
+  pointPairsThreshold: 10,
+  verbose: true
+});
+
+console.log('Transformation history:', result.transformationHistory);
+console.log('Aligned points:', result.alignedPoints);
+console.log('Point pairs IDs:', result.closestPointPairsId);
+*/

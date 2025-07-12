@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RANSAC Perspective Fitting Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .canvas-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .canvas-wrapper {
+            text-align: center;
+        }
+
+        .canvas-wrapper h3 {
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        canvas {
+            border: 2px solid #333;
+            cursor: crosshair;
+            background: #fff;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .results {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            font-family: monospace;
+        }
+
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+        }
+
+        .point-count {
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .settings {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .setting-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .setting-group label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .setting-group input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 80px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>RANSAC Perspective Fitting Test</h1>
+
+        <div class="info">
+            <strong>Instructions:</strong>
+            <ul>
+                <li>Click on the left canvas to add source points (blue circles)</li>
+                <li>Click on the right canvas to add destination points (red circles)</li>
+                <li>You need at least 4 points in each canvas to run RANSAC</li>
+                <li>The algorithm will find the best perspective transformation</li>
+                <li>Green lines show the transformation result</li>
+            </ul>
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas-wrapper">
+                <h3>Source Points</h3>
+                <canvas id="sourceCanvas" width="400" height="300"></canvas>
+                <div class="point-count">Points: <span id="sourceCount">0</span></div>
+            </div>
+
+            <div class="canvas-wrapper">
+                <h3>Destination Points</h3>
+                <canvas id="destCanvas" width="400" height="300"></canvas>
+                <div class="point-count">Points: <span id="destCount">0</span></div>
+            </div>
+        </div>
+
+        <div class="settings">
+            <div class="setting-group">
+                <label>Success Probability:</label>
+                <input type="number" id="successProb" value="0.98" min="0.1" max="0.99" step="0.01">
+            </div>
+            <div class="setting-group">
+                <label>Outlier Ratio:</label>
+                <input type="number" id="outlierRatio" value="0.45" min="0.1" max="0.9" step="0.05">
+            </div>
+            <div class="setting-group">
+                <label>Inlier Threshold:</label>
+                <input type="number" id="inlierThreshold" value="3.0" min="0.5" max="10" step="0.5">
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="runRansac">Run RANSAC</button>
+            <button id="clearPoints">Clear All Points</button>
+            <button id="generateTest">Generate Test Data</button>
+        </div>
+
+        <div id="results"></div>
+        <div id="loading" style="display: none; text-align: center; color: #666;">
+            Loading OpenCV.js...
+        </div>
+    </div>
+
+    <script src="../../ext/opencv.js"></script>
+    <script>
+        // Global variables
+        let sourcePoints = [];
+        let destPoints = [];
+        let sourceCanvas, destCanvas;
+        let sourceCtx, destCtx;
+        let isOpenCVReady = false;
+
+        // Math utilities
+        const MathUtils = {
+            log: Math.log,
+            pow: Math.pow,
+            mean: (arr) => arr.reduce((a, b) => a + b, 0) / arr.length,
+            randomInt: (min, max) => Math.floor(Math.random() * (max - min)) + min
+        };
+
+        // Base Model class
+        class Model {
+            constructor() {
+                this.N = 4; // Number of points needed
+            }
+        }
+
+        // // Your RANSAC algorithm code here
+        function transformPoints(points, matrix) {
+            if (!matrix || points.length === 0) return null;
+
+            try {
+                const transformMatrix = cv.matFromArray(3, 3, cv.CV_64FC1, matrix.flat());
+                const srcPoints = cv.matFromArray(points.length, 1, cv.CV_32FC2, points.flat());
+                const dstPoints = new cv.Mat();
+
+                cv.perspectiveTransform(srcPoints, dstPoints, transformMatrix);
+
+                const transformedPoints = [];
+                for (let i = 0; i < points.length; i++) {
+                    const x = dstPoints.floatPtr(i, 0)[0];
+                    const y = dstPoints.floatPtr(i, 0)[1];
+                    transformedPoints.push([x, y]);
+                }
+
+                srcPoints.delete();
+                dstPoints.delete();
+                transformMatrix.delete();
+
+                return transformedPoints;
+            } catch (error) {
+                console.error("Error in transformPoints:", error);
+                return null;
+            }
+        }
+
+        class NearestNeighbors {
+            constructor(nNeighbors = 1, algorithm = "kd_tree") {
+                this.nNeighbors = nNeighbors;
+                this.algorithm = algorithm;
+                this.fittedData = null;
+            }
+
+            fit(data) {
+                this.fittedData = data;
+                return this;
+            }
+
+            kneighbors(queryPoints) {
+                if (!this.fittedData) {
+                    throw new Error("Model not fitted yet. Call fit() first.");
+                }
+
+                const distances = [];
+                const indices = [];
+
+                queryPoints.forEach((queryPoint) => {
+                    const pointDistances = this.fittedData.map((point, index) => ({
+                        distance: this.euclideanDistance(queryPoint, point),
+                        index: index,
+                    }));
+
+                    pointDistances.sort((a, b) => a.distance - b.distance);
+
+                    distances.push([pointDistances[0].distance]);
+                    indices.push(pointDistances[0].index);
+                });
+
+                return { distances, indices };
+            }
+
+            euclideanDistance(p1, p2) {
+                const dx = p1[0] - p2[0];
+                const dy = p1[1] - p2[1];
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        class PerspectiveBoardFit extends Model {
+            constructor(src, dst, minDist = 5) {
+                super();
+                this.N = 4;
+                this.M = null;
+                this.src = src;
+                this.dst = dst;
+                this.minDist = minDist;
+            }
+
+            build(pairs) {
+                try {
+                    const srcIndices = pairs.map((pair) => pair[0]);
+                    const dstIndices = pairs.map((pair) => pair[1]);
+
+                    const src = srcIndices.map((idx) => this.src[idx]);
+                    const dst = dstIndices.map((idx) => this.dst[idx]);
+
+                    if (pairs.length !== 4 || src.length !== 4 || dst.length !== 4) {
+                        return null;
+                    }
+
+                    const srcMat = cv.matFromArray(4, 1, cv.CV_32FC2, src.flat());
+                    const dstMat = cv.matFromArray(4, 1, cv.CV_32FC2, dst.flat());
+
+                    const transformMatrix = cv.getPerspectiveTransform(srcMat, dstMat);
+
+                    this.M = [];
+                    for (let i = 0; i < 3; i++) {
+                        const row = [];
+                        for (let j = 0; j < 3; j++) {
+                            row.push(transformMatrix.doublePtr(i, j));
+                        }
+                        this.M.push(row);
+                    }
+
+                    srcMat.delete();
+                    dstMat.delete();
+                    transformMatrix.delete();
+
+                    return this.M;
+                } catch (error) {
+                    console.error("Error in build:", error);
+                    return null;
+                }
+            }
+
+            calcErrors(pairs) {
+                try {
+                    const proj = transformPoints(this.src, this.M);
+
+                    if (!proj) {
+                        return Array(this.dst.length).fill([10000]);
+                    }
+
+                    const nbrs = new NearestNeighbors(1, "kd_tree").fit(proj);
+                    const { distances, indices } = nbrs.kneighbors(this.dst);
+
+                    const indexCounts = {};
+                    indices.forEach((idx) => {
+                        indexCounts[idx] = (indexCounts[idx] || 0) + 1;
+                    });
+
+                    for (let i = 0; i < indices.length; i++) {
+                        const id = indices[i];
+                        const numCorr = indexCounts[id];
+                        if (numCorr !== 1) {
+                            distances[i] = [10000];
+                        }
+                    }
+
+                    return distances;
+                } catch (error) {
+                    console.error("Error in calcErrors:", error);
+                    return Array(this.dst.length).fill([10000]);
+                }
+            }
+        }
+
+// // Perspective transformation utilities
+// const PerspectiveUtils = {
+//   // Calculate perspective transform matrix from 4 point correspondences
+//   getPerspectiveTransform: (src, dst) => {
+//     if (src.length !== 4 || dst.length !== 4) {
+//       throw new Error("Need exactly 4 point correspondences");
+//     }
+
+//     // Set up the system of equations for perspective transformation
+//     // We need to solve for 8 unknowns (h11, h12, h13, h21, h22, h23, h31, h32)
+//     // h33 is set to 1 for normalization
+//     const A = [];
+//     const b = [];
+
+//     for (let i = 0; i < 4; i++) {
+//       const [x, y] = src[i];
+//       const [u, v] = dst[i];
+
+//       // First equation: u = (h11*x + h12*y + h13) / (h31*x + h32*y + 1)
+//       // Rearranged: h11*x + h12*y + h13 - u*h31*x - u*h32*y = u
+//       A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]);
+//       b.push(u);
+
+//       // Second equation: v = (h21*x + h22*y + h23) / (h31*x + h32*y + 1)
+//       // Rearranged: h21*x + h22*y + h23 - v*h31*x - v*h32*y = v
+//       A.push([0, 0, 0, x, y, 1, -v * x, -v * y]);
+//       b.push(v);
+//     }
+
+//     const solution = MathUtils.solveLinearSystem(A, b);
+//     if (!solution) return null;
+
+//     // Construct the 3x3 transformation matrix
+//     return [
+//       [solution[0], solution[1], solution[2]],
+//       [solution[3], solution[4], solution[5]],
+//       [solution[6], solution[7], 1],
+//     ];
+//   },
+
+//   // Transform points using perspective transformation matrix
+//   transformPoints: (points, matrix) => {
+//     if (!matrix) return null;
+
+//     return points.map((point) => {
+//       const [x, y] = point;
+//       const w = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2];
+//       const u = (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / w;
+//       const v = (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / w;
+//       return [u, v];
+//     });
+//   },
+// };
+
+// // Simple nearest neighbor implementation
+// class NearestNeighbors {
+//   constructor(points) {
+//     this.points = points;
+//   }
+
+//   kneighbors(queryPoints, k = 1) {
+//     const distances = [];
+//     const indices = [];
+
+//     queryPoints.forEach((queryPoint) => {
+//       const pointDistances = this.points.map((point, index) => ({
+//         distance: MathUtils.distance(queryPoint, point),
+//         index: index,
+//       }));
+
+//       pointDistances.sort((a, b) => a.distance - b.distance);
+
+//       distances.push([pointDistances[0].distance]);
+//       indices.push(pointDistances[0].index);
+//     });
+
+//     return { distances, indices };
+//   }
+// }
+
+// // PerspectiveBoardFit model implementation
+// class PerspectiveBoardFit extends Model {
+//   constructor(src, dst, minDist = 5) {
+//     super();
+//     this.N = 4; // Need 4 point correspondences for perspective transform
+//     this.M = null; // Transformation matrix
+//     this.src = src; // Source points
+//     this.dst = dst; // Destination points
+//     this.minDist = minDist;
+//   }
+
+//   build(pairs) {
+//     if (pairs.length !== 4) {
+//       return null;
+//     }
+
+//     // Extract source and destination points from pairs
+//     const srcPoints = pairs.map((pair) => this.src[pair[0]]);
+//     const dstPoints = pairs.map((pair) => this.dst[pair[1]]);
+
+//     // Validate that we have exactly 4 points
+//     if (srcPoints.length !== 4 || dstPoints.length !== 4) {
+//       return null;
+//     }
+
+//     // Calculate perspective transformation matrix
+//     this.M = PerspectiveUtils.getPerspectiveTransform(srcPoints, dstPoints);
+//     return this.M;
+//   }
+
+//   calcErrors(pairs) {
+//     if (!this.M) {
+//       //throw new Error("Model not built yet. Call build() first.");
+//       return Array(this.dst.length).fill(10000);
+//     }
+
+//     // Transform all source points using the perspective matrix
+//     const projectedPoints = PerspectiveUtils.transformPoints(this.src, this.M);
+
+//     if (!projectedPoints) {
+//       return Array(this.dst.length).fill(10000);
+//     }
+
+//     // Find nearest neighbors
+//     const nbrs = new NearestNeighbors(projectedPoints);
+//     const { distances, indices } = nbrs.kneighbors(this.dst, 1);
+
+//     // Count occurrences of each index to detect multiple matches
+//     const indexCounts = {};
+//     indices.forEach((idx) => {
+//       indexCounts[idx] = (indexCounts[idx] || 0) + 1;
+//     });
+
+//     // Penalize points that are matched multiple times
+//     const penalizedDistances = distances.map((dist, i) => {
+//       const idx = indices[i];
+//       if (indexCounts[idx] !== 1) {
+//         return 10000; // High error for multiple matches
+//       }
+//       return dist[0];
+//     });
+
+//     return penalizedDistances;
+//   }
+// }
+
+        function ransacFit(model, points, successProbability = 0.98, outlierRatio = 0.45, inlierThreshold = 3.0) {
+            const maxNormErrSq = inlierThreshold * inlierThreshold;
+
+            let bestModelPtsIds = null;
+            let bestNInliers = 0;
+            let bestInliersError = Infinity;
+
+            const nPnts = points.length;
+
+            if (nPnts < model.N) {
+                return null;
+            }
+
+            const maxIters = Math.round(
+                MathUtils.log(1 - successProbability) / MathUtils.log(1 - MathUtils.pow(1 - outlierRatio, model.N))
+            );
+
+            for (let iter = 0; iter < maxIters; iter++) {
+                const pntsId = [];
+                for (let i = 0; i < model.N; i++) {
+                    pntsId.push(MathUtils.randomInt(0, nPnts));
+                }
+
+                const samplePnts = pntsId.map((id) => points[id]);
+
+                try {
+                    model.build(samplePnts);
+                } catch (e) {
+                    continue;
+                }
+
+                const errors = model.calcErrors(points);
+
+                const inliers = [];
+                for (let i = 0; i < errors.length; i++) {
+                    if (errors[i][0] * errors[i][0] < maxNormErrSq) {
+                        inliers.push(i);
+                    }
+                }
+
+                const nInliers = inliers.length;
+
+                if (nInliers < model.N) {
+                    continue;
+                }
+
+                if (nInliers > bestNInliers) {
+                    bestNInliers = nInliers;
+                    bestModelPtsIds = pntsId.slice();
+                    bestInliersError = MathUtils.mean(inliers.map((i) => errors[i][0]));
+                } else if (nInliers === bestNInliers) {
+                    const meanErr = MathUtils.mean(inliers.map((i) => errors[i][0]));
+                    if (meanErr < bestInliersError) {
+                        bestInliersError = meanErr;
+                        bestModelPtsIds = pntsId.slice();
+                    }
+                }
+            }
+
+            if (bestModelPtsIds) {
+                const bestPoints = bestModelPtsIds.map((id) => points[id]);
+                return {
+                    model: model.build(bestPoints),
+                    inliers: bestNInliers,
+                    error: bestInliersError,
+                };
+            }
+
+            return null;
+        }
+
+        // UI Functions
+        function initCanvas() {
+            sourceCanvas = document.getElementById('sourceCanvas');
+            destCanvas = document.getElementById('destCanvas');
+            sourceCtx = sourceCanvas.getContext('2d');
+            destCtx = destCanvas.getContext('2d');
+
+            sourceCanvas.addEventListener('click', handleSourceClick);
+            destCanvas.addEventListener('click', handleDestClick);
+
+            drawCanvas();
+        }
+
+        function handleSourceClick(event) {
+            const rect = sourceCanvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            sourcePoints.push([x, y]);
+            updatePointCounts();
+            drawCanvas();
+        }
+
+        function handleDestClick(event) {
+            const rect = destCanvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            destPoints.push([x, y]);
+            updatePointCounts();
+            drawCanvas();
+        }
+
+        function updatePointCounts() {
+            document.getElementById('sourceCount').textContent = sourcePoints.length;
+            document.getElementById('destCount').textContent = destPoints.length;
+
+            const canRun = sourcePoints.length >= 4 && destPoints.length >= 4;
+            document.getElementById('runRansac').disabled = !canRun || !isOpenCVReady;
+        }
+
+        function drawCanvas() {
+            // Clear canvases
+            sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
+            destCtx.clearRect(0, 0, destCanvas.width, destCanvas.height);
+
+            // Draw source points
+            sourceCtx.fillStyle = 'blue';
+            sourcePoints.forEach((point, index) => {
+                sourceCtx.beginPath();
+                sourceCtx.arc(point[0], point[1], 5, 0, 2 * Math.PI);
+                sourceCtx.fill();
+
+                sourceCtx.fillStyle = 'black';
+                sourceCtx.fillText(index.toString(), point[0] + 8, point[1] + 5);
+                sourceCtx.fillStyle = 'blue';
+            });
+
+            // Draw destination points
+            destCtx.fillStyle = 'red';
+            destPoints.forEach((point, index) => {
+                destCtx.beginPath();
+                destCtx.arc(point[0], point[1], 5, 0, 2 * Math.PI);
+                destCtx.fill();
+
+                destCtx.fillStyle = 'black';
+                destCtx.fillText(index.toString(), point[0] + 8, point[1] + 5);
+                destCtx.fillStyle = 'red';
+            });
+        }
+
+        function clearPoints() {
+            sourcePoints = [];
+            destPoints = [];
+            updatePointCounts();
+            drawCanvas();
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function generateTestData() {
+            clearPoints();
+
+            // Generate a rectangular pattern in source
+            sourcePoints = [
+                [80, 80],   // Top-left
+                [320, 80],  // Top-right
+                [320, 220], // Bottom-right
+                [80, 220],  // Bottom-left
+                [200, 80],  // Top-center
+                [320, 150], // Right-center
+                [200, 220], // Bottom-center
+                [80, 150],  // Left-center
+                [150, 130], // Interior point 1
+                [250, 130], // Interior point 2
+                [250, 170], // Interior point 3
+                [150, 170]  // Interior point 4
+            ];
+
+            // Define a perspective transformation matrix (simulating a tilted plane)
+            // This represents a realistic perspective transformation
+            const perspectiveMatrix = [
+                [0.8, 0.2, 20],
+                [0.1, 0.9, 15],
+                [0.0005, 0.0002, 1]
+            ];
+
+            // Apply the perspective transformation to create valid destination points
+            destPoints = [];
+            sourcePoints.forEach(point => {
+                const [x, y] = point;
+                const w = perspectiveMatrix[2][0] * x + perspectiveMatrix[2][1] * y + perspectiveMatrix[2][2];
+                const newX = (perspectiveMatrix[0][0] * x + perspectiveMatrix[0][1] * y + perspectiveMatrix[0][2]) / w;
+                const newY = (perspectiveMatrix[1][0] * x + perspectiveMatrix[1][1] * y + perspectiveMatrix[1][2]) / w;
+                destPoints.push([newX, newY]);
+            });
+
+            // Add some small noise to the valid correspondences to make it more realistic
+            destPoints = destPoints.map(point => [
+                point[0] + (Math.random() - 0.5) * 2, // ±1 pixel noise
+                point[1] + (Math.random() - 0.5) * 2
+            ]);
+
+            // Add outliers (points that don't follow the perspective transformation)
+            const numOutliers = 4;
+            for (let i = 0; i < numOutliers; i++) {
+                sourcePoints.push([
+                    50 + Math.random() * 300,
+                    50 + Math.random() * 200
+                ]);
+                destPoints.push([
+                    50 + Math.random() * 300,
+                    50 + Math.random() * 200
+                ]);
+            }
+
+            updatePointCounts();
+            drawCanvas();
+        }
+
+        function runRansacTest() {
+            if (!isOpenCVReady) {
+                showError('OpenCV.js is not ready yet. Please wait.');
+                return;
+            }
+
+            if (sourcePoints.length < 4 || destPoints.length < 4) {
+                showError('Need at least 4 points in each canvas.');
+                return;
+            }
+
+            const successProb = parseFloat(document.getElementById('successProb').value);
+            const outlierRatio = parseFloat(document.getElementById('outlierRatio').value);
+            const inlierThreshold = parseFloat(document.getElementById('inlierThreshold').value);
+
+            // Create point pairs (assuming correspondence by index)
+            const pairs = [];
+            const minLength = Math.min(sourcePoints.length, destPoints.length);
+            for (let i = 0; i < minLength; i++) {
+                pairs.push([i, i]);
+            }
+
+            try {
+                const model = new PerspectiveBoardFit(sourcePoints, destPoints);
+                const result = ransacFit(model, pairs, successProb, outlierRatio, inlierThreshold);
+
+                if (result) {
+                    showResults(result);
+                    visualizeTransformation(result.model);
+                } else {
+                    showError('RANSAC failed to find a valid transformation.');
+                }
+            } catch (error) {
+                showError('Error running RANSAC: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        function showResults(result) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="results">
+                    <h3>RANSAC Results</h3>
+                    <p><strong>Number of inliers:</strong> ${result.inliers}</p>
+                    <p><strong>Average error:</strong> ${result.error.toFixed(3)}</p>
+                    <p><strong>Transformation Matrix:</strong></p>
+                    <pre>${JSON.stringify(result.model, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
+        }
+
+        function visualizeTransformation(transformMatrix) {
+            if (!transformMatrix) return;
+
+            // Transform source points and draw them on destination canvas
+            const transformedPoints = transformPoints(sourcePoints, transformMatrix);
+
+            if (transformedPoints) {
+                destCtx.strokeStyle = 'green';
+                destCtx.lineWidth = 2;
+
+                transformedPoints.forEach((point, index) => {
+                    destCtx.beginPath();
+                    destCtx.arc(point[0], point[1], 3, 0, 2 * Math.PI);
+                    destCtx.stroke();
+
+                    // Draw line connecting transformed point to destination point
+                    if (index < destPoints.length) {
+                        destCtx.beginPath();
+                        destCtx.moveTo(point[0], point[1]);
+                        destCtx.lineTo(destPoints[index][0], destPoints[index][1]);
+                        destCtx.stroke();
+                    }
+                });
+            }
+        }
+
+        // Event listeners
+        document.getElementById('runRansac').addEventListener('click', runRansacTest);
+        document.getElementById('clearPoints').addEventListener('click', clearPoints);
+        document.getElementById('generateTest').addEventListener('click', generateTestData);
+
+        // Initialize when OpenCV is ready
+        function onOpenCvReady() {
+            isOpenCVReady = true;
+            document.getElementById('loading').style.display = 'none';
+            updatePointCounts();
+            console.log('OpenCV.js is ready!');
+        }
+
+        // Check if OpenCV is ready
+        function checkOpenCvReady() {
+            if (typeof cv !== 'undefined') {
+                onOpenCvReady();
+            } else {
+                document.getElementById('loading').style.display = 'block';
+                setTimeout(checkOpenCvReady, 100);
+            }
+        }
+
+        // Initialize
+        window.onload = function () {
+            initCanvas();
+            checkOpenCvReady();
+        };
+    </script>
+</body>
+
+</html>

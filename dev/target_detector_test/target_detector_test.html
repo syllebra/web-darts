@@ -51,6 +51,22 @@
     <script src="icp.js"></script>
 
     <script>
+
+        async function checkGPU() {
+            if (!navigator.gpu) {
+                throw Error("WebGPU not supported.");
+            }
+
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) {
+                throw Error("Couldn't request WebGPU adapter.");
+            }
+
+            const device = await adapter.requestDevice();
+            console.log("Device:",device)
+        }
+        checkGPU()
+
         // Configuration des secteurs du dartboard
         const SECTORS_DICT = {
             0: "20", 1: "1", 2: "18", 3: "4", 4: "13", 5: "6", 6: "10", 7: "15", 8: "2", 9: "17",
@@ -174,8 +190,8 @@
 
             async initializeModel() {
                 try {
-                    //this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ['webgpu'] });
-                    this.session = await ort.InferenceSession.create(this.modelPath);
+                    this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ['webgpu'] });
+                    //this.session = await ort.InferenceSession.create(this.modelPath);
                     console.log("Modèle ONNX chargé avec succès", this.session);
                     if (this.initCallback)
                         this.initCallback();
@@ -532,15 +548,34 @@
                     });
                 }
 
+                console.log(pointPairs)
+
+                // Step 4: First ransac fitting to find reasonable target pose
+                // -------------
+                let M = ransacFit(
+                    new PerspectiveBoardFit(pts, filteredCorners),
+                    pointPairs,
+                    0.99,
+                    0.6,
+                    10,
+                )
+
+
+                // tr_xy = this.board.transformCals(M, False)
+                // if len(tr_xy) < 4:
+                //     return None, None, 0
+
                 this.coarseCenter = center;
                 console.log(this.coarseCenter)
-                // Étapes 3-8: Algorithmes de correspondance et RANSAC
+                // Étapes 5-8: Algorithmes de correspondance et RANSAC
                 // Implémentation simplifiée - dans un vrai projet, il faudrait implémenter ICP, RANSAC, etc.
 
                 // Simulation d'une transformation perspective
-                const M = this.estimateTransformation(pts, filteredCorners);
 
-                this.ptsCal = this.board.transformCals(M);
+                console.log("Perspective Matrix:",M.model)
+                this.ptsCal = transformPoints(this.board.board_cal_pts, M.model);
+                //this.ptsCal = this.board.transformCals(M.model);
+                console.log("Points cal:", this.ptsCal)
 
                 if (canvas) {
                     this.drawBoard(canvas);
@@ -548,21 +583,9 @@
 
                 return {
                     calibrationPoints: this.ptsCal,
-                    transformation: M,
+                    transformation: M.model,
                     confidence: filteredCorners.length
                 };
-            }
-
-            estimateTransformation(srcPts, dstPts) {
-                // Estimation simplifiée d'une transformation perspective
-                // Dans un vrai projet, utiliser cv.findHomography ou un algorithme similaire
-
-                // Matrice identité par défaut
-                return [
-                    [1, 0, 0],
-                    [0, 1, 0],
-                    [0, 0, 1]
-                ];
             }
 
             drawBoard(canvas) {

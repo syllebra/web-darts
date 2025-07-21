@@ -142,9 +142,16 @@
         canvas {
             width: 100%;
             height: 300px;
-            object-fit: cover;
+            object-fit: contain;
             border-radius: 15px;
             border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #debugCanvas {
+            width: 640px;
+            height: 640px;
+            overflow: visible;
+
         }
 
         .status {
@@ -279,7 +286,7 @@
             </div>
 
             <div class="control-group">
-                <button id="captureBtn" disabled>Capture & Analyze</button>
+                <button id="captureBtn" disabled>Calibrate</button>
                 <button id="toggleProcessing" disabled>Start Live Processing</button>
             </div>
         </div>
@@ -302,6 +309,12 @@
                 <h3>Processed Output</h3>
                 <canvas id="outputCanvas"></canvas>
             </div>
+            <!-- <div class="video-box">
+                <h3>Debug Output</h3>
+                <canvas id="debugCanvas"></canvas>
+            </div> -->
+            <canvas id="debugCanvas"></canvas>
+                            
         </div>
 
         <div class="opencv-filters">
@@ -319,15 +332,23 @@
         </div>
     </div>
 
-    <!-- ONNX Runtime Web -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.14.0/ort.min.js"></script>
+    <script src="../../ext/ort.min.js"></script>
+    <script src="../../core/utils/tools.js"></script>    
+    <script src="../../core/utils/ransac.js"></script>
+    <script src="../../core/utils/icp.js"></script>
+    
+    <script src="../../core/Board.js"></script>
+    <script src="../../core/TargetDetector.js"></script>
+
 
     <script>
         class IntegratedCameraApp {
             constructor() {
                 this.videoElement = document.getElementById('videoElement');
                 this.outputCanvas = document.getElementById('outputCanvas');
-                this.ctx = this.outputCanvas.getContext('2d');
+                this.ctx = this.outputCanvas.getContext('2d', {"willReadFrequently":true});
+                console.log(this.ctx.getContextAttributes())
+
                 this.currentStream = null;
                 this.currentFilter = 'none';
                 this.onnxSession = null;
@@ -335,6 +356,8 @@
                 this.animationId = null;
                 this.debugInfo = document.getElementById('debugInfo');
                 this.isOpenCVReady = false;
+
+                this.detector = new YoloTargetDetector()
 
                 this.initializeApp();
             }
@@ -400,7 +423,7 @@
                 document.getElementById('startCamera').addEventListener('click', () => this.startCamera());
 
                 // Processing controls
-                document.getElementById('captureBtn').addEventListener('click', () => this.captureAndAnalyze());
+                document.getElementById('captureBtn').addEventListener('click', () => this.calibrate());
                 document.getElementById('toggleProcessing').addEventListener('click', () => this.toggleLiveProcessing());
                 document.getElementById('modelFile').addEventListener('change', (e) => this.loadONNXModel(e));
 
@@ -504,6 +527,7 @@
                         const option = document.createElement('option');
                         option.value = camera.deviceId;
                         option.textContent = camera.label || `Camera ${index + 1}`;
+                        option.selected = true;
                         cameraSelect.appendChild(option);
                     });
 
@@ -538,12 +562,13 @@
                     }
 
                     const constraints = {
+                        audio: false,
                         video: {
                             deviceId: { exact: selectedCamera },
-                            width: { ideal: 640 },
-                            height: { ideal: 480 }
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 },
+                        },
                         }
-                    };
 
                     this.log('Using constraints: ' + JSON.stringify(constraints));
 
@@ -666,7 +691,7 @@
                 }
             }
 
-            async captureAndAnalyze() {
+            async calibrate() {
                 if (!this.videoElement.videoWidth) {
                     this.updateStatus('❌ Camera not ready', 'error');
                     return;
@@ -675,18 +700,36 @@
                 this.showLoading(true);
                 this.log('Capturing and analyzing frame');
 
-                try {
+                // try {
                     await this.processFrame();
 
-                    if (this.onnxSession) {
-                        await this.runInference();
+                    let input = this.preprocessImageForModel();
+                    let results = await this.detector.detect(input, this.canvas);
+                    if(results.calibrationPoints) {
+                        let crop = autoCrop(results.calibrationPoints, this.videoElement.videoWidth, this.videoElement.videoHeight)
+                        console.log("Auto Crop:",crop)
+
+                        let ratio = Math.min(this.videoElement.videoWidth, this.videoElement.videoHeight)/640;
+                        let C = [(crop[2]+crop[0])*0.5 * this.videoElement.videoWidth / 640, (crop[3]+crop[1])*0.5*this.videoElement.videoHeight/640]
+                        let S = [(crop[2]-crop[0]) *ratio, (crop[3]-crop[1])*ratio]
+
+                        input = this.preprocessImageForModel([C[0]-S[0]*0.5,C[1]-S[1]*0.5,S[0],S[1]]);
+                        results = await this.detector.detect(input, this.canvas);
+                        console.log("Calibration results:", results);
+
                     }
-                } catch (error) {
-                    this.log('Capture and analyze error: ' + error.message);
-                    this.updateStatus('❌ Error during processing: ' + error.message, 'error');
-                } finally {
-                    this.showLoading(false);
-                }
+                    else console.warn("Unable to find initial target to auto crop...");
+
+                //     if (this.onnxSession) {
+                //         await this.runInference();
+                //     }
+                // } catch (error) {
+                //     this.log('Capture and analyze error: ' + error.message);
+                //     this.updateStatus('❌ Error during processing: ' + error.message, 'error');
+                // } finally {
+                //     this.showLoading(false);
+                // }
+                this.showLoading(false);
             }
 
             async runInference() {
@@ -696,13 +739,17 @@
                     this.log('Running ONNX inference');
 
                     // Get image data from canvas
-                    const imageData = this.ctx.getImageData(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+                    // const imageData = this.ctx.getImageData(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+                    // console.log("imageData:", imageData)
 
                     // Convert to tensor (this is a simplified example - you'll need to adjust based on your model)
-                    const tensor = this.preprocessImageForModel(imageData);
+                    const preproc = this.preprocessImageForModel();
+                    const tensor = new ort.Tensor(Float32Array.from(preproc), [1, 3, 640, 640]);
+                    console.log("tensor:", tensor)
 
                     // Run inference
-                    const results = await this.onnxSession.run({ input: tensor });
+                    const results = await this.onnxSession.run({ images: tensor });
+                    console.log(results)
 
                     // Process results (this is model-specific)
                     this.displayInferenceResults(results);
@@ -713,32 +760,42 @@
                 }
             }
 
-            preprocessImageForModel(imageData) {
-                // This is a simplified preprocessing - adjust based on your model requirements
-                const { width, height } = imageData;
-                const channels = 3;
+            preprocessImageForModel(srcBox = null, modelSize=640) {
+                // const { width, height } = imageData;
+                let inputBox = srcBox ? srcBox : [0, 0, this.videoElement.videoWidth, this.videoElement.videoHeight];
 
-                // Resize to model input size (example: 224x224)
-                const modelWidth = 224;
-                const modelHeight = 224;
-
-                const input = new Float32Array(1 * channels * modelHeight * modelWidth);
-
-                // Simple resize and normalization (you may need more sophisticated preprocessing)
-                for (let y = 0; y < modelHeight; y++) {
-                    for (let x = 0; x < modelWidth; x++) {
-                        const srcX = Math.floor(x * width / modelWidth);
-                        const srcY = Math.floor(y * height / modelHeight);
-                        const srcIdx = (srcY * width + srcX) * 4;
-
-                        // Normalize to [0, 1] and arrange in CHW format
-                        input[y * modelWidth + x] = imageData.data[srcIdx] / 255.0; // R
-                        input[modelHeight * modelWidth + y * modelWidth + x] = imageData.data[srcIdx + 1] / 255.0; // G
-                        input[2 * modelHeight * modelWidth + y * modelWidth + x] = imageData.data[srcIdx + 2] / 255.0; // B
-                    }
+                console.log(this.videoElement.videoWidth, this.videoElement.videoHeight)
+                if(!this.canvas)
+                    this.canvas = document.getElementById("debugCanvas");
+                if(!this.canvas) {
+                    this.canvas = document.createElement("canvas");
+                    this.canvas.id = "debugCanvas";
                 }
+                this.canvas.width = modelSize;
+                this.canvas.height = modelSize;                
 
-                return new ort.Tensor('float32', input, [1, channels, modelHeight, modelWidth]);
+                const context = this.canvas.getContext("2d");
+                console.log(this.videoElement.videoWidth, this.videoElement.videoHeight)
+                console.log(context)
+                context.drawImage(this.videoElement,
+                    inputBox[0],inputBox[1],inputBox[2],inputBox[3],
+                    0,0, modelSize,modelSize
+                );
+                //context.putImageData(imageData,0,0)
+                const imgData = context.getImageData(0, 0, modelSize, modelSize);
+                const pixels = imgData.data;
+
+                //this.ctx.putImageData(imgData,0,0)
+
+                const red = [], green = [], blue = [];
+                for (let index = 0; index < pixels.length; index += 4) {
+                    red.push(pixels[index] / 255.0);
+                    green.push(pixels[index + 1] / 255.0);
+                    blue.push(pixels[index + 2] / 255.0);
+                }
+                const input = [...red, ...green, ...blue];
+                return input;
+                //resolve([input, img_width, img_height, imgData])
             }
 
             displayInferenceResults(results) {
@@ -844,7 +901,7 @@
         setTimeout(checkOpenCVLoaded, 10000); // Check after 10 seconds
 
         // Initialize the app immediately
-        function initializeApp() {
+        async function initializeApp() {
             console.log('Initializing app...');
             const app = new IntegratedCameraApp();
             window.cameraApp = app; // For debugging
@@ -854,6 +911,12 @@
                 app.isOpenCVReady = true;
                 app.log('OpenCV already loaded');
             }
+
+            app.checkSystem();
+            await app.requestPermission();
+            await app.listCameras();
+            app.startCamera();
+
         }
 
         // Initialize the app when DOM is ready

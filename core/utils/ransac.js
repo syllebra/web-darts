@@ -85,6 +85,37 @@ const MathUtils = {
 
     return x;
   },
+
+  /**
+   * Creates a 2D rotation matrix from an angle in degrees
+   * @param {number} angleDegrees - The rotation angle in degrees
+   * @returns {Array<Array<number>>} - 2x2 rotation matrix
+   */
+  createRotationMatrix: (angleDegrees) => {
+    const angleRadians = (angleDegrees * Math.PI) / 180;
+    const cos = Math.cos(angleRadians);
+    const sin = Math.sin(angleRadians);
+
+    return [
+      [cos, -sin],
+      [sin, cos],
+    ];
+  },
+
+  /**
+   * Applies a rotation matrix to a list of 2D points
+   * @param {Array<Array<number>>} points - Array of [x, y] coordinate pairs
+   * @param {Array<Array<number>>} rotationMatrix - 2x2 rotation matrix
+   * @returns {Array<Array<number>>} - Array of rotated [x, y] coordinate pairs
+   */
+  rotatePoints: (points, rotationMatrix) => {
+    return points.map((point) => {
+      const [x, y] = point;
+      const [[m00, m01], [m10, m11]] = rotationMatrix;
+
+      return [m00 * x + m01 * y, m10 * x + m11 * y];
+    });
+  },
 };
 
 // Abstract Model class
@@ -854,199 +885,162 @@ class FixedCenterCircleModel extends Model {
     return errors;
   }
 }
-// Transform points using perspective transformation matrix (equivalent to Python's transform_points)
-function transformPoints(points, matrix) {
-  if (!matrix || points.length === 0) return null;
 
-  try {
-    // Convert matrix to OpenCV format
-    const transformMatrix = cv.matFromArray(3, 3, cv.CV_64FC1, matrix.flat());
-
-    // Convert points to OpenCV format
-    const srcPoints = cv.matFromArray(points.length, 1, cv.CV_32FC2, points.flat());
-    const dstPoints = new cv.Mat();
-
-    // Apply perspective transformation
-    cv.perspectiveTransform(srcPoints, dstPoints, transformMatrix);
-
-    // Convert back to JavaScript array format
-    const transformedPoints = [];
-    for (let i = 0; i < points.length; i++) {
-      const x = dstPoints.floatPtr(i, 0)[0];
-      const y = dstPoints.floatPtr(i, 0)[1];
-      transformedPoints.push([x, y]);
+// Perspective transformation utilities
+const PerspectiveUtils = {
+  // Calculate perspective transform matrix from 4 point correspondences
+  getPerspectiveTransform: (src, dst) => {
+    if (src.length !== 4 || dst.length !== 4) {
+      throw new Error("Need exactly 4 point correspondences");
     }
 
-    // Clean up OpenCV matrices
-    srcPoints.delete();
-    dstPoints.delete();
-    transformMatrix.delete();
+    // Set up the system of equations for perspective transformation
+    // We need to solve for 8 unknowns (h11, h12, h13, h21, h22, h23, h31, h32)
+    // h33 is set to 1 for normalization
+    const A = [];
+    const b = [];
 
-    return transformedPoints;
-  } catch (error) {
-    console.error("Error in transformPoints:", error);
-    return null;
-  }
-}
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i];
+      const [u, v] = dst[i];
 
-// NearestNeighbors implementation using KD-tree approach (similar to sklearn)
+      // First equation: u = (h11*x + h12*y + h13) / (h31*x + h32*y + 1)
+      // Rearranged: h11*x + h12*y + h13 - u*h31*x - u*h32*y = u
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]);
+      b.push(u);
+
+      // Second equation: v = (h21*x + h22*y + h23) / (h31*x + h32*y + 1)
+      // Rearranged: h21*x + h22*y + h23 - v*h31*x - v*h32*y = v
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]);
+      b.push(v);
+    }
+
+    const solution = MathUtils.solveLinearSystem(A, b);
+    if (!solution) return null;
+
+    // Construct the 3x3 transformation matrix
+    return [
+      [solution[0], solution[1], solution[2]],
+      [solution[3], solution[4], solution[5]],
+      [solution[6], solution[7], 1],
+    ];
+  },
+
+  // Transform points using perspective transformation matrix
+  transformPoints: (points, matrix) => {
+    if (!matrix) return null;
+
+    return points.map((point) => {
+      const [x, y] = point;
+      const w = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2];
+      const u = (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / w;
+      const v = (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / w;
+      return [u, v];
+    });
+  },
+};
+
+// Simple nearest neighbor implementation
 class NearestNeighbors {
-  constructor(nNeighbors = 1, algorithm = "kd_tree") {
-    this.nNeighbors = nNeighbors;
-    this.algorithm = algorithm;
-    this.fittedData = null;
+  constructor(points) {
+    this.points = points;
   }
 
-  fit(data) {
-    this.fittedData = data;
-    return this;
-  }
-
-  kneighbors(queryPoints) {
-    if (!this.fittedData) {
-      throw new Error("Model not fitted yet. Call fit() first.");
-    }
-
+  kneighbors(queryPoints, k = 1) {
     const distances = [];
     const indices = [];
 
     queryPoints.forEach((queryPoint) => {
-      const pointDistances = this.fittedData.map((point, index) => ({
-        distance: this.euclideanDistance(queryPoint, point),
+      const pointDistances = this.points.map((point, index) => ({
+        distance: MathUtils.distance(queryPoint, point),
         index: index,
       }));
 
       pointDistances.sort((a, b) => a.distance - b.distance);
 
-      // Return as arrays to match Python sklearn format
       distances.push([pointDistances[0].distance]);
       indices.push(pointDistances[0].index);
     });
 
     return { distances, indices };
   }
-
-  euclideanDistance(p1, p2) {
-    const dx = p1[0] - p2[0];
-    const dy = p1[1] - p2[1];
-    return Math.sqrt(dx * dx + dy * dy);
-  }
 }
 
-// PerspectiveBoardFit model implementation matching Python structure
+// PerspectiveBoardFit model implementation
 class PerspectiveBoardFit extends Model {
   constructor(src, dst, minDist = 5) {
     super();
-    this.N = 4;
-    this.M = null;
-    this.src = src;
-    this.dst = dst;
+    this.N = 4; // Need 4 point correspondences for perspective transform
+    this.M = null; // Transformation matrix
+    this.src = src; // Source points
+    this.dst = dst; // Destination points
     this.minDist = minDist;
   }
 
   build(pairs) {
-    try {
-      // Extract indices similar to Python: pairs[:, 0] and pairs[:, 1]
-      const srcIndices = pairs.map((pair) => pair[0]);
-      const dstIndices = pairs.map((pair) => pair[1]);
-
-      // Get source and destination points using indices
-      const src = srcIndices.map((idx) => this.src[idx]);
-      const dst = dstIndices.map((idx) => this.dst[idx]);
-
-      if (pairs.length !== 4 || src.length !== 4 || dst.length !== 4) {
-        return null;
-      }
-
-      // Convert to OpenCV format (equivalent to np.array(...).astype(np.float32))
-      const srcMat = cv.matFromArray(4, 1, cv.CV_32FC2, src.flat());
-      const dstMat = cv.matFromArray(4, 1, cv.CV_32FC2, dst.flat());
-
-      // Get perspective transformation matrix using OpenCV.js
-      const transformMatrix = cv.getPerspectiveTransform(srcMat, dstMat);
-
-      // Convert matrix to JavaScript array format for storage
-      this.M = [];
-      for (let i = 0; i < 3; i++) {
-        const row = [];
-        for (let j = 0; j < 3; j++) {
-          row.push(transformMatrix.doublePtr(i, j));
-        }
-        this.M.push(row);
-      }
-
-      // Clean up OpenCV matrices
-      srcMat.delete();
-      dstMat.delete();
-      transformMatrix.delete();
-
-      return this.M;
-    } catch (error) {
-      console.error("Error in build:", error);
+    if (pairs.length !== 4) {
       return null;
     }
+
+    // Extract source and destination points from pairs
+    const srcPoints = pairs.map((pair) => this.src[pair[0]]);
+    const dstPoints = pairs.map((pair) => this.dst[pair[1]]);
+
+    // Validate that we have exactly 4 points
+    if (srcPoints.length !== 4 || dstPoints.length !== 4) {
+      return null;
+    }
+
+    // Calculate perspective transformation matrix
+    this.M = PerspectiveUtils.getPerspectiveTransform(srcPoints, dstPoints);
+    return this.M;
   }
 
   calcErrors(pairs) {
-    try {
-      // Transform all source points using the perspective matrix
-      const proj = transformPoints(this.src, this.M);
-
-      if (!proj) {
-        // Return high errors if transformation failed
-        return Array(this.dst.length).fill([10000]);
-      }
-
-      // Create and fit NearestNeighbors (equivalent to Python's sklearn)
-      const nbrs = new NearestNeighbors(1, "kd_tree").fit(proj);
-      const { distances, indices } = nbrs.kneighbors(this.dst);
-
-      // Count occurrences of each index to detect multiple matches
-      // Equivalent to Python's np.count_nonzero(indices == id)
-      const indexCounts = {};
-      indices.forEach((idx) => {
-        indexCounts[idx] = (indexCounts[idx] || 0) + 1;
-      });
-
-      // Penalize points that are matched multiple times
-      // Equivalent to Python's loop: for i, id in enumerate(indices)
-      for (let i = 0; i < indices.length; i++) {
-        const id = indices[i];
-        const numCorr = indexCounts[id];
-        if (numCorr !== 1) {
-          distances[i] = [10000]; // High error for multiple matches
-        }
-      }
-
-      return distances;
-    } catch (error) {
-      console.error("Error in calcErrors:", error);
-      // Return high errors if calculation failed
-      return Array(this.dst.length).fill([10000]);
+    if (!this.M) {
+      //throw new Error("Model not built yet. Call build() first.");
+      return Array(this.dst.length).fill(10000);
     }
+
+    // Transform all source points using the perspective matrix
+    const projectedPoints = PerspectiveUtils.transformPoints(this.src, this.M);
+
+    if (!projectedPoints) {
+      return Array(this.dst.length).fill(10000);
+    }
+
+    // Find nearest neighbors
+    const nbrs = new NearestNeighbors(projectedPoints);
+    const { distances, indices } = nbrs.kneighbors(this.dst, 1);
+
+    // Count occurrences of each index to detect multiple matches
+    const indexCounts = {};
+    indices.forEach((idx) => {
+      indexCounts[idx] = (indexCounts[idx] || 0) + 1;
+    });
+
+    // Penalize points that are matched multiple times
+    const penalizedDistances = distances.map((dist, i) => {
+      const idx = indices[i];
+      if (indexCounts[idx] !== 1) {
+        return 10000; // High error for multiple matches
+      }
+      return dist[0];
+    });
+
+    return penalizedDistances;
   }
 }
 
-// Example usage:
-/*
-const src = [[0, 0], [100, 0], [100, 100], [0, 100]]; // Square
-const dst = [[10, 10], [110, 5], [105, 110], [5, 105]]; // Slightly distorted square
-
-const model = new PerspectiveBoardFit(src, dst);
-
-// Example pairs (indices into src and dst arrays)
-const pairs = [[0, 0], [1, 1], [2, 2], [3, 3]];
-
-const transformMatrix = model.build(pairs);
-if (transformMatrix) {
-  console.log("Transform matrix:", transformMatrix);
-  const errors = model.calcErrors(pairs);
-  console.log("Errors:", errors);
-}
-*/
-
 // RANSAC Implementation
-function ransacFit(model, points, successProbability = 0.98, outlierRatio = 0.45, inlierThreshold = 3.0) {
+function ransacFit(
+  model,
+  points,
+  successProbability = 0.98,
+  outlierRatio = 0.45,
+  inlierThreshold = 3.0,
+  debugCb = null
+) {
   const maxNormErrSq = inlierThreshold * inlierThreshold;
 
   let bestModelPtsIds = null;
@@ -1068,7 +1062,7 @@ function ransacFit(model, points, successProbability = 0.98, outlierRatio = 0.45
 
   // RANSAC iterations
   for (let iter = 0; iter < maxIters; iter++) {
-    console.log("Ransac iteration: ", iter, "/", maxIters);
+    //console.log("Ransac iteration: ", iter, "/", maxIters);
     // Select N points at random
     const pntsId = [];
     for (let i = 0; i < model.N; i++) {
@@ -1095,6 +1089,7 @@ function ransacFit(model, points, successProbability = 0.98, outlierRatio = 0.45
       }
     }
 
+    //console.log("Iteration ", iter, ": Inliers:", inliers.length, "/", errors.length);
     const nInliers = inliers.length;
 
     // Protect fitting from too few points
@@ -1116,6 +1111,8 @@ function ransacFit(model, points, successProbability = 0.98, outlierRatio = 0.45
     }
   }
   console.log("bestModelPtsIds:", bestModelPtsIds);
+  console.log("bestNInliers:", bestNInliers);
+  console.log("bestInliersError:", bestInliersError);
   if (bestModelPtsIds) {
     const bestPoints = bestModelPtsIds.map((id) => points[id]);
     return {

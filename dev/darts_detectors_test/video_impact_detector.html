@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dart Impact Detector</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .control-group h3 {
+            margin-top: 0;
+            color: #fff;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            margin: 5px 0;
+        }
+
+        input[type="text"]::placeholder,
+        input[type="number"]::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px 0;
+            font-weight: bold;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .status.detecting {
+            background: rgba(52, 168, 83, 0.3);
+            border: 2px solid #34a853;
+            box-shadow: 0 0 20px rgba(52, 168, 83, 0.2);
+        }
+
+        .status.paused {
+            background: rgba(251, 188, 5, 0.3);
+            border: 2px solid #fbbc05;
+        }
+
+        .status.detected {
+            background: rgba(234, 67, 53, 0.3);
+            border: 2px solid #ea4335;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 20px rgba(234, 67, 53, 0.2);
+            }
+
+            50% {
+                box-shadow: 0 0 30px rgba(234, 67, 53, 0.6);
+            }
+
+            100% {
+                box-shadow: 0 0 20px rgba(234, 67, 53, 0.2);
+            }
+        }
+
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+            padding-left: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .video-section {
+            margin-top: 30px;
+        }
+
+        #videoCanvas,
+        #deltaCanvas {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            margin: 10px;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .canvas-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .canvas-wrapper {
+            text-align: center;
+            margin: 10px;
+        }
+
+        .canvas-wrapper h4 {
+            margin: 10px 0;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎯 Dart Impact Detector</h1>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>Connection Settings</h3>
+                <label>Detector URL:</label>
+                <input type="text" id="detectorUrl" value="http://192.168.31.102:80"
+                    placeholder="http://192.168.31.102:80">
+
+                <label>MQTT Broker:</label>
+                <input type="text" id="mqttBroker" value="localhost" placeholder="localhost">
+
+                <label>MQTT Port:</label>
+                <input type="number" id="mqttPort" value="1883" placeholder="1883">
+            </div>
+
+            <div class="control-group">
+                <h3>Video Settings</h3>
+                <label>Burst Length:</label>
+                <input type="number" id="burstLength" value="20" min="5" max="100">
+
+                <label>Extra Wait Frames:</label>
+                <input type="number" id="extraWaitFrames" value="5" min="1" max="20">
+            </div>
+
+            <div class="control-group">
+                <h3>Controls</h3>
+                <button onclick="detector.start()" id="startBtn">🚀 Start Detector</button>
+                <button onclick="detector.stop()" id="stopBtn" disabled>⏹️ Stop Detector</button>
+                <button onclick="detector.calibrate()">🔧 Calibrate</button>
+                <button onclick="detector.getConfig()">📋 Get Config</button>
+                <button onclick="startVideoDemo()">📹 Start Video Demo</button>
+            </div>
+        </div>
+
+        <div id="status" class="status detecting">🔍 DETECTING</div>
+
+        <div class="control-group">
+            <h3>Activity Log</h3>
+            <div id="log" class="log"></div>
+        </div>
+
+        <div class="video-section">
+            <h3>Video Analysis</h3>
+            <div class="canvas-container">
+                <div class="canvas-wrapper">
+                    <h4>Current Frame</h4>
+                    <canvas id="videoCanvas" width="320" height="240"></canvas>
+                </div>
+                <div class="canvas-wrapper">
+                    <h4>Frame Delta</h4>
+                    <canvas id="deltaCanvas" width="320" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Status enumeration
+        const Status = {
+            DETECTING: 1,
+            PAUSE: 2,
+            DETECTED: 3
+        };
+
+        // Base DartDetector class
+        class DartDetector {
+            constructor() {
+                this.pauseDetection = false;
+            }
+
+            start() {
+                // Placeholder implementation
+            }
+
+            stop() {
+                // Placeholder implementation
+            }
+
+            onNewFrame(img) {
+                // Placeholder implementation
+                return null;
+            }
+        }
+
+        // Queue implementation for frame buffering
+        class Queue {
+            constructor(maxSize) {
+                this.items = [];
+                this.maxSize = maxSize;
+            }
+
+            put(item) {
+                if (this.items.length >= this.maxSize) {
+                    this.items.shift(); // Remove oldest item
+                }
+                this.items.push(item);
+            }
+
+            get() {
+                return this.items.shift();
+            }
+
+            qsize() {
+                return this.items.length;
+            }
+
+            clear() {
+                this.items = [];
+            }
+        }
+
+        // Accelerometer Dart Impact Detector
+        class AccelerometerDartImpactDetector extends DartDetector {
+            constructor(detectorUrl = "http://192.168.31.102:80", mqttBroker = "localhost", mqttPort = 1883) {
+                super();
+                this.url = detectorUrl;
+                this.mqttBroker = mqttBroker;
+                this.mqttPort = mqttPort;
+                this.config = {
+                    threshold: 0.03,
+                    min_delay_between_taps: 150,
+                    tap_duration_min: 2,
+                    tap_duration_max: 150,
+                    enable_filtering: true,
+                    filter_alpha: 0.7,
+                    sensitivity: 50,
+                    debug: false,
+                    use_adaptive_threshold: true,
+                    noise_window: 0.2,
+                    peak_ratio: 1.2,
+                    use_derivative: true,
+                    derivative_threshold: 0.8
+                };
+
+                this.mqttClient = null;
+                this.lastImpact = null;
+                this.isStarted = false;
+            }
+
+            start() {
+                if (this.isStarted) return;
+
+                try {
+                    // Create MQTT client
+                    const clientId = "dartDetector_" + Math.random().toString(16).substr(2, 8);
+                    this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
+
+                    // Set callback handlers
+                    this.mqttClient.onConnectionLost = this.onConnectionLost.bind(this);
+                    this.mqttClient.onMessageArrived = this.onMessage.bind(this);
+
+                    // Connect to MQTT broker
+                    this.mqttClient.connect({
+                        onSuccess: this.onConnect.bind(this),
+                        onFailure: this.onConnectFailure.bind(this)
+                    });
+
+                    this.log("Starting MQTT client...");
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+
+                } catch (error) {
+                    this.log("Error starting detector: " + error.message);
+                }
+            }
+
+            stop() {
+                if (!this.isStarted) return;
+
+                if (this.mqttClient && this.mqttClient.isConnected()) {
+                    this.mqttClient.disconnect();
+                }
+
+                this.isStarted = false;
+                this.log("Detector stopped");
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                this.updateStatus(Status.DETECTING);
+            }
+
+            async getConfig() {
+                try {
+                    const response = await fetch(`${this.url}/api/config`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    this.config = await response.json();
+                    this.log("Configuration retrieved successfully");
+                    console.log("Current config:", this.config);
+                    return this.config;
+                } catch (error) {
+                    this.log("Failed to get config: " + error.message);
+                    throw error;
+                }
+            }
+
+            async setConfig() {
+                try {
+                    const response = await fetch(`${this.url}/api/config`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(this.config)
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    this.log("Configuration updated successfully");
+                } catch (error) {
+                    this.log("Failed to set config: " + error.message);
+                    throw error;
+                }
+            }
+
+            async calibrate() {
+                try {
+                    const response = await fetch(`${this.url}/api/calibrate`, {
+                        method: 'POST'
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    this.log("Calibration completed successfully");
+                } catch (error) {
+                    this.log("Failed to calibrate: " + error.message);
+                }
+            }
+
+            onConnect() {
+                this.log("Connected to MQTT broker");
+                this.mqttClient.subscribe("#");
+                this.isStarted = true;
+                this.updateStatus(Status.DETECTING);
+            }
+
+            onConnectFailure(error) {
+                this.log("Failed to connect to MQTT broker: " + error.errorMessage);
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+
+            onConnectionLost(responseObject) {
+                if (responseObject.errorCode !== 0) {
+                    this.log("Connection lost: " + responseObject.errorMessage);
+                    this.isStarted = false;
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                }
+            }
+
+            onMessage(message) {
+                const topic = message.destinationName;
+                const payload = message.payloadString;
+
+                this.log(`MQTT: ${topic} - ${payload}`);
+
+                if (topic.includes("sensors/tap")) {
+                    this.playSound();
+                    this.lastImpact = Date.now();
+                }
+            }
+
+            playSound() {
+                // Create and play a simple beep sound
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            }
+
+            log(message) {
+                const logElement = document.getElementById('log');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+                logElement.appendChild(entry);
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+
+            updateStatus(status) {
+                const statusElement = document.getElementById('status');
+                statusElement.className = 'status';
+
+                switch (status) {
+                    case Status.DETECTING:
+                        statusElement.classList.add('detecting');
+                        statusElement.textContent = '🔍 DETECTING';
+                        break;
+                    case Status.PAUSE:
+                        statusElement.classList.add('paused');
+                        statusElement.textContent = '⏸️ PAUSED';
+                        break;
+                    case Status.DETECTED:
+                        statusElement.classList.add('detected');
+                        statusElement.textContent = '🎯 IMPACT DETECTED!';
+                        break;
+                }
+            }
+        }
+
+        // Delta Video Accelerometer Impact Detector
+        class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
+            constructor(detectorUrl = "http://192.168.31.102:80", mqttBroker = "localhost", mqttPort = 1883, burstLength = 20, extraWaitFrames = 5) {
+                super(detectorUrl, mqttBroker, mqttPort);
+                this.burstLength = burstLength;
+                this.extraWaitFrames = extraWaitFrames;
+                this.burst = new Queue(burstLength + extraWaitFrames);
+                this.state = Status.DETECTING;
+                this.countDownCpt = 0;
+            }
+
+            onPause() {
+                // Placeholder implementation
+            }
+
+            onNewFrame(imageData) {
+                let ret = null;
+                const maxFrames = this.state === Status.DETECTED
+                    ? this.burstLength + this.extraWaitFrames
+                    : this.burstLength;
+
+                if (this.burst.qsize() >= maxFrames) {
+                    this.burst.get();
+                    if (this.state === Status.DETECTED) {
+                        ret = this.computeDelta();
+                        this.state = Status.DETECTING;
+                        this.updateStatus(Status.DETECTING);
+                    }
+                }
+
+                this.burst.put(imageData);
+                return ret;
+            }
+
+            onMessage(message) {
+                const topic = message.destinationName;
+                const payload = message.payloadString;
+
+                if (topic.includes("sensors/tap")) {
+                    this.playSound();
+                    this.log(`DeltaVideo: ${topic} - ${payload}`);
+                    this.countDownCpt = this.extraWaitFrames;
+                    this.state = Status.DETECTED;
+                    this.updateStatus(Status.DETECTED);
+                }
+            }
+
+            computeDelta() {
+                if (this.burst.qsize() < 2) return null;
+
+                const first = this.burst.get();
+                let last = null;
+
+                while (this.burst.qsize() > 0) {
+                    last = this.burst.get();
+                }
+
+                if (!first || !last) return null;
+
+                // Compute difference between first and last frames
+                const delta = this.computeImageDifference(first, last);
+                this.displayDelta(delta);
+
+                return delta;
+            }
+
+            computeImageDifference(img1, img2) {
+                const width = img1.width;
+                const height = img1.height;
+                const deltaCanvas = document.getElementById('deltaCanvas');
+                const deltaCtx = deltaCanvas.getContext('2d');
+
+                deltaCanvas.width = width;
+                deltaCanvas.height = height;
+
+                const deltaImageData = deltaCtx.createImageData(width, height);
+                const data1 = img1.data;
+                const data2 = img2.data;
+                const deltaData = deltaImageData.data;
+
+                for (let i = 0; i < data1.length; i += 4) {
+                    // Convert to grayscale and compute absolute difference
+                    const gray1 = (data1[i] * 0.299 + data1[i + 1] * 0.587 + data1[i + 2] * 0.114) / 255.0;
+                    const gray2 = (data2[i] * 0.299 + data2[i + 1] * 0.587 + data2[i + 2] * 0.114) / 255.0;
+                    const diff = Math.abs(gray1 - gray2) * 255;
+
+                    deltaData[i] = diff;     // R
+                    deltaData[i + 1] = diff; // G
+                    deltaData[i + 2] = diff; // B
+                    deltaData[i + 3] = 255;  // A
+                }
+
+                return deltaImageData;
+            }
+
+            displayDelta(deltaImageData) {
+                const deltaCanvas = document.getElementById('deltaCanvas');
+                const deltaCtx = deltaCanvas.getContext('2d');
+                deltaCtx.putImageData(deltaImageData, 0, 0);
+            }
+        }
+
+        // Initialize detector
+        let detector = new DeltaVideoAccelImpactDetector();
+
+        // Video demo functionality
+        let videoStream = null;
+        let animationId = null;
+
+        async function startVideoDemo() {
+            try {
+                const videoCanvas = document.getElementById('videoCanvas');
+                const ctx = videoCanvas.getContext('2d');
+
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const video = document.createElement('video');
+                video.srcObject = videoStream;
+                video.play();
+
+                video.onloadedmetadata = () => {
+                    const processFrame = () => {
+                        if (video.videoWidth > 0 && video.videoHeight > 0) {
+                            videoCanvas.width = video.videoWidth;
+                            videoCanvas.height = video.videoHeight;
+
+                            ctx.drawImage(video, 0, 0);
+                            const imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+
+                            detector.onNewFrame(imageData);
+                        }
+
+                        animationId = requestAnimationFrame(processFrame);
+                    };
+
+                    processFrame();
+                };
+
+                detector.log("Video demo started");
+            } catch (error) {
+                detector.log("Failed to start video: " + error.message);
+            }
+        }
+
+        // Update detector settings when inputs change
+        function updateDetectorSettings() {
+            detector.url = document.getElementById('detectorUrl').value;
+            detector.mqttBroker = document.getElementById('mqttBroker').value;
+            detector.mqttPort = parseInt(document.getElementById('mqttPort').value);
+            detector.burstLength = parseInt(document.getElementById('burstLength').value);
+            detector.extraWaitFrames = parseInt(document.getElementById('extraWaitFrames').value);
+            detector.burst = new Queue(detector.burstLength + detector.extraWaitFrames);
+        }
+
+        // Event listeners for input changes
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = ['detectorUrl', 'mqttBroker', 'mqttPort', 'burstLength', 'extraWaitFrames'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('change', updateDetectorSettings);
+            });
+        });
+
+        // Initial log message
+        detector.log("Dart Impact Detector initialized");
+    </script>
+</body>
+
+</html>

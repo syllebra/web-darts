@@ -123,7 +123,7 @@ class Board {
     }
   }
 
-  getDartScores(calibPts, tipsPts, numeric = false) {
+  getDartScores(calibPts, tipsPts, numeric = false, offsetCenter = null) {
     // Get perspective transformation matrix
     const M = PerspectiveUtils.getPerspectiveTransform(calibPts, this.board_cal_pts);
     if (!M) {
@@ -131,7 +131,11 @@ class Board {
     }
 
     // Transform tips points to board coordinates
-    const tipsBoardArray = PerspectiveUtils.transformPoints(tipsPts, M);
+    let tipsBoardArray = PerspectiveUtils.transformPoints(tipsPts, M);
+    if (offsetCenter) {
+      const offsetCenterBoard = PerspectiveUtils.transformPoints([offsetCenter], M)[0];
+      tipsBoardArray = tipsBoardArray.map((p) => [p[0] - offsetCenterBoard[0], p[1] - offsetCenterBoard[1]]);
+    }
 
     // Calculate angles and distances
     const angles = tipsBoardArray.map(([x, y]) => {

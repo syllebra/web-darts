@@ -503,10 +503,6 @@ class YoloTargetDetector {
   }
 
   getDartScores(tipsPts, numeric = false) {
-    if (!this.bouter && !this.binner) {
-      return this.board.getDartScores(this.ptsCal, tipsPts, numeric);
-    }
-
     // Implémentation plus précise avec le centre détecté
     let detectedCenter = null;
     if (this.bouter) {
@@ -515,64 +511,6 @@ class YoloTargetDetector {
       detectedCenter = [(this.binner[0] + this.binner[2]) * 0.5, (this.binner[1] + this.binner[3]) * 0.5];
     }
 
-    // Calcul des scores basé sur la distance au centre détecté
-    // Get perspective transformation matrix
-    const M = PerspectiveUtils.getPerspectiveTransform(this.ptsCal, this.board.board_cal_pts);
-    if (!M) {
-      throw new Error("Could not calculate perspective transformation");
-    }
-
-    // Transform tips points to board coordinates
-    const tipsBoardArray = PerspectiveUtils.transformPoints(tipsPts, M);
-    const detectedCenterArray = PerspectiveUtils.transformPoints([detectedCenter], M);
-
-    // Calculate angles and distances
-    const angles = tipsBoardArray.map(([x, y]) => {
-      let angle = (Math.atan2(-y, x) * 180) / Math.PI - 9;
-      return angle < 0 ? angle + 360 : angle; // map to 0-360
-    });
-
-    const distances = tipsBoardArray.map(([x, y]) => Math.sqrt(x * x + y * y));
-
-    const scores = [];
-
-    tipsBoardArray.forEach((tip) => {
-      const distance = Math.sqrt(
-        Math.pow(tip[0] - detectedCenterArray[0], 2) + Math.pow(tip[1] - detectedCenterArray[1], 2)
-      );
-
-      if (distance > this.board.r_double) {
-        scores.push("0");
-      } else if (distance <= this.board.r_inner_bull) {
-        scores.push("DB");
-      } else if (distance <= this.board.r_outer_bull) {
-        scores.push("B");
-      } else {
-        // Calcul du secteur et du multiplicateur
-        const angle = Math.atan2(tip[1] - detectedCenter[1], tip[0] - detectedCenter[0]);
-        const sector = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * 20);
-        const number = SECTORS_DICT[sector] || "20";
-
-        if (distance <= this.board.r_double && distance > this.board.r_double - this.board.w_double_treble) {
-          scores.push("D" + number);
-        } else if (distance <= this.board.r_treble && distance > this.board.r_treble - this.board.w_double_treble) {
-          scores.push("T" + number);
-        } else {
-          scores.push(number);
-        }
-      }
-    });
-
-    if (numeric) {
-      return scores.map((s) => {
-        if (s.includes("DB")) return 50;
-        if (s.includes("B")) return 25;
-        if (s.includes("D")) return parseInt(s.substring(1)) * 2;
-        if (s.includes("T")) return parseInt(s.substring(1)) * 3;
-        return parseInt(s) || 0;
-      });
-    }
-
-    return scores;
+    return this.board.getDartScores(this.ptsCal, tipsPts, numeric, detectedCenter);
   }
 }

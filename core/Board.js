@@ -1,3 +1,48 @@
+// Board dictionary mapping angle segments to dartboard numbers
+// const BOARD_DICT = {
+//   0: "6",
+//   1: "13",
+//   2: "4",
+//   3: "18",
+//   4: "1",
+//   5: "20",
+//   6: "5",
+//   7: "12",
+//   8: "9",
+//   9: "14",
+//   10: "11",
+//   11: "8",
+//   12: "16",
+//   13: "7",
+//   14: "19",
+//   15: "3",
+//   16: "17",
+//   17: "2",
+//   18: "15",
+//   19: "10",
+// };
+BOARD_DICT = {
+  0: "13",
+  1: "4",
+  2: "18",
+  3: "1",
+  4: "20",
+  5: "5",
+  6: "12",
+  7: "9",
+  8: "14",
+  9: "11",
+  10: "8",
+  11: "16",
+  12: "7",
+  13: "19",
+  14: "3",
+  15: "17",
+  16: "2",
+  17: "15",
+  18: "10",
+  19: "6",
+};
 class Board {
   constructor(boardPath = "dummy") {
     this.boardPath = boardPath;
@@ -79,21 +124,68 @@ class Board {
   }
 
   getDartScores(calibPts, tipsPts, numeric = false) {
-    // Implémentation simplifiée du calcul des scores
+    // Get perspective transformation matrix
+    const M = PerspectiveUtils.getPerspectiveTransform(calibPts, this.board_cal_pts);
+    if (!M) {
+      throw new Error("Could not calculate perspective transformation");
+    }
+
+    // Transform tips points to board coordinates
+    const tipsBoardArray = PerspectiveUtils.transformPoints(tipsPts, M);
+
+    // Calculate angles and distances
+    const angles = tipsBoardArray.map(([x, y]) => {
+      let angle = (Math.atan2(-y, x) * 180) / Math.PI - 9;
+      return angle < 0 ? angle + 360 : angle; // map to 0-360
+    });
+
+    const distances = tipsBoardArray.map(([x, y]) => Math.sqrt(x * x + y * y));
+
     const scores = [];
-    tipsPts.forEach((tip) => {
-      // Calcul basique - à améliorer selon la logique métier
-      const distance = Math.sqrt(tip[0] * tip[0] + tip[1] * tip[1]);
-      if (distance > this.r_double) {
+
+    for (let i = 0; i < angles.length; i++) {
+      const angle = angles[i];
+      const dist = distances[i];
+
+      if (dist > this.r_double) {
         scores.push("0");
-      } else if (distance <= this.r_inner_bull) {
+      } else if (dist <= this.r_inner_bull) {
         scores.push("DB");
-      } else if (distance <= this.r_outer_bull) {
+      } else if (dist <= this.r_outer_bull) {
         scores.push("B");
       } else {
-        scores.push("20"); // Valeur par défaut
+        // Add 9 degrees (half sector) to center the sectors properly
+        const adjustedAngle = (angle + 9) % 360;
+        const number = BOARD_DICT[Math.floor(adjustedAngle / 18)];
+        //const number = BOARD_DICT[Math.floor(angle / 18)];
+
+        if (dist <= this.r_double && dist > this.r_double - this.w_double_treble) {
+          scores.push("D" + number);
+        } else if (dist <= this.r_treble && dist > this.r_treble - this.w_double_treble) {
+          scores.push("T" + number);
+        } else {
+          scores.push(number);
+        }
       }
-    });
+    }
+
+    // Convert to numeric if requested
+    if (numeric) {
+      for (let i = 0; i < scores.length; i++) {
+        const s = scores[i];
+        if (s.includes("B")) {
+          scores[i] = s.includes("D") ? 50 : 25;
+        } else {
+          if (s.includes("D") || s.includes("T")) {
+            const baseScore = parseInt(s.substring(1));
+            scores[i] = s.includes("D") ? baseScore * 2 : baseScore * 3;
+          } else {
+            scores[i] = parseInt(s);
+          }
+        }
+      }
+    }
+
     return scores;
   }
 }

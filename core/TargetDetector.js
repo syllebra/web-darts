@@ -75,9 +75,8 @@ class YoloTargetDetector {
   }
 
   async infer(imageData) {
-    // Simulation d'inférence si pas de modèle réel
     if (!this.session) {
-      return this.mockInference(imageData);
+      return null;
     }
 
     try {
@@ -87,35 +86,8 @@ class YoloTargetDetector {
       return this.processOnnxResults(results);
     } catch (error) {
       console.error("Erreur lors de l'inférence:", error);
-      return this.mockInference(imageData);
+      return null;
     }
-  }
-
-  mockInference(imageData) {
-    // Simulation de résultats pour la démo
-    const cross = [];
-    const bouter = [100, 100, 200, 200];
-    const binner = [120, 120, 180, 180];
-    const inferedCalib = [
-      [150, 50],
-      [50, 150],
-      [150, 250],
-      [250, 150],
-    ];
-    const inferedCalibConf = [0.8, 0.7, 0.6, 0.9];
-
-    // Générer quelques points de croix aléatoirement
-    for (let i = 0; i < 20; i++) {
-      cross.push([Math.random() * 300 + 100, Math.random() * 300 + 100]);
-    }
-
-    return {
-      cross,
-      bouter,
-      binner,
-      inferedCalib,
-      inferedCalibConf,
-    };
   }
 
   processOnnxResults(results) {
@@ -239,11 +211,15 @@ class YoloTargetDetector {
 
     var outputs = process_output(results, 640, 640, null);
     var boxes = outputs[0];
+    console.log(
+      "DETECTED BOXES:",
+      boxes.map((b) => b[4])
+    );
     const cross = boxes.filter((b) => b[4] === 6).map((b) => [(b[2] + b[0]) * 0.5, (b[3] + b[1]) * 0.5]);
     let binner = boxes.filter((b) => b[4] === 7);
     let bouter = boxes.filter((b) => b[4] === 8);
-    binner = binner.length >= 2 ? binner : null;
-    bouter = bouter.length >= 2 ? bouter : null;
+    binner = binner.length >= 1 ? binner[0] : null;
+    bouter = bouter.length >= 1 ? bouter[0] : null;
     console.log(binner);
     console.log(bouter);
     return {
@@ -512,7 +488,7 @@ class YoloTargetDetector {
     }
 
     if (this.binner) {
-      ctx.strokeStyle = "#0000ff";
+      ctx.strokeStyle = "#ff0000ff";
       ctx.lineWidth = 1;
       ctx.strokeRect(this.binner[0], this.binner[1], this.binner[2] - this.binner[0], this.binner[3] - this.binner[1]);
     }
@@ -540,9 +516,30 @@ class YoloTargetDetector {
     }
 
     // Calcul des scores basé sur la distance au centre détecté
+    // Get perspective transformation matrix
+    const M = PerspectiveUtils.getPerspectiveTransform(this.ptsCal, this.board.board_cal_pts);
+    if (!M) {
+      throw new Error("Could not calculate perspective transformation");
+    }
+
+    // Transform tips points to board coordinates
+    const tipsBoardArray = PerspectiveUtils.transformPoints(tipsPts, M);
+    const detectedCenterArray = PerspectiveUtils.transformPoints([detectedCenter], M);
+
+    // Calculate angles and distances
+    const angles = tipsBoardArray.map(([x, y]) => {
+      let angle = (Math.atan2(-y, x) * 180) / Math.PI - 9;
+      return angle < 0 ? angle + 360 : angle; // map to 0-360
+    });
+
+    const distances = tipsBoardArray.map(([x, y]) => Math.sqrt(x * x + y * y));
+
     const scores = [];
-    tipsPts.forEach((tip) => {
-      const distance = Math.sqrt(Math.pow(tip[0] - detectedCenter[0], 2) + Math.pow(tip[1] - detectedCenter[1], 2));
+
+    tipsBoardArray.forEach((tip) => {
+      const distance = Math.sqrt(
+        Math.pow(tip[0] - detectedCenterArray[0], 2) + Math.pow(tip[1] - detectedCenterArray[1], 2)
+      );
 
       if (distance > this.board.r_double) {
         scores.push("0");

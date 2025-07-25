@@ -20,6 +20,13 @@ class ZoomablePannableCanvas {
     this.elements = new Map(); // Map of element ID to element data
     this.elementDrawCallbacks = new Map(); // Map of element ID to draw callback
 
+    // Interactive overlay elements
+    this.overlayElements = new Map(); // Map of overlay element ID to element data
+    this.overlayElementCallbacks = new Map(); // Map of overlay element ID to draw/hit test callbacks
+    this.selectedOverlayElement = null;
+    this.isDraggingOverlayElement = false;
+    this.overlayElementOffset = { x: 0, y: 0 };
+
     // Video properties (kept for backward compatibility)
     this.videoSource = null;
     this.isPlaying = false;
@@ -35,6 +42,12 @@ class ZoomablePannableCanvas {
 
     // Overlay callbacks
     this.overlayDrawCallbacks = [];
+
+    // Event callbacks for interactive elements
+    this.onElementSelected = null;
+    this.onElementDragStart = null;
+    this.onElementDrag = null;
+    this.onElementDragEnd = null;
 
     this.init();
   }
@@ -63,7 +76,8 @@ class ZoomablePannableCanvas {
   }
 
   setupEventListeners() {
-    // Mouse events
+    // Always attach events to the main canvas for consistent behavior
+    // The overlay canvas is just for drawing, not for events
     this.canvas.addEventListener("mousedown", this.handleMouseDown.bind(this));
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
@@ -105,29 +119,99 @@ class ZoomablePannableCanvas {
     this.isAnimating = false;
   }
 
+  // Enhanced mouse handling with overlay element interaction
   handleMouseDown(e) {
-    this.isDragging = true;
+    const rect = this.canvas.getBoundingClientRect();
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
+    const worldCoords = this.canvasToWorld(canvasX, canvasY);
+
+    // Check if clicking on an overlay element
+    const hitElement = this.getOverlayElementAt(worldCoords.x, worldCoords.y);
+
+    if (hitElement) {
+      this.selectedOverlayElement = hitElement.id;
+      this.isDraggingOverlayElement = true;
+      this.isDragging = false; // Don't drag canvas when dragging element
+
+      // Calculate offset from element center to click point
+      const element = this.overlayElements.get(hitElement.id);
+      this.overlayElementOffset = {
+        x: worldCoords.x - element.x,
+        y: worldCoords.y - element.y,
+      };
+
+      // Trigger callbacks
+      if (this.onElementSelected) {
+        this.onElementSelected(hitElement.id, element);
+      }
+      if (this.onElementDragStart) {
+        this.onElementDragStart(hitElement.id, element, worldCoords);
+      }
+    } else {
+      // No overlay element hit, proceed with canvas dragging
+      this.selectedOverlayElement = null;
+      this.isDraggingOverlayElement = false;
+      this.isDragging = true;
+    }
+
     this.lastX = e.clientX;
     this.lastY = e.clientY;
   }
 
   handleMouseMove(e) {
-    if (!this.isDragging) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
+    const worldCoords = this.canvasToWorld(canvasX, canvasY);
 
-    const deltaX = e.clientX - this.lastX;
-    const deltaY = e.clientY - this.lastY;
+    if (this.isDraggingOverlayElement && this.selectedOverlayElement) {
+      // Drag overlay element
+      const element = this.overlayElements.get(this.selectedOverlayElement);
+      if (element) {
+        element.x = worldCoords.x - this.overlayElementOffset.x;
+        element.y = worldCoords.y - this.overlayElementOffset.y;
 
-    this.translateX += deltaX;
-    this.translateY += deltaY;
+        if (this.onElementDrag) {
+          this.onElementDrag(this.selectedOverlayElement, element, worldCoords);
+        }
+
+        this.requestRedraw();
+      }
+    } else if (this.isDragging) {
+      // Drag canvas
+      const deltaX = e.clientX - this.lastX;
+      const deltaY = e.clientY - this.lastY;
+
+      this.translateX += deltaX;
+      this.translateY += deltaY;
+
+      this.requestRedraw();
+    } else {
+      // Update cursor based on what's under mouse
+      const hitElement = this.getOverlayElementAt(worldCoords.x, worldCoords.y);
+      this.canvas.style.cursor = hitElement ? "pointer" : "default";
+    }
 
     this.lastX = e.clientX;
     this.lastY = e.clientY;
-
-    this.requestRedraw();
   }
 
   handleMouseUp(e) {
+    if (this.isDraggingOverlayElement && this.selectedOverlayElement) {
+      const element = this.overlayElements.get(this.selectedOverlayElement);
+      const rect = this.canvas.getBoundingClientRect();
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
+      const worldCoords = this.canvasToWorld(canvasX, canvasY);
+
+      if (this.onElementDragEnd) {
+        this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
+      }
+    }
+
     this.isDragging = false;
+    this.isDraggingOverlayElement = false;
   }
 
   handleWheel(e) {
@@ -141,16 +225,48 @@ class ZoomablePannableCanvas {
     this.zoomAt(mouseX, mouseY, wheel);
   }
 
+  // Touch handling with overlay element support
   handleTouchStart(e) {
     e.preventDefault();
     this.touches = Array.from(e.touches);
 
     if (this.touches.length === 1) {
-      this.isDragging = true;
+      const rect = this.canvas.getBoundingClientRect();
+      const canvasX = this.touches[0].clientX - rect.left;
+      const canvasY = this.touches[0].clientY - rect.top;
+      const worldCoords = this.canvasToWorld(canvasX, canvasY);
+
+      // Check for overlay element hit
+      const hitElement = this.getOverlayElementAt(worldCoords.x, worldCoords.y);
+
+      if (hitElement) {
+        this.selectedOverlayElement = hitElement.id;
+        this.isDraggingOverlayElement = true;
+        this.isDragging = false;
+
+        const element = this.overlayElements.get(hitElement.id);
+        this.overlayElementOffset = {
+          x: worldCoords.x - element.x,
+          y: worldCoords.y - element.y,
+        };
+
+        if (this.onElementSelected) {
+          this.onElementSelected(hitElement.id, element);
+        }
+        if (this.onElementDragStart) {
+          this.onElementDragStart(hitElement.id, element, worldCoords);
+        }
+      } else {
+        this.selectedOverlayElement = null;
+        this.isDraggingOverlayElement = false;
+        this.isDragging = true;
+      }
+
       this.lastX = this.touches[0].clientX;
       this.lastY = this.touches[0].clientY;
     } else if (this.touches.length === 2) {
       this.isDragging = false;
+      this.isDraggingOverlayElement = false;
       this.lastTouchDistance = this.getTouchDistance(this.touches[0], this.touches[1]);
     }
   }
@@ -159,17 +275,38 @@ class ZoomablePannableCanvas {
     e.preventDefault();
     this.touches = Array.from(e.touches);
 
-    if (this.touches.length === 1 && this.isDragging) {
-      const deltaX = this.touches[0].clientX - this.lastX;
-      const deltaY = this.touches[0].clientY - this.lastY;
+    if (this.touches.length === 1) {
+      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
+      const canvasX = this.touches[0].clientX - rect.left;
+      const canvasY = this.touches[0].clientY - rect.top;
+      const worldCoords = this.canvasToWorld(canvasX, canvasY);
 
-      this.translateX += deltaX;
-      this.translateY += deltaY;
+      if (this.isDraggingOverlayElement && this.selectedOverlayElement) {
+        // Touch drag overlay element
+        const element = this.overlayElements.get(this.selectedOverlayElement);
+        if (element) {
+          element.x = worldCoords.x - this.overlayElementOffset.x;
+          element.y = worldCoords.y - this.overlayElementOffset.y;
+
+          if (this.onElementDrag) {
+            this.onElementDrag(this.selectedOverlayElement, element, worldCoords);
+          }
+
+          this.requestRedraw();
+        }
+      } else if (this.isDragging) {
+        // Touch drag canvas
+        const deltaX = this.touches[0].clientX - this.lastX;
+        const deltaY = this.touches[0].clientY - this.lastY;
+
+        this.translateX += deltaX;
+        this.translateY += deltaY;
+
+        this.requestRedraw();
+      }
 
       this.lastX = this.touches[0].clientX;
       this.lastY = this.touches[0].clientY;
-
-      this.requestRedraw();
     } else if (this.touches.length === 2) {
       const currentDistance = this.getTouchDistance(this.touches[0], this.touches[1]);
       const scale = currentDistance / this.lastTouchDistance;
@@ -177,7 +314,7 @@ class ZoomablePannableCanvas {
       const centerX = (this.touches[0].clientX + this.touches[1].clientX) / 2;
       const centerY = (this.touches[0].clientY + this.touches[1].clientY) / 2;
 
-      const rect = this.canvas.getBoundingClientRect();
+      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
       const canvasX = centerX - rect.left;
       const canvasY = centerY - rect.top;
 
@@ -188,12 +325,46 @@ class ZoomablePannableCanvas {
 
   handleTouchEnd(e) {
     e.preventDefault();
+
+    if (this.isDraggingOverlayElement && this.selectedOverlayElement) {
+      const element = this.overlayElements.get(this.selectedOverlayElement);
+      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
+      // Use last known touch position
+      const worldCoords = this.canvasToWorld(this.lastX - rect.left, this.lastY - rect.top);
+
+      if (this.onElementDragEnd) {
+        this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
+      }
+    }
+
     this.touches = Array.from(e.touches);
 
     if (this.touches.length === 0) {
       this.isDragging = false;
+      this.isDraggingOverlayElement = false;
     } else if (this.touches.length === 1) {
-      this.isDragging = true;
+      // Check if remaining touch is on overlay element
+      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
+      const canvasX = this.touches[0].clientX - rect.left;
+      const canvasY = this.touches[0].clientY - rect.top;
+      const worldCoords = this.canvasToWorld(canvasX, canvasY);
+      const hitElement = this.getOverlayElementAt(worldCoords.x, worldCoords.y);
+
+      if (hitElement) {
+        this.selectedOverlayElement = hitElement.id;
+        this.isDraggingOverlayElement = true;
+        this.isDragging = false;
+
+        const element = this.overlayElements.get(hitElement.id);
+        this.overlayElementOffset = {
+          x: worldCoords.x - element.x,
+          y: worldCoords.y - element.y,
+        };
+      } else {
+        this.isDragging = true;
+        this.isDraggingOverlayElement = false;
+      }
+
       this.lastX = this.touches[0].clientX;
       this.lastY = this.touches[0].clientY;
     }
@@ -263,6 +434,87 @@ class ZoomablePannableCanvas {
     this.requestRedraw();
   }
 
+  // Interactive overlay element management
+  addOverlayElement(id, element, drawCallback, hitTestCallback = null) {
+    this.overlayElements.set(id, element);
+    this.overlayElementCallbacks.set(id, {
+      draw: drawCallback,
+      hitTest: hitTestCallback || this.defaultHitTest.bind(this),
+    });
+    this.requestRedraw();
+  }
+
+  removeOverlayElement(id) {
+    this.overlayElements.delete(id);
+    this.overlayElementCallbacks.delete(id);
+    if (this.selectedOverlayElement === id) {
+      this.selectedOverlayElement = null;
+      this.isDraggingOverlayElement = false;
+    }
+    this.requestRedraw();
+  }
+
+  updateOverlayElement(id, element) {
+    if (this.overlayElements.has(id)) {
+      this.overlayElements.set(id, element);
+      this.requestRedraw();
+    }
+  }
+
+  getOverlayElement(id) {
+    return this.overlayElements.get(id);
+  }
+
+  clearOverlayElements() {
+    this.overlayElements.clear();
+    this.overlayElementCallbacks.clear();
+    this.selectedOverlayElement = null;
+    this.isDraggingOverlayElement = false;
+    this.requestRedraw();
+  }
+
+  // Hit testing for overlay elements
+  getOverlayElementAt(worldX, worldY) {
+    // Test elements in reverse order (top to bottom)
+    const elementIds = Array.from(this.overlayElements.keys()).reverse();
+
+    for (const id of elementIds) {
+      const element = this.overlayElements.get(id);
+      const callbacks = this.overlayElementCallbacks.get(id);
+
+      if (callbacks && callbacks.hitTest(element, worldX, worldY)) {
+        return { id, element };
+      }
+    }
+
+    return null;
+  }
+
+  // Default hit test for circular elements
+  defaultHitTest(element, worldX, worldY) {
+    const dx = worldX - element.x;
+    const dy = worldY - element.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance <= (element.radius || element.size || 10);
+  }
+
+  // Event callback setters
+  setOnElementSelected(callback) {
+    this.onElementSelected = callback;
+  }
+
+  setOnElementDragStart(callback) {
+    this.onElementDragStart = callback;
+  }
+
+  setOnElementDrag(callback) {
+    this.onElementDrag = callback;
+  }
+
+  setOnElementDragEnd(callback) {
+    this.onElementDragEnd = callback;
+  }
+
   // Video methods (for backward compatibility)
   setVideoSource(videoElement) {
     this.videoElement = videoElement;
@@ -271,21 +523,16 @@ class ZoomablePannableCanvas {
       const videoHeight = element.videoHeight || element.height;
 
       if (videoWidth && videoHeight) {
-        // Draw video at (0,0) instead of centered
         ctx.drawImage(element, 0, 0, videoWidth, videoHeight);
       }
     });
     this.videoSource = videoElement;
     this.isPlaying = true;
 
-    // Center the view on the video when it's loaded
     this.centerViewOnVideo();
-
-    // For video, we need continuous animation
     this.startAnimation();
   }
 
-  // Helper method to center the view on the video
   centerViewOnVideo() {
     if (!this.videoElement) return;
 
@@ -293,16 +540,9 @@ class ZoomablePannableCanvas {
     const videoHeight = this.videoElement.videoHeight || this.videoElement.height;
 
     if (videoWidth && videoHeight) {
-      // We want world coordinate (0,0) to correspond to the video's top-left corner
-      // AND we want the video to be visually centered on the canvas
-      // So we translate so that world (0,0) appears at the position where
-      // we want the video's top-left corner to be
-
-      // Calculate where video top-left should be to center the video on canvas
       const videoTopLeftCanvasX = (this.canvas.width - videoWidth * this.scale) / 2;
       const videoTopLeftCanvasY = (this.canvas.height - videoHeight * this.scale) / 2;
 
-      // Set translation so world (0,0) maps to that canvas position
       this.translateX = videoTopLeftCanvasX;
       this.translateY = videoTopLeftCanvasY;
 
@@ -346,41 +586,14 @@ class ZoomablePannableCanvas {
     }
   }
 
-  // Fixed method: Now properly synchronizes overlay context with main canvas transforms
   getOverlayContext() {
     if (!this.overlayCtx) return null;
 
-    // Apply the EXACT same transform as the main canvas
     this.overlayCtx.save();
     this.overlayCtx.translate(this.translateX, this.translateY);
     this.overlayCtx.scale(this.scale, this.scale);
 
     return this.overlayCtx;
-  }
-
-  // Helper method to get video center in world coordinates
-  getVideoCenterWorldCoords() {
-    if (!this.videoElement) return { x: 0, y: 0 };
-
-    const videoWidth = this.videoElement.videoWidth || this.videoElement.width;
-    const videoHeight = this.videoElement.videoHeight || this.videoElement.height;
-
-    // Video is drawn at (-videoWidth/2, -videoHeight/2), so center is at (0, 0)
-    return { x: 0, y: 0 };
-  }
-
-  // Helper method to convert video pixel coordinates to world coordinates
-  videoToWorldCoords(videoX, videoY) {
-    if (!this.videoElement) return { x: videoX, y: videoY };
-
-    const videoWidth = this.videoElement.videoWidth || this.videoElement.width;
-    const videoHeight = this.videoElement.videoHeight || this.videoElement.height;
-
-    // Video is drawn from (-videoWidth/2, -videoHeight/2) to (videoWidth/2, videoHeight/2)
-    return {
-      x: videoX - videoWidth / 2,
-      y: videoY - videoHeight / 2,
-    };
   }
 
   restoreOverlayContext() {
@@ -389,14 +602,32 @@ class ZoomablePannableCanvas {
     }
   }
 
-  // Overlay drawing methods in world coordinates
+  // Helper methods for video coordinates
+  getVideoCenterWorldCoords() {
+    if (!this.videoElement) return { x: 0, y: 0 };
+    return { x: 0, y: 0 };
+  }
+
+  videoToWorldCoords(videoX, videoY) {
+    if (!this.videoElement) return { x: videoX, y: videoY };
+
+    const videoWidth = this.videoElement.videoWidth || this.videoElement.width;
+    const videoHeight = this.videoElement.videoHeight || this.videoElement.height;
+
+    return {
+      x: videoX - videoWidth / 2,
+      y: videoY - videoHeight / 2,
+    };
+  }
+
+  // Enhanced overlay drawing methods
   drawOverlayPoint(x, y, color = "red", size = 5) {
     const ctx = this.getOverlayContext();
     if (!ctx) return;
 
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(x, y, size / this.scale, 0, 2 * Math.PI); // Adjust size for scale
+    ctx.arc(x, y, size / this.scale, 0, 2 * Math.PI);
     ctx.fill();
 
     this.restoreOverlayContext();
@@ -407,7 +638,7 @@ class ZoomablePannableCanvas {
     if (!ctx) return;
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = width / this.scale; // Adjust width for scale
+    ctx.lineWidth = width / this.scale;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -425,7 +656,7 @@ class ZoomablePannableCanvas {
       ctx.fillRect(x, y, width, height);
     } else {
       ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth / this.scale; // Adjust width for scale
+      ctx.lineWidth = lineWidth / this.scale;
       ctx.strokeRect(x, y, width, height);
     }
 
@@ -437,7 +668,7 @@ class ZoomablePannableCanvas {
     if (!ctx) return;
 
     ctx.fillStyle = color;
-    ctx.font = `${fontSize / this.scale}px ${font}`; // Adjust font size for scale
+    ctx.font = `${fontSize / this.scale}px ${font}`;
     ctx.fillText(text, x, y);
 
     this.restoreOverlayContext();
@@ -455,7 +686,7 @@ class ZoomablePannableCanvas {
       ctx.fill();
     } else {
       ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth / this.scale; // Adjust width for scale
+      ctx.lineWidth = lineWidth / this.scale;
       ctx.stroke();
     }
 
@@ -483,7 +714,6 @@ class ZoomablePannableCanvas {
 
   animate() {
     if (!this.needsRedraw && !this.isPlaying) {
-      // Stop animation if nothing needs updating and no video is playing
       this.stopAnimation();
       return;
     }
@@ -496,7 +726,7 @@ class ZoomablePannableCanvas {
     this.ctx.translate(this.translateX, this.translateY);
     this.ctx.scale(this.scale, this.scale);
 
-    // Draw all elements
+    // Draw all background elements
     for (const [id, element] of this.elements) {
       const drawCallback = this.elementDrawCallbacks.get(id);
       if (drawCallback) {
@@ -506,34 +736,55 @@ class ZoomablePannableCanvas {
 
     this.ctx.restore();
 
-    // Draw overlay elements - now properly synchronized
+    // Draw overlay elements and callbacks
     if (this.overlayCtx) {
-      // Don't automatically clear - let user manage overlay clearing manually
-      // this.clearOverlayCanvas();
+      this.clearOverlayCanvas();
 
-      // Execute all overlay callbacks with properly synchronized transforms
+      // Draw interactive overlay elements
+      const ctx = this.getOverlayContext();
+      if (ctx) {
+        for (const [id, element] of this.overlayElements) {
+          const callbacks = this.overlayElementCallbacks.get(id);
+          if (callbacks && callbacks.draw) {
+            // Highlight selected element
+            if (id === this.selectedOverlayElement) {
+              ctx.save();
+              ctx.shadowColor = "rgba(0, 123, 255, 0.5)";
+              ctx.shadowBlur = 10 / this.scale;
+              callbacks.draw(ctx, element, true); // Pass selected flag
+              ctx.restore();
+            } else {
+              callbacks.draw(ctx, element, false);
+            }
+          }
+        }
+        this.restoreOverlayContext();
+      }
+
+      // Execute overlay callbacks
       this.overlayDrawCallbacks.forEach((callback) => {
         callback(this);
       });
     }
 
-    // Draw debug info on main canvas (in screen coordinates)
+    // Draw debug info
     this.ctx.fillStyle = "white";
     this.ctx.font = "14px monospace";
-    if (this.videoElement)
+    if (this.videoElement) {
       this.ctx.fillText(
-        `Video Resolution: ${this.videoElement.videoWidth}x${this.videoElement.videoHeight}`,
+        `Video: ${this.videoElement.videoWidth}x${this.videoElement.videoHeight}`,
         10,
-        this.canvas.height - 100
+        this.canvas.height - 120
       );
-    this.ctx.fillText(`Scale: ${this.scale.toFixed(2)}`, 10, this.canvas.height - 80);
-    this.ctx.fillText(`X: ${this.translateX.toFixed(0)}`, 10, this.canvas.height - 60);
-    this.ctx.fillText(`Y: ${this.translateY.toFixed(0)}`, 10, this.canvas.height - 40);
-    this.ctx.fillText(`Elements: ${this.elements.size}`, 10, this.canvas.height - 20);
+    }
+    this.ctx.fillText(`Scale: ${this.scale.toFixed(2)}`, 10, this.canvas.height - 100);
+    this.ctx.fillText(`X: ${this.translateX.toFixed(0)}`, 10, this.canvas.height - 80);
+    this.ctx.fillText(`Y: ${this.translateY.toFixed(0)}`, 10, this.canvas.height - 60);
+    this.ctx.fillText(`Elements: ${this.elements.size}`, 10, this.canvas.height - 40);
+    this.ctx.fillText(`Overlay: ${this.overlayElements.size}`, 10, this.canvas.height - 20);
 
     this.needsRedraw = false;
 
-    // Continue animation if video is playing or if continuous updates are needed
     if (this.isPlaying || this.needsRedraw) {
       this.animationId = requestAnimationFrame(this.animate.bind(this));
     } else {
@@ -541,7 +792,7 @@ class ZoomablePannableCanvas {
     }
   }
 
-  // Utility method to force continuous animation (useful for dynamic content)
+  // Utility methods
   startContinuousAnimation() {
     this.startAnimation();
   }

@@ -89,6 +89,10 @@ class Board {
     return [this.pts, this.outer_ids];
   }
 
+  getOuterPts() {
+    return this.pts.filter((p, i) => this.outer_ids.includes(i));
+  }
+
   transformCals(matrix, inverse = false) {
     return this.board_cal_pts.map((pt) => this.transformPoint(pt, matrix));
   }

@@ -23,9 +23,15 @@ const SECTORS_DICT = {
 };
 
 class YoloTargetDetector {
-  constructor(board, modelPath = "../../models/best_n_tip_boxes_cross_640_B.onnx", initCallback = null) {
+  constructor(
+    board,
+    modelPath = "../../models/best_n_tip_boxes_cross_640_B.onnx",
+    modelSize = 640,
+    initCallback = null
+  ) {
     console.log("Chargement du modèle YoloTargetDetector...");
     this.modelPath = modelPath;
+    this.modelSize = modelSize;
     this.session = null;
     this.board = board instanceof Board ? board : new Board();
 
@@ -53,25 +59,6 @@ class YoloTargetDetector {
       this.session = null;
       if (this.initCallback) this.initCallback();
     }
-  }
-
-  buildImg(pts, size = [512, 512]) {
-    const canvas = document.createElement("canvas");
-    canvas.width = size[0];
-    canvas.height = size[1];
-    const ctx = canvas.getContext("2d");
-
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, size[0], size[1]);
-
-    ctx.fillStyle = "white";
-    pts.forEach((pt) => {
-      ctx.beginPath();
-      ctx.arc(pt[0], pt[1], 3, 0, 2 * Math.PI);
-      ctx.fill();
-    });
-
-    return canvas;
   }
 
   async infer(imageData) {
@@ -243,7 +230,7 @@ class YoloTargetDetector {
   }
 
   // RGB float (0..1)
-  async detect(input, canvas = null, imgData = null) {
+  async detect(input, canvasContext = null, imgData = null) {
     this.bouter = null;
     this.binner = null;
     this.ptsCal = null;
@@ -256,14 +243,14 @@ class YoloTargetDetector {
     this.bouter = bouter;
     this.binner = binner;
 
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (imgData) ctx.putImageData(imgData, 0, 0);
-      ctx.strokeStyle = "#ffff00";
+    if (canvasContext) {
+      console.log(canvasContext);
+      //if (imgData) canvasContext.putImageData(imgData, 0, 0);
+      canvasContext.strokeStyle = "#ffff00";
       corners.forEach((corner) => {
-        ctx.beginPath();
-        ctx.arc(corner[0], corner[1], 3, 0, 2 * Math.PI);
-        ctx.stroke();
+        canvasContext.beginPath();
+        canvasContext.arc(corner[0], corner[1], 3, 0, 2 * Math.PI);
+        canvasContext.stroke();
       });
     }
 
@@ -297,13 +284,12 @@ class YoloTargetDetector {
     );
     const filteredIndices = this.filterPercentiles(distances);
     const filteredCorners = corners.filter((_, i) => !filteredIndices.includes(i));
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#ff8800";
+    if (canvasContext) {
+      canvasContext.fillStyle = "#ff8800";
       filteredCorners.forEach((corner) => {
-        ctx.beginPath();
-        ctx.arc(corner[0], corner[1], 3, 0, 2 * Math.PI);
-        ctx.fill();
+        canvasContext.beginPath();
+        canvasContext.arc(corner[0], corner[1], 3, 0, 2 * Math.PI);
+        canvasContext.fill();
       });
     }
 
@@ -326,13 +312,12 @@ class YoloTargetDetector {
     const mult = 1.0;
     const pts = orig.map((pt) => [pt[0] * scale[0] * mult + center[0], pt[1] * scale[1] * mult + center[1]]);
 
-    // if (canvas) {
-    //     const ctx = canvas.getContext('2d');
-    //     ctx.strokeStyle = '#0088FF';
+    // if (canvasContext) {
+    //     canvasContext.strokeStyle = '#0088FF';
     //     pts.forEach(corner => {
-    //         ctx.beginPath();
-    //         ctx.arc(corner[0], corner[1], 5, 0, 2 * Math.PI);
-    //         ctx.stroke();
+    //         canvasContext.beginPath();
+    //         canvasContext.arc(corner[0], corner[1], 5, 0, 2 * Math.PI);
+    //         canvasContext.stroke();
     //     });
     // }
 
@@ -356,18 +341,17 @@ class YoloTargetDetector {
     const pointPairs = result.closestPointPairsId;
     const rejectedPairs = result.rejectedPairs;
 
-    // if (canvas) {
-    //     const ctx = canvas.getContext('2d');
-    //     ctx.strokeStyle = '#FF88FF';
+    // if (canvasContext) {
+    //     canvasContext.strokeStyle = '#FF88FF';
     //     pointPairs.forEach(pair => {
     //         const corner = alignedPoints[pair[1]];
     //         const orig = filteredCorners[pair[1]]
-    //         ctx.beginPath();
-    //         ctx.arc(corner[0], corner[1], 5, 0, 2 * Math.PI);
-    //         ctx.stroke();
-    //         ctx.moveTo(corner[0], corner[1]); // Move the pen to (30, 50)
-    //         ctx.lineTo(orig[0], orig[1]); // Draw a line to (150, 100)
-    //         ctx.stroke();
+    //         canvasContext.beginPath();
+    //         canvasContext.arc(corner[0], corner[1], 5, 0, 2 * Math.PI);
+    //         canvasContext.stroke();
+    //         canvasContext.moveTo(corner[0], corner[1]); // Move the pen to (30, 50)
+    //         canvasContext.lineTo(orig[0], orig[1]); // Draw a line to (150, 100)
+    //         canvasContext.stroke();
     //     });
     // }
 
@@ -382,11 +366,10 @@ class YoloTargetDetector {
       };
 
     this.ptsCal = PerspectiveUtils.transformPoints(this.board.board_cal_pts, M.model);
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#FFFFFF";
+    if (canvasContext) {
+      canvasContext.fillStyle = "#FFFFFF";
       this.ptsCal.forEach((p, i) => {
-        ctx.fillRect(p[0] - 5, p[1] - 5, 10, 10);
+        canvasContext.fillRect(p[0] - 5, p[1] - 5, 10, 10);
       });
     }
     // Step 5: match 4 calibrations points to refine pose
@@ -404,37 +387,36 @@ class YoloTargetDetector {
 
     console.log("Valid Pairs:", validPairs);
 
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
+    if (canvasContext) {
       // projected.forEach( (p,i) => {
-      //     ctx.strokeStyle = this.outerIds.includes(i) ? '#FFFFFF' : '#FF88FF';
-      //     ctx.strokeRect(p[0]-5,p[1]-5,10,10)
+      //     canvasContext.strokeStyle = this.outerIds.includes(i) ? '#FFFFFF' : '#FF88FF';
+      //     canvasContext.strokeRect(p[0]-5,p[1]-5,10,10)
       // })
 
       validPairs.forEach((pair) => {
         //console.log(pair)
-        ctx.strokeStyle = this.outerIds.includes(pair[0]) ? "#FFFFFF" : "#FF88FF";
+        canvasContext.strokeStyle = this.outerIds.includes(pair[0]) ? "#FFFFFF" : "#FF88FF";
         // const corner = corners[pair[1]];
         // const orig = projected[pair[0]]
-        // ctx.fillRect(orig[0]-5,orig[1]-5,10,10)
+        // canvasContext.fillRect(orig[0]-5,orig[1]-5,10,10)
 
-        // ctx.strokeStyle = ctx.fillStyle;
-        // ctx.fillStyle ='#88FFFF'
-        // ctx.fillRect(corner[0]-5,corner[1]-5,10,10)
+        // canvasContext.strokeStyle = ctx.fillStyle;
+        // canvasContext.fillStyle ='#88FFFF'
+        // canvasContext.fillRect(corner[0]-5,corner[1]-5,10,10)
 
-        // ctx.beginPath();
-        // ctx.moveTo(corner[0], corner[1]); // Move the pen to (30, 50)
-        // ctx.lineTo(orig[0], orig[1]); // Draw a line to (150, 100)
-        // ctx.stroke();
+        // canvasContext.beginPath();
+        // canvasContext.moveTo(corner[0], corner[1]); // Move the pen to (30, 50)
+        // canvasContext.lineTo(orig[0], orig[1]); // Draw a line to (150, 100)
+        // canvasContext.stroke();
 
         const corner = corners[pair[1]];
         const orig = projected[pair[0]];
-        ctx.beginPath();
-        ctx.arc(corner[0], corner[1], 10, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.moveTo(corner[0], corner[1]); // Move the pen to (30, 50)
-        ctx.lineTo(orig[0], orig[1]); // Draw a line to (150, 100)
-        ctx.stroke();
+        canvasContext.beginPath();
+        canvasContext.arc(corner[0], corner[1], 10, 0, 2 * Math.PI);
+        canvasContext.stroke();
+        canvasContext.moveTo(corner[0], corner[1]); // Move the pen to (30, 50)
+        canvasContext.lineTo(orig[0], orig[1]); // Draw a line to (150, 100)
+        canvasContext.stroke();
       });
     }
 
@@ -459,8 +441,8 @@ class YoloTargetDetector {
     //this.ptsCal = this.board.transformCals(M.model);
     console.log("Points cal:", this.ptsCal);
 
-    if (canvas) {
-      this.drawBoard(canvas);
+    if (canvasContext) {
+      this.drawBoard(canvasContext);
     }
 
     return {
@@ -470,35 +452,43 @@ class YoloTargetDetector {
     };
   }
 
-  drawBoard(canvas) {
-    const ctx = canvas.getContext("2d");
-
+  drawBoard(canvasContext) {
     if (this.ptsCal) {
       const detectedCenter = this.bouter
         ? [(this.bouter[0] + this.bouter[2]) * 0.5, (this.bouter[1] + this.bouter[3]) * 0.5]
         : null;
 
-      this.board.draw(canvas, this.ptsCal, detectedCenter);
+      this.board.draw(canvasContext, this.ptsCal, detectedCenter);
     }
 
     if (this.bouter) {
-      ctx.strokeStyle = "#00ff00";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(this.bouter[0], this.bouter[1], this.bouter[2] - this.bouter[0], this.bouter[3] - this.bouter[1]);
+      canvasContext.strokeStyle = "#00ff00";
+      canvasContext.lineWidth = 1;
+      canvasContext.strokeRect(
+        this.bouter[0],
+        this.bouter[1],
+        this.bouter[2] - this.bouter[0],
+        this.bouter[3] - this.bouter[1]
+      );
     }
 
     if (this.binner) {
-      ctx.strokeStyle = "#ff0000ff";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(this.binner[0], this.binner[1], this.binner[2] - this.binner[0], this.binner[3] - this.binner[1]);
+      canvasContext.strokeStyle = "#ff0000ff";
+      canvasContext.lineWidth = 1;
+      canvasContext.strokeRect(
+        this.binner[0],
+        this.binner[1],
+        this.binner[2] - this.binner[0],
+        this.binner[3] - this.binner[1]
+      );
     }
 
     if (this.coarseCenter) {
-      ctx.strokeStyle = "ffF00ff";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(this.coarseCenter[0], this.coarseCenter[1], 5, 0, 2 * Math.PI);
-      ctx.stroke();
+      canvasContext.strokeStyle = "ffF00ff";
+      canvasContext.lineWidth = 3;
+      canvasContext.beginPath();
+      canvasContext.arc(this.coarseCenter[0], this.coarseCenter[1], 5, 0, 2 * Math.PI);
+      canvasContext.stroke();
     }
   }
 

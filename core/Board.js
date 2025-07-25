@@ -103,23 +103,22 @@ class Board {
     ];
   }
 
-  draw(canvas, pts, detectedCenter = null) {
-    const ctx = canvas.getContext("2d");
-    ctx.strokeStyle = "#00ff00";
-    ctx.lineWidth = 2;
+  draw(canvasContext, pts, detectedCenter = null) {
+    canvasContext.strokeStyle = "#00ff00";
+    canvasContext.lineWidth = 2;
 
     // Dessiner les points de calibration
     pts.forEach((pt) => {
-      ctx.beginPath();
-      ctx.arc(pt[0], pt[1], 5, 0, 2 * Math.PI);
-      ctx.stroke();
+      canvasContext.beginPath();
+      canvasContext.arc(pt[0], pt[1], 5, 0, 2 * Math.PI);
+      canvasContext.stroke();
     });
 
     if (detectedCenter) {
-      ctx.strokeStyle = "#ff0000";
-      ctx.beginPath();
-      ctx.arc(detectedCenter[0], detectedCenter[1], 10, 0, 2 * Math.PI);
-      ctx.stroke();
+      canvasContext.strokeStyle = "#ff0000";
+      canvasContext.beginPath();
+      canvasContext.arc(detectedCenter[0], detectedCenter[1], 10, 0, 2 * Math.PI);
+      canvasContext.stroke();
     }
   }
 

@@ -101,6 +101,7 @@
         }
     </script>
 
+    <script src="../../core/utils/image.js"></script>
     <script src="../../core/utils/ransac.js"></script>
     <script src="../../core/utils/icp.js"></script>
 
@@ -252,6 +253,7 @@
             if (!file) return;
 
             const canvas = document.getElementById('canvas');
+            const canvasContext = canvas.getContext("2d");
             const results = document.getElementById('results');
 
             prepared_input = await prepare_input(file)
@@ -260,7 +262,7 @@
             currentImageData = prepared_input[3];
 
             // Détection
-            const result = await detector.detect(prepared_input[0], canvas, prepared_input[3]);
+            const result = await detector.detect(prepared_input[0], canvasContext, prepared_input[3]);
 
             // Mark detector as ready for hover functionality
             isDetectorReady = true;

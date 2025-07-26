@@ -22,6 +22,19 @@ const SECTORS_DICT = {
   19: "5",
 };
 
+const yolo_classes = ["tip", "cal1", "cal2", "cal3", "cal4", "dart", "cross", "D-Bull", "Bull"];
+const classes_colors = [
+  "rgba(0, 255, 255, 0.7)",
+  "rgba(255, 215, 0, 0.7)",
+  "rgba(255, 105, 180, 0.7)",
+  "rgba(202, 255, 112, 0.7)",
+  "rgba(250, 128, 114, 0.7)",
+  "rgba(191, 62, 255, 0.7)",
+  "rgba(30, 200, 255, 0.7)",
+  "rgba(0, 255, 0, 0.7)",
+  "rgba(255, 0, 0, 0.7)",
+];
+
 class YoloTargetDetector {
   constructor(
     board,
@@ -433,10 +446,9 @@ class YoloTargetDetector {
     // Étapes 5-8: Algorithmes de correspondance et RANSAC
     // Implémentation simplifiée - dans un vrai projet, il faudrait implémenter ICP, RANSAC, etc.
 
-    // Simulation d'une transformation perspective
-
     console.log("Perspective Matrix:", M.model);
     this.ptsCal = PerspectiveUtils.transformPoints(this.board.board_cal_pts, M.model);
+
     this.coarseCenter = PerspectiveUtils.transformPoints([[0, 0]], M.model)[0];
     //this.ptsCal = this.board.transformCals(M.model);
     console.log("Points cal:", this.ptsCal);
@@ -489,6 +501,19 @@ class YoloTargetDetector {
       canvasContext.beginPath();
       canvasContext.arc(this.coarseCenter[0], this.coarseCenter[1], 5, 0, 2 * Math.PI);
       canvasContext.stroke();
+    }
+
+    if (this.ptsCal) {
+      for (let i = 0; i < this.ptsCal.length; i++) {
+        let p = this.ptsCal[i];
+        //console.log(pair)
+        classes_colors;
+        canvasContext.strokeStyle = classes_colors[i + 1];
+
+        canvasContext.beginPath();
+        canvasContext.arc(p[0], p[1], 15, 0, 2 * Math.PI);
+        canvasContext.stroke();
+      }
     }
   }
 

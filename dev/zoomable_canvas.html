@@ -158,19 +158,6 @@
     <script src="../ui/ZoomablePannableCanvas.js"></script>
     <script>
 
-        const yolo_classes = ["tip", "cal1", "cal2", "cal3", "cal4", "dart", "cross", "D-Bull", "Bull"];
-        const classes_colors = [
-            "rgba(0, 255, 255, 0.7)",
-            "rgba(255, 215, 0, 0.7)",
-            "rgba(255, 105, 180, 0.7)",
-            "rgba(202, 255, 112, 0.7)",
-            "rgba(250, 128, 114, 0.7)",
-            "rgba(191, 62, 255, 0.7)",
-            "rgba(30, 200, 255, 0.7)",
-            "rgba(0, 255, 0, 0.7)",
-            "rgba(255, 0, 0, 0.7)",
-        ]
-
         // Initialize GPU detector and UI
         const gpuDetector = new GPUDetector();
         const gpuStatusDot = document.getElementById('gpuStatusDot');
@@ -728,6 +715,11 @@
                     this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
                     input = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
                     let calibration = await this.targetDetector.detect(input, cropContext);
+                    if(!calibration) {
+                         console.warn("Unable to find target in croped area... Using previous (bad) one");
+                         this.cropArea=[0,0,this.videoSource.videoWidth,this.videoSource.videoHeight];
+                         calibration = results;
+                    }
                     this.sourceCalibPts = calibration.calibrationPoints.map((p) => this.cropppedToSource(p))
                     this.updateCalibPoints(this.sourceCalibPts);
                     //console.log("Calibration results:", this.sourceCalibPts);
@@ -762,8 +754,8 @@
 
         function recomputeUpTextPos(){
             const upText = PerspectiveUtils.transformPoints([
-                [Math.cos(Math.PI / 20) * dartnet.board.r_double * 1.2,
-                Math.sin(Math.PI / 20) * dartnet.board.r_double * 1.2]
+                [Math.cos(Math.PI * 1.5 + Math.PI / 20) * dartnet.board.r_double * 1.2,
+                Math.sin(Math.PI * 1.5 + Math.PI / 20) * dartnet.board.r_double * 1.2]
             ], dartnet.Mi)[0];
             let el = zoomableCanvas.getOverlayElement("20");
             el.x = upText[0];
@@ -973,7 +965,7 @@
                 const possible = element.compute_possible();
                 const distances = possible.map((p) => MathUtils.distance(p, [element.x, element.y]))
                 var indexMin = distances.indexOf(Math.min(...distances));
-                var rotMatrix = MathUtils.createRotationMatrix(indexMin *360/20);
+                var rotMatrix = MathUtils.createRotationMatrix(((indexMin+5)%30) *360/20);
                 var boardRotated = MathUtils.rotatePoints(dartnet.board.board_cal_pts,rotMatrix);
                 var newCalib = PerspectiveUtils.transformPoints(boardRotated, dartnet.Mi)
                 dartnet.updateCalibPoints(newCalib);

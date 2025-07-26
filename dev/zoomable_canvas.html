@@ -807,6 +807,27 @@
                 }
             );
         }
+        
+        // Add "20" Element to help reorient in case it is needed
+        zoomableCanvas.addOverlayElement("cropMask",
+            {
+                net: dartnet, x: 0, y: 0, color: 'rgba(0, 0, 0, 0.6)'
+            },
+            // Draw callback
+            (ctx, element) => {
+                const ca = element.net?.cropArea
+                if(!ca) return;
+                ctx.fillStyle = element.color;
+                //ctx.lineWidth = 2 / zoomableCanvas.scale;
+                ctx.fillRect(0,0, zoomableCanvas.videoElement.videoWidth, ca[1]);
+                ctx.fillRect(0, ca[3], zoomableCanvas.videoElement.videoWidth, zoomableCanvas.videoElement.videoHeight-ca[3]);
+                ctx.fillRect(0, ca[1], 0, ca[3]);
+                ctx.fillRect(ca[2], ca[1], zoomableCanvas.videoElement.videoWidth-ca[2], ca[3]-ca[1]);
+
+                // ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                // ctx.strokeRect(ca[0], ca[1], ca[2]-ca[0], ca[3]-ca[1]);
+            }
+        );
 
         // Add "20" Element to help reorient in case it is needed
         zoomableCanvas.addOverlayElement("20",

@@ -36,7 +36,6 @@
 
         #overlayCanvas {
             pointer-events: none;
-            /* Allow mouse events to pass through to video canvas */
             z-index: 10;
         }
 
@@ -156,6 +155,8 @@
     <script src="../core/utils/GPUDetector.js"></script>
     <script src="../core/TargetDetector.js"></script>
     <script src="../ui/ZoomablePannableCanvas.js"></script>
+    <script src ="../utils/CameraManager.js"></script>
+    <script src="DartNet.js"></script>
     <script>
 
         // Initialize GPU detector and UI
@@ -196,405 +197,39 @@
         // Initialize the canvas with debug overlay
         const zoomableCanvas = new ZoomablePannableCanvas('videoCanvas', 'canvasContainer', 'overlayCanvas');
 
-        // Camera enumeration and selection
-        const cameraSelect = document.getElementById('cameraSelect');
-        const resolutionSelect = document.getElementById('resolutionSelect');
-        let availableCameras = [];
-        let availableResolutions = [];
+        // Get DOM elements
+        const elements = {
+            cameraSelect: document.getElementById("cameraSelect"),
+            resolutionSelect: document.getElementById("resolutionSelect"),
+            webcamBtn: document.getElementById("webcamBtn"),
+            videoElement: document.getElementById("videoElement")
+        };
 
-        // Comprehensive list of video resolutions to test
-        const commonResolutions = [
-            // Ultra low resolutions
-            { width: 160, height: 120, label: '160x120 (QQVGA)' },
-            { width: 176, height: 144, label: '176x144 (QCIF)' },
-            { width: 320, height: 240, label: '320x240 (QVGA)' },
-            { width: 352, height: 288, label: '352x288 (CIF)' },
+        // Configuration options
+        const options = {
+            // Basic options
+            autoSelectFirstCamera: true,
+            defaultResolution: "1920x1080",
+            enableOptimalResolution: true,
+            progressDelay: 50,
+            restartDelay: 100,
 
-            // Standard resolutions
-            { width: 480, height: 360, label: '480x360' },
-            { width: 640, height: 360, label: '640x360 (nHD)' },
-            { width: 640, height: 480, label: '640x480 (VGA)' },
-            { width: 720, height: 480, label: '720x480 (NTSC)' },
-            { width: 720, height: 576, label: '720x576 (PAL)' },
-            { width: 800, height: 600, label: '800x600 (SVGA)' },
-            { width: 854, height: 480, label: '854x480 (FWVGA)' },
-            { width: 960, height: 540, label: '960x540 (qHD)' },
-            { width: 960, height: 720, label: '960x720' },
-            { width: 1024, height: 576, label: '1024x576' },
-            { width: 1024, height: 768, label: '1024x768 (XGA)' },
+            onWebcamReady: (videoElement, resolution) => {
+                console.log("Webcam ready with resolution:", resolution);
+                if (zoomableCanvas) {
+                    zoomableCanvas.setVideoSource(videoElement);
+                }
+            },
 
-            // HD resolutions
-            { width: 1280, height: 720, label: '1280x720 (HD)' },
-            { width: 1280, height: 800, label: '1280x800 (WXGA)' },
-            { width: 1280, height: 960, label: '1280x960' },
-            { width: 1280, height: 1024, label: '1280x1024 (SXGA)' },
-            { width: 1366, height: 768, label: '1366x768 (WXGA)' },
-            { width: 1440, height: 900, label: '1440x900 (WXGA+)' },
-            { width: 1440, height: 1080, label: '1440x1080' },
-            { width: 1600, height: 900, label: '1600x900 (HD+)' },
-            { width: 1600, height: 1200, label: '1600x1200 (UXGA)' },
-            { width: 1680, height: 1050, label: '1680x1050 (WSXGA+)' },
-
-            // Full HD and beyond
-            { width: 1920, height: 1080, label: '1920x1080 (Full HD)' },
-            { width: 1920, height: 1200, label: '1920x1200 (WUXGA)' },
-            { width: 2048, height: 1152, label: '2048x1152' },
-            { width: 2048, height: 1536, label: '2048x1536 (QXGA)' },
-            { width: 2560, height: 1440, label: '2560x1440 (QHD)' },
-            { width: 2560, height: 1600, label: '2560x1600 (WQXGA)' },
-            { width: 2880, height: 1800, label: '2880x1800' },
-            { width: 3200, height: 1800, label: '3200x1800 (QHD+)' },
-            { width: 3440, height: 1440, label: '3440x1440 (UWQHD)' },
-            { width: 3840, height: 2160, label: '3840x2160 (4K UHD)' },
-            { width: 4096, height: 2160, label: '4096x2160 (4K DCI)' },
-            { width: 5120, height: 2880, label: '5120x2880 (5K)' },
-            { width: 7680, height: 4320, label: '7680x4320 (8K)' },
-
-            // Mobile/tablet resolutions
-            { width: 480, height: 800, label: '480x800' },
-            { width: 540, height: 960, label: '540x960' },
-            { width: 720, height: 1280, label: '720x1280' },
-            { width: 750, height: 1334, label: '750x1334' },
-            { width: 1080, height: 1920, label: '1080x1920' },
-            { width: 1125, height: 2436, label: '1125x2436' },
-            { width: 1242, height: 2688, label: '1242x2688' },
-
-            // Ultrawide resolutions
-            { width: 2560, height: 1080, label: '2560x1080 (UW-FHD)' },
-            { width: 3440, height: 1440, label: '3440x1440 (UW-QHD)' },
-            { width: 5120, height: 2160, label: '5120x2160 (UW-5K)' }
-        ];
-
-        const testResolution = async (deviceId, width, height) => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        deviceId: { exact: deviceId },
-                        width: { exact: width },
-                        height: { exact: height }
-                    }
-                });
-
-                // Get actual resolution from video track
-                const track = stream.getVideoTracks()[0];
-                const settings = track.getSettings();
-                const actualWidth = settings.width;
-                const actualHeight = settings.height;
-
-                // Clean up
-                track.stop();
-
-                // Only consider it supported if we get the exact resolution requested
-                const exactMatch = actualWidth === width && actualHeight === height;
-
-                return {
-                    width: actualWidth,
-                    height: actualHeight,
-                    supported: exactMatch,
-                    requested: { width, height }
-                };
-            } catch (error) {
-                return {
-                    width,
-                    height,
-                    supported: false,
-                    requested: { width, height }
-                };
+            onError: (error) => {
+                console.error("Camera error:", error);
+                // Custom error handling
+                showErrorNotification(error.message);
             }
         };
 
-        const getCapabilitiesResolutions = async (deviceId) => {
-            try {
-                // Try to get media track capabilities (newer API)
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { deviceId: { exact: deviceId } }
-                });
-
-                const track = stream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
-
-                // Clean up
-                track.stop();
-
-                if (capabilities && capabilities.width && capabilities.height) {
-                    console.log('Camera capabilities:', capabilities);
-                    return {
-                        widthRange: capabilities.width,
-                        heightRange: capabilities.height,
-                        aspectRatio: capabilities.aspectRatio || null
-                    };
-                }
-            } catch (error) {
-                console.log('Could not get camera capabilities:', error.message);
-            }
-            return null;
-        };
-
-        const getSupportedResolutions = async (deviceId) => {
-            console.log(`Testing resolutions for camera ${deviceId}...`);
-
-            // First try to get camera capabilities
-            const capabilities = await getCapabilitiesResolutions(deviceId);
-
-            const supportedResolutions = [];
-            let testedCount = 0;
-            const totalResolutions = commonResolutions.length;
-
-            // Update UI to show progress
-            resolutionSelect.innerHTML = '<option value="">Testing resolutions... (0%)</option>';
-
-            // Test each resolution with progress updates
-            for (let i = 0; i < commonResolutions.length; i++) {
-                const resolution = commonResolutions[i];
-
-                // Skip resolutions that are clearly outside camera capabilities
-                if (capabilities) {
-                    const { widthRange, heightRange } = capabilities;
-                    if (widthRange && (resolution.width < widthRange.min || resolution.width > widthRange.max)) {
-                        testedCount++;
-                        continue;
-                    }
-                    if (heightRange && (resolution.height < heightRange.min || resolution.height > heightRange.max)) {
-                        testedCount++;
-                        continue;
-                    }
-                }
-
-                const result = await testResolution(deviceId, resolution.width, resolution.height);
-                testedCount++;
-
-                // Update progress
-                const progress = Math.round((testedCount / totalResolutions) * 100);
-                resolutionSelect.innerHTML = `<option value="">Testing resolutions... (${progress}%)</option>`;
-
-                if (result.supported) {
-                    // Use the original label for exact matches
-                    const label = resolution.label;
-                    supportedResolutions.push({
-                        width: result.width,
-                        height: result.height,
-                        label: label
-                    });
-                    console.log(`✓ ${resolution.width}x${resolution.height} supported`);
-                } else if (result.width && result.height &&
-                    (result.width !== resolution.width || result.height !== resolution.height)) {
-                    // Camera returned a different resolution - add it too
-                    const existingRes = supportedResolutions.find(r =>
-                        r.width === result.width && r.height === result.height);
-
-                    if (!existingRes) {
-                        supportedResolutions.push({
-                            width: result.width,
-                            height: result.height,
-                            label: `${result.width}x${result.height} (actual)`
-                        });
-                        console.log(`~ ${resolution.width}x${resolution.height} -> ${result.width}x${result.height}`);
-                    }
-                }
-
-                // Small delay to prevent overwhelming the camera
-                if (i % 10 === 0) {
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                }
-            }
-
-            // Remove duplicates and sort
-            const uniqueResolutions = supportedResolutions.filter((resolution, index, self) =>
-                index === self.findIndex(r => r.width === resolution.width && r.height === resolution.height)
-            );
-
-            // Sort by total pixels (ascending)
-            uniqueResolutions.sort((a, b) => (a.width * a.height) - (b.width * b.height));
-
-            console.log(`Found ${uniqueResolutions.length} supported resolutions out of ${totalResolutions} tested`);
-
-            if (capabilities) {
-                console.log('Camera capabilities summary:', {
-                    width: capabilities.widthRange,
-                    height: capabilities.heightRange,
-                    supportedResolutions: uniqueResolutions.length
-                });
-            }
-
-            return uniqueResolutions;
-        };
-
-        const updateResolutionOptions = async (deviceId) => {
-            if (!deviceId) {
-                resolutionSelect.innerHTML = '<option value="">Select Resolution...</option>';
-                resolutionSelect.disabled = true;
-                availableResolutions = [];
-                return;
-            }
-
-            resolutionSelect.innerHTML = '<option value="">Loading resolutions...</option>';
-            resolutionSelect.disabled = true;
-
-            try {
-                availableResolutions = await getSupportedResolutions(deviceId);
-
-                // Clear and populate resolution options
-                resolutionSelect.innerHTML = '<option value="">Select Resolution...</option>';
-
-                availableResolutions.forEach(resolution => {
-                    const option = document.createElement('option');
-                    option.value = `${resolution.width}x${resolution.height}`;
-                    option.textContent = resolution.label;
-                    resolutionSelect.appendChild(option);
-                });
-
-                const option = document.createElement('option');
-                const maxText = "Optimal (auto)"
-                const maxValue = "1920x1080"
-                option.value = maxValue;
-                option.textContent = maxText;
-                resolutionSelect.appendChild(option);
-
-                // Select highest resolution by default
-                // if (availableResolutions.length > 0) {
-                //     const highestRes = availableResolutions[availableResolutions.length - 1];
-                //     resolutionSelect.value = `${highestRes.width}x${highestRes.height}`;
-                // }
-
-                resolutionSelect.value = maxValue;
-
-                resolutionSelect.disabled = false;
-            } catch (error) {
-                console.error('Error getting supported resolutions:', error);
-                resolutionSelect.innerHTML = '<option value="">Error loading resolutions</option>';
-            }
-        };
-
-        const enumerateCameras = async () => {
-            try {
-                // Request permission first
-                await navigator.mediaDevices.getUserMedia({ video: true });
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                availableCameras = devices.filter(device => device.kind === 'videoinput');
-
-                // Clear existing options
-                cameraSelect.innerHTML = '<option value="">Select Camera...</option>';
-
-                // Add camera options
-                availableCameras.forEach((camera, index) => {
-                    const option = document.createElement('option');
-                    option.value = camera.deviceId;
-                    option.textContent = camera.label || `Camera ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-
-                // Select first camera by default if available
-                if (availableCameras.length > 0) {
-                    cameraSelect.value = availableCameras[0].deviceId;
-                    await updateResolutionOptions(availableCameras[0].deviceId);
-                }
-
-                console.log(`Found ${availableCameras.length} cameras`);
-            } catch (err) {
-                console.error('Error enumerating cameras:', err);
-            }
-        };
-
-        // Webcam functionality
-        const webcamBtn = document.getElementById('webcamBtn');
-        const autoCalibBtn = document.getElementById('autoCalibBtn');
-        let currentWebcamStream = null;
-
-        const startWebcam = async () => {
-            try {
-                const selectedCameraId = cameraSelect.value;
-                const selectedResolution = resolutionSelect.value;
-
-                if (!selectedCameraId) {
-                    alert('Please select a camera first.');
-                    return;
-                }
-
-                let constraints = {
-                    video: { deviceId: { exact: selectedCameraId } }
-                };
-
-                // Add resolution constraints if selected
-                if (selectedResolution) {
-                    const [width, height] = selectedResolution.split('x').map(Number);
-                    constraints.audio = false;
-                    constraints.video.width = { ideal: width };
-                    constraints.video.height = { ideal: height };
-                }
-                console.log(constraints)
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                currentWebcamStream = stream;
-                const videoElement = document.getElementById('videoElement');
-                videoElement.srcObject = currentWebcamStream;
-
-
-                // Wait for video to be ready
-                const onVideoReady = () => {
-                    videoElement.play().then(() => {
-                        zoomableCanvas.setVideoSource(videoElement);
-                        console.log(`Webcam started and playing with resolution: ${videoElement.videoWidth}x${videoElement.videoHeight}`);
-                    }).catch(err => {
-                        console.error('Error playing webcam:', err);
-                    });
-                };
-
-                if (videoElement.readyState >= 2) {
-                    // Video is already loaded
-                    onVideoReady();
-                } else {
-                    // Wait for video to load
-                    videoElement.addEventListener('loadedmetadata', onVideoReady, { once: true });
-                }
-
-                webcamBtn.textContent = 'Stop Webcam';
-                webcamBtn.onclick = stopWebcam;
-                cameraSelect.disabled = true;
-                resolutionSelect.disabled = true;
-            } catch (err) {
-                console.error('Error accessing webcam:', err);
-                alert('Could not access selected camera with chosen resolution');
-            }
-        };
-
-        const stopWebcam = () => {
-            if (currentWebcamStream) {
-                currentWebcamStream.getTracks().forEach(track => track.stop());
-                currentWebcamStream = null;
-            }
-            zoomableCanvas.clearVideoSource();
-            webcamBtn.textContent = 'Start Webcam';
-            webcamBtn.onclick = startWebcam;
-            cameraSelect.disabled = false;
-            resolutionSelect.disabled = false;
-        };
-
-        // Camera selection change handler
-        cameraSelect.addEventListener('change', async () => {
-            const selectedCameraId = cameraSelect.value;
-
-            // If webcam is currently running, stop it first
-            if (currentWebcamStream) {
-                stopWebcam();
-            }
-
-            // Update available resolutions for selected camera
-            await updateResolutionOptions(selectedCameraId);
-        });
-
-        // Resolution selection change handler
-        resolutionSelect.addEventListener('change', () => {
-            // If webcam is currently running, restart with new resolution
-            if (currentWebcamStream) {
-                stopWebcam();
-                setTimeout(startWebcam, 100); // Small delay to ensure cleanup
-            }
-        });
-
-        webcamBtn.addEventListener('click', startWebcam);
-
-        // Initialize camera list on page load
-        enumerateCameras();
+        // Initialize CameraManager
+        const cameraManager = new CameraManager(elements, options);
 
         // Video file functionality
         document.getElementById('videoFile').addEventListener('change', (e) => {
@@ -621,128 +256,7 @@
             }
         });
 
-
-        class DartNet {
-            constructor(videoSource) {
-                this.processingCanvas = null;
-                this.videoSource = videoSource;
-                this.board = new Board();
-                this.targetDetectorReady = false;
-                this.cropArea = null;
-                this.sourceCalibPts = null;
-                this.M = null; //Transformation matrix from source image to board ref
-                this.Mi = null; //Transformation matrix from board ref to source image
-                this.targetDetector = new YoloTargetDetector(
-                    this.board,
-                    "../../models/best_n_tip_boxes_cross_640_B.onnx",
-                    640,
-                    false,
-                    () => { this.targetDetectorReady = true; });
-            }
-
-            preprocessImageForModel(srcBox = null, modelSize = 640) {
-                // const { width, height } = imageData;
-                let inputBox = srcBox ? srcBox : [0, 0, this.videoSource.videoWidth, this.videoSource.videoHeight];
-
-                console.log(this.videoSource.videoWidth, this.videoSource.videoHeight)
-                if (!this.processingCanvas)
-                    this.processingCanvas = document.getElementById("processingCanvas");
-                if (!this.processingCanvas) {
-                    this.processingCanvas = document.createElement("canvas");
-                    this.processingCanvas.id = "processingCanvas";
-                }
-                this.processingCanvas.width = modelSize;
-                this.processingCanvas.height = modelSize;
-
-                const cropContext = this.processingCanvas.getContext("2d", { "willReadFrequently": true });
-                console.log(this.videoSource.videoWidth, this.videoSource.videoHeight)
-                console.log(cropContext)
-                cropContext.drawImage(this.videoSource,
-                    inputBox[0], inputBox[1], inputBox[2], inputBox[3],
-                    0, 0, modelSize, modelSize
-                );
-
-                const imgData = cropContext.getImageData(0, 0, modelSize, modelSize);
-                const pixels = imgData.data;
-
-                const red = [], green = [], blue = [];
-                for (let index = 0; index < pixels.length; index += 4) {
-                    red.push(pixels[index] / 255.0);
-                    green.push(pixels[index + 1] / 255.0);
-                    blue.push(pixels[index + 2] / 255.0);
-                }
-                const input = [...red, ...green, ...blue];
-                return input;
-            }
-
-            cropppedToSource(p) {
-                return [this.cropArea[0] + p[0] * this.cropArea[2] / this.targetDetector.modelSize, this.cropArea[1] + p[1] * this.cropArea[3] / this.targetDetector.modelSize];
-            }
-
-            updateCalibPoints(newPts) {
-                this.sourceCalibPts = newPts;
-                this.M = PerspectiveUtils.getPerspectiveTransform(this.sourceCalibPts, this.board.board_cal_pts);
-                this.Mi = PerspectiveUtils.getPerspectiveTransform(this.board.board_cal_pts, this.sourceCalibPts);
-            }
-
-            async calibrate(onSuccess = null) {
-                console.log(this.videoSource.videoWidth)
-                if (!this.videoSource.videoWidth) {
-                    console.log('❌ Camera not ready', 'error');
-                    return;
-                }
-
-                //this.showLoading(true);
-                console.log('Capturing and analyzing frame');
-
-                this.cropArea = null;
-                this.sourceCalibPts = null;
-                this.M = null;
-                this.Mi = null;
-                // try {
-                let input = this.preprocessImageForModel(null, this.targetDetector.modelSize);
-                //const cropContext = zoomableCanvas.getOverlayContext();
-                const cropContext = this.processingCanvas.getContext("2d", { "willReadFrequently": true });
-                let results = await this.targetDetector.detect(input, cropContext);
-                if (results.calibrationPoints) {
-                    let sourceCalib = results.calibrationPoints.map((p) => [p[0] * this.videoSource.videoWidth / this.targetDetector.modelSize, p[1] * this.videoSource.videoHeight / this.targetDetector.modelSize])
-                    console.log(this.targetDetector.modelSize)
-                    console.log(this.videoSource.videoWidth, this.videoSource.videoHeight)
-                    console.log(results.calibrationPoints)
-                    console.log(sourceCalib)
-                    let crop = autoCrop(sourceCalib, this.videoSource.videoWidth, this.videoSource.videoHeight)
-                    console.log("Auto Crop:", crop)
-                    this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
-                    input = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
-                    let calibration = await this.targetDetector.detect(input, cropContext);
-                    console.log("Calibration:",calibration)
-                    if(!calibration) {
-                         console.warn("Unable to find target in croped area... Using previous (bad) one");
-                         this.cropArea=[0,0,this.videoSource.videoWidth,this.videoSource.videoHeight];
-                         calibration = results;
-                    }
-                    this.sourceCalibPts = calibration.calibrationPoints.map((p) => this.cropppedToSource(p))
-                    this.updateCalibPoints(this.sourceCalibPts);
-                    //console.log("Calibration results:", this.sourceCalibPts);
-                    if (onSuccess)
-                        onSuccess(this.sourceCalibPts);
-                }
-                else console.warn("Unable to find initial target to auto crop...");
-                //zoomableCanvas.getOverlayContext();   
-
-                //     if (this.onnxSession) {
-                //         await this.runInference();
-                //     }
-                // } catch (error) {
-                //     this.log('Capture and analyze error: ' + error.message);
-                //     this.updateStatus('❌ Error during processing: ' + error.message, 'error');
-                // } finally {
-                //     this.showLoading(false);
-                // }
-                //this.showLoading(false);
-            }
-        }
-
+       
         const dartnet = new DartNet(document.getElementById("videoElement"));
 
         const autoCalib = async () => {

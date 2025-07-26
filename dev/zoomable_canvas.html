@@ -209,7 +209,6 @@
         // Initialize the canvas with debug overlay
         const zoomableCanvas = new ZoomablePannableCanvas('videoCanvas', 'canvasContainer', 'overlayCanvas');
 
-
         // Camera enumeration and selection
         const cameraSelect = document.getElementById('cameraSelect');
         const resolutionSelect = document.getElementById('resolutionSelect');
@@ -942,6 +941,19 @@
             // }
         );
        
+       // Add "20" Element to help reorient in case it is needed
+        zoomableCanvas.addOverlayElement("scoreViewer", { x: 0, y: 0, color: 'rgba(0, 255, 128, 0.75)', text:null },
+            // Draw callback
+            (ctx, element) => {
+                if(!element.text) return;
+                ctx.fillStyle = element.color;
+                ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
+            },
+            (element, worldX, worldY) => false // Disable picking drag and drop
+        );
+
         // Set up event callbacks
         zoomableCanvas.setOnElementSelected((id, element) => {
             console.log(`Selected element: ${id}`, element);
@@ -971,7 +983,21 @@
 
         zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
             console.log(`Finished dragging ${id}`);
-        });        
+        });
+
+
+        document.getElementById("videoCanvas").addEventListener('mousemove', (event) => {
+            //console.log('mousemove:',event)
+            //const worldP = [event.clientX,event.clientY];
+            const srcP = zoomableCanvas.canvasToWorld(event.clientX,event.clientY);
+            //const score = dartnet.targetDetector.getDartScores([srcP])[0];
+            // TODO: use detector's one
+            const score = dartnet.sourceCalibPts ? dartnet.board.getDartScores(dartnet.sourceCalibPts, [[srcP.x, srcP.y]]) [0] : null;
+            let element = zoomableCanvas.getOverlayElement("scoreViewer");
+            element.x = srcP.x + 40 / zoomableCanvas.scale;
+            element.y = srcP.y;
+            element.text = score;
+        });
     </script>
 </body>
 

@@ -916,14 +916,14 @@
                 board.r_double,
                 board.r_treble - board.w_double_treble, board.r_treble
                 ]
-
+                
                 radii.forEach((r) => {
                     const num = Math.max(Math.ceil(r * 200 * (zoomableCanvas.scale < 1 ? 1 : zoomableCanvas.scale)), 20);
                     const pts = [...Array(num).keys()].map(i => [Math.cos(Math.PI * 2 * i / num) * r, Math.sin(Math.PI * 2 * i / num) * r]);
                     const srcPts = PerspectiveUtils.transformPoints(pts, Mi);
                     ctx.beginPath();
                     ctx.moveTo(srcPts[0], srcPts[1])
-                    for (let i = 0; i < srcPts.length; i++) {
+                    for (let i = 0; i <= srcPts.length; i++) {
                         p = srcPts[(i + 1) % srcPts.length];
                         ctx.lineTo(p[0], p[1]);
                     }

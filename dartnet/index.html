@@ -715,6 +715,7 @@
                     this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
                     input = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
                     let calibration = await this.targetDetector.detect(input, cropContext);
+                    console.log("Calibration:",calibration)
                     if(!calibration) {
                          console.warn("Unable to find target in croped area... Using previous (bad) one");
                          this.cropArea=[0,0,this.videoSource.videoWidth,this.videoSource.videoHeight];

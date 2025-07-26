@@ -371,12 +371,7 @@ class YoloTargetDetector {
     // Step 4: First ransac fitting to find reasonable target pose
     // -------------
     let M = ransacFit(new PerspectiveBoardFit(this.pts, filteredCorners), pointPairs, 0.99, 0.7, 5);
-    if (M == null)
-      return {
-        calibrationPoints: null,
-        transformation: null,
-        confidence: 0.0,
-      };
+    if (M == null) return null;
 
     this.ptsCal = PerspectiveUtils.transformPoints(this.board.board_cal_pts, M.model);
     if (canvasContext) {
@@ -457,6 +452,7 @@ class YoloTargetDetector {
       this.drawBoard(canvasContext);
     }
 
+    if (!this.ptsCal) return null;
     return {
       calibrationPoints: this.ptsCal,
       transformation: M.model,

@@ -6,6 +6,8 @@ const MathUtils = {
 
   distance: (p1, p2) => Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2),
 
+  angle: (v1, v2) => Math.acos(v1[0] * v2[0] + (v1[1] * v2[1]) / (MathUtils.norm(v1) * MathUtils.norm(v2))),
+
   randomInt: (min, max) => Math.floor(Math.random() * (max - min) + min),
 
   mean: (arr) => arr.reduce((sum, val) => sum + val, 0) / arr.length,

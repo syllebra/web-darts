@@ -760,19 +760,6 @@
 
         autoCalibBtn.addEventListener('click', autoCalib);
 
-        // zoomableCanvas.addOverlayCallback((canvas) => {
-        //     canvas.clearOverlayCanvas()
-        //     // canvas.drawOverlayText('Label', 120, 105);
-        //     if(dartnet.cropArea) {
-        //         canvas.drawOverlayRect(dartnet.cropArea[0],dartnet.cropArea[1],dartnet.cropArea[2]-dartnet.cropArea[0],dartnet.cropArea[3]-dartnet.cropArea[1]);
-        //     }
-        //     if(dartnet.sourceCalibPts) {
-        //         dartnet.sourceCalibPts.forEach((p)=> {
-        //             canvas.drawOverlayPoint(p[0],p[1], 'rgba(0, 255, 0, 0.7)',3);
-        //             canvas.drawOverlayCircle(p[0],p[1],10,'rgba(0, 255, 0, 0.7)',1);
-        //         });
-        //     }
-        // })
 
         function recomputeUpTextPos(){
             const upText = PerspectiveUtils.transformPoints([
@@ -792,7 +779,6 @@
                 el.x = p[0];
                 el.y = p[1];
             }
-
             recomputeUpTextPos();
         }
 
@@ -824,19 +810,37 @@
 
         // Add "20" Element to help reorient in case it is needed
         zoomableCanvas.addOverlayElement("20",
-            { x: 0, y:0, radius:30, color: 'rgba(0, 255, 255, 0.5)' },
+            { net:dartnet, x: 0, y:0, radius:30, color: 'rgba(0, 255, 255, 0.5)', compute_possible: () =>{
+                return PerspectiveUtils.transformPoints(
+                    [...Array(20).keys()].map(i => {
+                        const angle = Math.PI * 2 * i / 20 + Math.PI / 20;
+                        const dis = dartnet.board.r_double * 1.2
+                        return [Math.cos(angle) * dis, Math.sin(angle) * dis];
+                    }), dartnet.Mi);
+            } },
             // Draw callback
             (ctx, element, isSelected) => {
-                ctx.strokeStyle = isSelected ? 'rgba(128, 255, 128, 0.7)' : element.color;
+                ctx.fillStyle = isSelected ? 'rgba(128, 255, 128, 0.7)' : element.color;
                 ctx.lineWidth = 2 / zoomableCanvas.scale;
                 ctx.beginPath();
                 ctx.arc(element.x, element.y, element.radius / zoomableCanvas.scale, 0, 2 * Math.PI);
-                ctx.stroke();
+                ctx.fill();
 
-                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
                 ctx.font = `bold ${40 / zoomableCanvas.scale}px Arial`;
                 ctx.textAlign = 'center';
                 ctx.fillText("20", element.x, element.y + 14/ zoomableCanvas.scale);
+
+                if(isSelected && element.net?.Mi) {
+                    const possible = element.compute_possible()
+
+                    possible.forEach((p) => {
+                        ctx.fillStyle = 'rgba(0, 255, 255, 0.25)';
+                        ctx.beginPath();
+                        ctx.arc(p[0], p[1], 8 / zoomableCanvas.scale, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
             },
             // Hit test callback (optional - defaults to circular)
             (element, worldX, worldY) => {
@@ -932,13 +936,20 @@
                     dartnet.updateCalibPoints(dartnet.sourceCalibPts);
                 }
             }
-            // You can add constraints here
-            // element.x = Math.max(0, Math.min(500, element.x)); // Constrain X
+            else if (id == "20") {
+                const possible = element.compute_possible();
+                const distances = possible.map((p) => MathUtils.distance(p, [element.x, element.y]))
+                var indexMin = distances.indexOf(Math.min(...distances));
+                var rotMatrix = MathUtils.createRotationMatrix(indexMin *360/20);
+                var boardRotated = MathUtils.rotatePoints(dartnet.board.board_cal_pts,rotMatrix);
+                var newCalib = PerspectiveUtils.transformPoints(boardRotated, dartnet.Mi)
+                dartnet.updateCalibPoints(newCalib);
+                onCalibrationSuccess(newCalib);
+            }
         });
 
         zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
             console.log(`Finished dragging ${id}`);
-            // Save position, validate placement, etc.
         });        
     </script>
 </body>

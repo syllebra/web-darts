@@ -19,25 +19,6 @@ class ImageProcessor {
     };
   }
 
-  static normalize(imageData) {
-    const data = imageData.data;
-
-    const red = [],
-      green = [],
-      blue = [];
-    for (let index = 0; index < data.length; index += 4) {
-      red.push(data[index] / 255.0);
-      green.push(data[index + 1] / 255.0);
-      blue.push(data[index + 2] / 255.0);
-    }
-    const ret = [...red, ...green, ...blue];
-    return {
-      data: ret,
-      width: imageData.width,
-      height: imageData.height,
-    };
-  }
-
   static absDiff(img1, img2) {
     if (img1.width !== img2.width || img1.height !== img2.height) {
       throw new Error("Images must have the same dimensions");
@@ -91,15 +72,37 @@ class ImageProcessor {
     return imageData;
   }
 
-  static grayscaleToRGB(grayImg) {
-    const data = new Uint8Array(grayImg.data.length * 3);
-    for (let i = 0; i < grayImg.data.length; i++) {
-      const value = grayImg.data[i];
-      data[i * 4] = value; // R
-      data[i * 4 + 1] = value; // G
-      data[i * 4 + 2] = value; // B
+  static grayscaleToYOLOInput(grayImg, width, height) {
+    const data = grayImg.data;
+    const c = [];
+    for (let index = 0; index < data.length; index++) {
+      c.push(data[index] / 255.0);
     }
-    return data;
+    const ret = [...c, ...c, ...c];
+    return {
+      data: ret,
+      width: width,
+      height: height,
+    };
+  }
+
+  static normalizeToYOLOinput(imageData) {
+    const data = imageData.data;
+
+    const red = [],
+      green = [],
+      blue = [];
+    for (let index = 0; index < data.length; index += 4) {
+      red.push(data[index] / 255.0);
+      green.push(data[index + 1] / 255.0);
+      blue.push(data[index + 2] / 255.0);
+    }
+    const ret = [...red, ...green, ...blue];
+    return {
+      data: ret,
+      width: imageData.width,
+      height: imageData.height,
+    };
   }
 
   static resizeGrayscale(grayImg, newWidth, newHeight) {

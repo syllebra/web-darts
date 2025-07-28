@@ -89,7 +89,7 @@ class DartNet {
     this.Mi = null;
     // try {
     let imgData = this.preprocessImageForModel(null, this.targetDetector.modelSize);
-    let input = ImageProcessor.normalize(imgData).data;
+    let input = ImageProcessor.normalizeToYOLOinput(imgData).data;
     //const cropContext = zoomableCanvas.getOverlayContext();
     const cropContext = this.processingCanvas.getContext("2d", { willReadFrequently: true });
     let results = await this.targetDetector.detect(input, cropContext);
@@ -106,7 +106,7 @@ class DartNet {
       console.log("Auto Crop:", crop);
       this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
       imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
-      input = ImageProcessor.normalize(imgData).data;
+      input = ImageProcessor.normalizeToYOLOinput(imgData).data;
       let calibration = await this.targetDetector.detect(input, cropContext);
       console.log("Calibration:", calibration);
       if (!calibration) {

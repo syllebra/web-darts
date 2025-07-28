@@ -19,6 +19,25 @@ class ImageProcessor {
     };
   }
 
+  static normalize(imageData) {
+    const data = imageData.data;
+
+    const red = [],
+      green = [],
+      blue = [];
+    for (let index = 0; index < data.length; index += 4) {
+      red.push(data[index] / 255.0);
+      green.push(data[index + 1] / 255.0);
+      blue.push(data[index + 2] / 255.0);
+    }
+    const ret = [...red, ...green, ...blue];
+    return {
+      data: ret,
+      width: imageData.width,
+      height: imageData.height,
+    };
+  }
+
   static absDiff(img1, img2) {
     if (img1.width !== img2.width || img1.height !== img2.height) {
       throw new Error("Images must have the same dimensions");
@@ -72,6 +91,17 @@ class ImageProcessor {
     return imageData;
   }
 
+  static grayscaleToRGB(grayImg) {
+    const data = new Uint8Array(grayImg.data.length * 3);
+    for (let i = 0; i < grayImg.data.length; i++) {
+      const value = grayImg.data[i];
+      data[i * 4] = value; // R
+      data[i * 4 + 1] = value; // G
+      data[i * 4 + 2] = value; // B
+    }
+    return data;
+  }
+
   static resizeGrayscale(grayImg, newWidth, newHeight) {
     const resized = new Uint8Array(newWidth * newHeight);
     const scaleX = grayImg.width / newWidth;
@@ -92,5 +122,22 @@ class ImageProcessor {
       width: newWidth,
       height: newHeight,
     };
+  }
+
+  static imageDataToImage(imageData) {
+    var canvas = document.getElementById("toImageCanvas");
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.id = "toImageCanvas";
+    }
+    if (!canvas) return null;
+    var ctx = canvas.getContext("2d", { willReadFrequently: true });
+    canvas.width = imageData.width;
+    canvas.height = imageData.height;
+    ctx.putImageData(imageData, 0, 0);
+
+    var image = new Image();
+    image.src = canvas.toDataURL();
+    return image;
   }
 }

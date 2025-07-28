@@ -1,5 +1,6 @@
 // Status enumeration
-const Status = {
+const DartDetectorStatus = {
+  INITIALIZING: 0,
   DETECTING: 1,
   PAUSE: 2,
   DETECTED: 3,
@@ -9,11 +10,115 @@ const Status = {
  * Base class for dart impact detection systems
  */
 class DartDetector {
-  constructor() {
+  constructor(modelPath = "../models/best_temporal_A.onnx", modelSize = 640) {
     this.pauseDetection = false;
+    this.currentStatus = DartDetectorStatus.INITIALIZING;
+    this.statusChangeCallbacks = [];
+    this.onDetectionCallbacks = [];
+    this.modelPath = modelPath;
+    this.modelSize = modelSize;
+    this.initializeModel();
+  }
+
+  async initializeModel() {
+    try {
+      //this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ['webgpu'] });
+      this.session = await ort.InferenceSession.create(this.modelPath);
+      console.log("Modèle ONNX chargé avec succès:", this.session);
+      if (this.initCallback) this.initCallback();
+    } catch (error) {
+      console.error("Erreur lors du chargement du modèle:", error);
+      // Utiliser un modèle de démo si le vrai modèle n'est pas disponible
+      this.session = null;
+      //if (this.initCallback) this.initCallback();
+    }
+  }
+
+  async infer(obj) {
+    if (!this.session) {
+      return null;
+    }
+    var imageData = ImageProcessor.grayscaleToRGB(obj.delta);
+    try {
+      const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
+      const results = await this.session.run({ images: tensor });
+      //console.log("Results:", results);
+      const boxes = YOLO.processYoloOnnxResults(results);
+      obj.boxes = boxes;
+      this.onDetectionCallbacks.forEach((cb) => cb(obj));
+      //return this.processOnnxResults(results);
+    } catch (error) {
+      console.error("Erreur lors de l'inférence:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Add a callback function to be called when status changes
+   * @param {Function} callback - Function to call on status change (newStatus, oldStatus) => {}
+   */
+  addStatusChangeCallback(callback) {
+    if (typeof callback === "function") {
+      this.statusChangeCallbacks.push(callback);
+    }
+  }
+
+  /**
+   * Remove a status change callback
+   * @param {Function} callback - The callback function to remove
+   */
+  removeStatusChangeCallback(callback) {
+    const index = this.statusChangeCallbacks.indexOf(callback);
+    if (index > -1) {
+      this.statusChangeCallbacks.splice(index, 1);
+    }
+  }
+
+  /**
+   * Update the current status and notify callbacks
+   * @param {number} newStatus - The new status value
+   */
+  updateStatus(newStatus) {
+    const oldStatus = this.currentStatus;
+    if (oldStatus !== newStatus) {
+      this.currentStatus = newStatus;
+
+      // Notify all callbacks
+      this.statusChangeCallbacks.forEach((callback) => {
+        try {
+          callback(newStatus, oldStatus);
+        } catch (error) {
+          console.error("Error in status change callback:", error);
+        }
+      });
+    }
+  }
+
+  /**
+   * Get the current status
+   * @returns {number} Current status
+   */
+  getStatus() {
+    return this.currentStatus;
+  }
+
+  /**
+   * Get status name as string
+   * @param {number} status - Status value
+   * @returns {string} Status name
+   */
+  getStatusName(status) {
+    const statusNames = {
+      [DartDetectorStatus.INITIALIZING]: "INITIALIZING",
+      [DartDetectorStatus.DETECTING]: "DETECTING",
+      [DartDetectorStatus.PAUSE]: "PAUSE",
+      [DartDetectorStatus.DETECTED]: "DETECTED",
+    };
+    return statusNames[status] || "UNKNOWN";
   }
 
   start() {
+    this.updateStatus(DartDetectorStatus.INITIALIZING);
     // Placeholder implementation
   }
 
@@ -41,16 +146,33 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
     this.maxMovementPct = 10.0;
     this.threshold = 10.2;
     this.detectionCount = 0;
-    this.onDetectionCallback = null;
+    this.debug = false;
+  }
+
+  start() {
+    super.start();
+    // Simulate initialization process
+    setTimeout(() => {
+      this.updateStatus(DartDetectorStatus.DETECTING);
+    }, 500);
   }
 
   onPause() {
+    this.updateStatus(DartDetectorStatus.PAUSE);
     this.lastGray = null;
     this.lastDiff = null;
     this.lastDartTime = -1;
   }
 
+  resume() {
+    this.updateStatus(DartDetectorStatus.DETECTING);
+  }
+
   onNewFrame(imageData) {
+    if (this.currentStatus === DartDetectorStatus.INITIALIZING || this.currentStatus === DartDetectorStatus.PAUSE) {
+      return false;
+    }
+
     let detect = false;
 
     // Convert to grayscale
@@ -73,7 +195,7 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
 
         if (potentialDartMovement) {
           const timestamp = Date.now();
-          this.log(`${timestamp}: potential_dart_movement ${pct.toFixed(1)}%`);
+          if (this.debug) console.log(`${timestamp}: potential_dart_movement ${pct.toFixed(1)}%`);
 
           // Temporal filtering
           detect = false;
@@ -89,23 +211,28 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
           }
 
           if (detect) {
+            this.updateStatus(DartDetectorStatus.DETECTED);
             this.lastDartTime = -1;
             this.detectionCount++;
-            if (this.onDetectionCallback) {
-              this.onDetectionCallback(delta, pct);
-            }
+            this.infer({ delta: delta, pct: pct });
+            // Reset to detecting after a brief period
+            setTimeout(() => {
+              if (this.currentStatus === DartDetectorStatus.DETECTED) {
+                this.updateStatus(DartDetectorStatus.DETECTING);
+              }
+            }, 1000);
           }
         }
 
         // Display debug views
-        this.displayGrayscale(delta, "deltaCanvas");
+        //this.displayGrayscale(delta, "deltaCanvas");
       }
 
       if (this.lastDiff === null || this.lastDartTime < 0) {
         this.lastDiff = diff;
       }
 
-      this.displayGrayscale(diff, "diffCanvas");
+      //this.displayGrayscale(diff, "diffCanvas");
     } else {
       this.lastGray = currentGray;
     }
@@ -113,23 +240,16 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
     return detect;
   }
 
-  displayGrayscale(grayImg, canvasId) {
-    const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext("2d");
+  // displayGrayscale(grayImg, canvasId) {
+  //   const canvas = document.getElementById(canvasId);
+  //   const ctx = canvas.getContext("2d");
 
-    // Resize to canvas dimensions
-    const resized = ImageProcessor.resizeGrayscale(grayImg, canvas.width, canvas.height);
-    const imageData = ImageProcessor.grayscaleToImageData(resized);
+  //   // Resize to canvas dimensions
+  //   const resized = ImageProcessor.resizeGrayscale(grayImg, canvas.width, canvas.height);
+  //   const imageData = ImageProcessor.grayscaleToImageData(resized);
 
-    ctx.putImageData(imageData, 0, 0);
-  }
-
-  log(message) {
-    const logOutput = document.getElementById("logOutput");
-    const timestamp = new Date().toLocaleTimeString();
-    logOutput.innerHTML += `[${timestamp}] ${message}\n`;
-    logOutput.scrollTop = logOutput.scrollHeight;
-  }
+  //   ctx.putImageData(imageData, 0, 0);
+  // }
 
   updateSettings(temporalFilter, minMovement, maxMovement, threshold) {
     this.temporalFilter = temporalFilter;
@@ -170,6 +290,8 @@ class AccelerometerDartImpactDetector extends DartDetector {
   start() {
     if (this.isStarted) return;
 
+    super.start(); // This sets status to INITIALIZING
+
     try {
       // Create MQTT client
       const clientId = "dartDetector_" + Math.random().toString(16).substr(2, 8);
@@ -185,11 +307,12 @@ class AccelerometerDartImpactDetector extends DartDetector {
         onFailure: this.onConnectFailure.bind(this),
       });
 
-      this.log("Starting MQTT client...");
+      console.log("Starting MQTT client...");
       document.getElementById("startBtn").disabled = true;
       document.getElementById("stopBtn").disabled = false;
     } catch (error) {
-      this.log("Error starting detector: " + error.message);
+      console.log("Error starting detector: " + error.message);
+      this.updateStatus(DartDetectorStatus.PAUSE);
     }
   }
 
@@ -201,29 +324,29 @@ class AccelerometerDartImpactDetector extends DartDetector {
     }
 
     this.isStarted = false;
-    this.log("Detector stopped");
-    document.getElementById("startBtn").disabled = false;
-    document.getElementById("stopBtn").disabled = true;
-    this.updateStatus(Status.DETECTING);
+    console.log("Detector stopped");
+    this.updateStatus(DartDetectorStatus.PAUSE);
   }
 
   async getConfig() {
     try {
+      this.updateStatus(DartDetectorStatus.INITIALIZING);
       const response = await fetch(`${this.url}/api/config`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       this.config = await response.json();
-      this.log("Configuration retrieved successfully");
+      console.log("Configuration retrieved successfully");
       console.log("Current config:", this.config);
       return this.config;
     } catch (error) {
-      this.log("Failed to get config: " + error.message);
+      console.log("Failed to get config: " + error.message);
       throw error;
     }
   }
 
   async setConfig() {
     try {
+      this.updateStatus(DartDetectorStatus.INITIALIZING);
       const response = await fetch(`${this.url}/api/config`, {
         method: "POST",
         headers: {
@@ -234,46 +357,45 @@ class AccelerometerDartImpactDetector extends DartDetector {
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      this.log("Configuration updated successfully");
+      console.log("Configuration updated successfully");
     } catch (error) {
-      this.log("Failed to set config: " + error.message);
+      console.log("Failed to set config: " + error.message);
       throw error;
     }
   }
 
   async calibrate() {
     try {
+      this.updateStatus(DartDetectorStatus.INITIALIZING);
       const response = await fetch(`${this.url}/api/calibrate`, {
         method: "POST",
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      this.log("Calibration completed successfully");
+      console.log("Calibration completed successfully");
     } catch (error) {
-      this.log("Failed to calibrate: " + error.message);
+      console.log("Failed to calibrate: " + error.message);
     }
   }
 
   onConnect() {
-    this.log("Connected to MQTT broker");
+    console.log("Connected to MQTT broker");
     this.mqttClient.subscribe("#");
     this.isStarted = true;
-    this.updateStatus(Status.DETECTING);
+    this.updateStatus(DartDetectorStatus.DETECTING);
   }
 
   onConnectFailure(error) {
-    this.log("Failed to connect to MQTT broker: " + error.errorMessage);
-    document.getElementById("startBtn").disabled = false;
-    document.getElementById("stopBtn").disabled = true;
+    console.log("Failed to connect to MQTT broker: " + error.errorMessage);
+    this.updateStatus(DartDetectorStatus.PAUSE);
   }
 
   onConnectionLost(responseObject) {
     if (responseObject.errorCode !== 0) {
-      this.log("Connection lost: " + responseObject.errorMessage);
+      console.log("Connection lost: " + responseObject.errorMessage);
       this.isStarted = false;
-      document.getElementById("startBtn").disabled = false;
-      document.getElementById("stopBtn").disabled = true;
+      this.updateStatus(DartDetectorStatus.PAUSE);
     }
   }
 
@@ -281,11 +403,19 @@ class AccelerometerDartImpactDetector extends DartDetector {
     const topic = message.destinationName;
     const payload = message.payloadString;
 
-    this.log(`MQTT: ${topic} - ${payload}`);
+    console.log(`MQTT: ${topic} - ${payload}`);
 
     if (topic.includes("sensors/tap")) {
       this.playSound();
       this.lastImpact = Date.now();
+      this.updateStatus(DartDetectorStatus.DETECTED);
+
+      // Reset to detecting after a brief period
+      setTimeout(() => {
+        if (this.currentStatus === DartDetectorStatus.DETECTED) {
+          this.updateStatus(DartDetectorStatus.DETECTING);
+        }
+      }, 1000);
     }
   }
 
@@ -308,34 +438,37 @@ class AccelerometerDartImpactDetector extends DartDetector {
     oscillator.stop(audioContext.currentTime + 0.3);
   }
 
-  log(message) {
-    const logElement = document.getElementById("log");
-    const entry = document.createElement("div");
-    entry.className = "log-entry";
-    entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-    logElement.appendChild(entry);
-    logElement.scrollTop = logElement.scrollHeight;
+  // Override the updateStatus method to also update UI
+  updateStatus(newStatus) {
+    super.updateStatus(newStatus);
+    this.updateStatusDisplay(newStatus);
   }
 
-  updateStatus(status) {
-    const statusElement = document.getElementById("status");
-    statusElement.className = "status";
+  //   updateStatusDisplay(status) {
+  //     const statusElement = document.getElementById("status");
+  //     if (!statusElement) return;
 
-    switch (status) {
-      case Status.DETECTING:
-        statusElement.classList.add("detecting");
-        statusElement.textContent = "🔍 DETECTING";
-        break;
-      case Status.PAUSE:
-        statusElement.classList.add("paused");
-        statusElement.textContent = "⏸️ PAUSED";
-        break;
-      case Status.DETECTED:
-        statusElement.classList.add("detected");
-        statusElement.textContent = "🎯 IMPACT DETECTED!";
-        break;
-    }
-  }
+  //     statusElement.className = "status";
+
+  //     switch (status) {
+  //       case DartDetectorStatus.INITIALIZING:
+  //         statusElement.classList.add("initializing");
+  //         statusElement.textContent = "⚙️ INITIALIZING";
+  //         break;
+  //       case DartDetectorStatus.DETECTING:
+  //         statusElement.classList.add("detecting");
+  //         statusElement.textContent = "🔍 DETECTING";
+  //         break;
+  //       case DartDetectorStatus.PAUSE:
+  //         statusElement.classList.add("paused");
+  //         statusElement.textContent = "⏸️ PAUSED";
+  //         break;
+  //       case DartDetectorStatus.DETECTED:
+  //         statusElement.classList.add("detected");
+  //         statusElement.textContent = "🎯 IMPACT DETECTED!";
+  //         break;
+  //     }
+  //   }
 }
 
 // Queue implementation for frame buffering
@@ -378,24 +511,37 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
     this.burstLength = burstLength;
     this.extraWaitFrames = extraWaitFrames;
     this.burst = new Queue(burstLength + extraWaitFrames);
-    this.state = Status.DETECTING;
     this.countDownCpt = 0;
   }
 
+  start() {
+    super.start();
+    this.burst.clear();
+  }
+
   onPause() {
-    // Placeholder implementation
+    this.updateStatus(DartDetectorStatus.PAUSE);
+    this.burst.clear();
+  }
+
+  resume() {
+    this.updateStatus(DartDetectorStatus.DETECTING);
   }
 
   onNewFrame(imageData) {
+    if (this.currentStatus === DartDetectorStatus.INITIALIZING || this.currentStatus === DartDetectorStatus.PAUSE) {
+      return null;
+    }
+
     let ret = null;
-    const maxFrames = this.state === Status.DETECTED ? this.burstLength + this.extraWaitFrames : this.burstLength;
+    const maxFrames =
+      this.currentStatus === DartDetectorStatus.DETECTED ? this.burstLength + this.extraWaitFrames : this.burstLength;
 
     if (this.burst.qsize() >= maxFrames) {
       this.burst.get();
-      if (this.state === Status.DETECTED) {
+      if (this.currentStatus === DartDetectorStatus.DETECTED) {
         ret = this.computeDelta();
-        this.state = Status.DETECTING;
-        this.updateStatus(Status.DETECTING);
+        this.updateStatus(DartDetectorStatus.DETECTING);
       }
     }
 
@@ -409,10 +555,9 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
 
     if (topic.includes("sensors/tap")) {
       this.playSound();
-      this.log(`DeltaVideo: ${topic} - ${payload}`);
+      console.log(`DeltaVideo: ${topic} - ${payload}`);
       this.countDownCpt = this.extraWaitFrames;
-      this.state = Status.DETECTED;
-      this.updateStatus(Status.DETECTED);
+      this.updateStatus(DartDetectorStatus.DETECTED);
     }
   }
 
@@ -430,7 +575,7 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
 
     // Compute difference between first and last frames
     const delta = this.computeImageDifference(first, last);
-    this.displayDelta(delta);
+    //this.displayDelta(delta);
 
     return delta;
   }
@@ -463,10 +608,35 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
 
     return deltaImageData;
   }
+}
 
-  displayDelta(deltaImageData) {
-    const deltaCanvas = document.getElementById("deltaCanvas");
-    const deltaCtx = deltaCanvas.getContext("2d");
-    deltaCtx.putImageData(deltaImageData, 0, 0);
+// Example usage of status callbacks
+function setupStatusCallbacks(detector) {
+  // Add a callback to log status changes
+  detector.addStatusChangeCallback((newStatus, oldStatus) => {
+    console.log(`Status changed from ${detector.getStatusName(oldStatus)} to ${detector.getStatusName(newStatus)}`);
+  });
+
+  // Add a callback to update UI elements based on status
+  detector.addStatusChangeCallback((newStatus, oldStatus) => {
+    const statusIndicator = document.getElementById("statusIndicator");
+    if (statusIndicator) {
+      statusIndicator.style.backgroundColor = getStatusColor(newStatus);
+    }
+  });
+}
+
+function getStatusColor(status) {
+  switch (status) {
+    case DartDetectorStatus.INITIALIZING:
+      return "#FFA500"; // Orange
+    case DartDetectorStatus.DETECTING:
+      return "#00FF00"; // Green
+    case DartDetectorStatus.PAUSE:
+      return "#FFFF00"; // Yellow
+    case DartDetectorStatus.DETECTED:
+      return "#FF0000"; // Red
+    default:
+      return "#808080"; // Gray
   }
 }

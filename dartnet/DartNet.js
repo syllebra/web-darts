@@ -17,13 +17,15 @@ class DartNet {
         this.targetDetectorReady = true;
       }
     );
+
+    this.dartDetector = new DeltaVideoOnlyDartDetector();
+    this.dartDetector.onDetectionCallbacks.push(this.onDetectedDartImpact);
   }
 
   preprocessImageForModel(srcBox = null, modelSize = 640) {
     // const { width, height } = imageData;
     let inputBox = srcBox ? srcBox : [0, 0, this.videoSource.videoWidth, this.videoSource.videoHeight];
 
-    console.log(this.videoSource.videoWidth, this.videoSource.videoHeight);
     if (!this.processingCanvas) this.processingCanvas = document.getElementById("processingCanvas");
     if (!this.processingCanvas) {
       this.processingCanvas = document.createElement("canvas");
@@ -33,8 +35,6 @@ class DartNet {
     this.processingCanvas.height = modelSize;
 
     const cropContext = this.processingCanvas.getContext("2d", { willReadFrequently: true });
-    console.log(this.videoSource.videoWidth, this.videoSource.videoHeight);
-    console.log(cropContext);
     cropContext.drawImage(
       this.videoSource,
       inputBox[0],
@@ -48,18 +48,7 @@ class DartNet {
     );
 
     const imgData = cropContext.getImageData(0, 0, modelSize, modelSize);
-    const pixels = imgData.data;
-
-    const red = [],
-      green = [],
-      blue = [];
-    for (let index = 0; index < pixels.length; index += 4) {
-      red.push(pixels[index] / 255.0);
-      green.push(pixels[index + 1] / 255.0);
-      blue.push(pixels[index + 2] / 255.0);
-    }
-    const input = [...red, ...green, ...blue];
-    return input;
+    return imgData;
   }
 
   cropppedToSource(p) {
@@ -76,7 +65,6 @@ class DartNet {
   }
 
   async calibrate(onSuccess = null) {
-    console.log(this.videoSource.videoWidth);
     if (!this.videoSource.videoWidth) {
       console.log("❌ Camera not ready", "error");
       return;
@@ -90,7 +78,8 @@ class DartNet {
     this.M = null;
     this.Mi = null;
     // try {
-    let input = this.preprocessImageForModel(null, this.targetDetector.modelSize);
+    let imgData = this.preprocessImageForModel(null, this.targetDetector.modelSize);
+    let input = ImageProcessor.normalize(imgData).data;
     //const cropContext = zoomableCanvas.getOverlayContext();
     const cropContext = this.processingCanvas.getContext("2d", { willReadFrequently: true });
     let results = await this.targetDetector.detect(input, cropContext);
@@ -99,14 +88,15 @@ class DartNet {
         (p[0] * this.videoSource.videoWidth) / this.targetDetector.modelSize,
         (p[1] * this.videoSource.videoHeight) / this.targetDetector.modelSize,
       ]);
-      console.log(this.targetDetector.modelSize);
-      console.log(this.videoSource.videoWidth, this.videoSource.videoHeight);
-      console.log(results.calibrationPoints);
-      console.log(sourceCalib);
+      //   console.log(this.targetDetector.modelSize);
+      //   console.log(this.videoSource.videoWidth, this.videoSource.videoHeight);
+      //   console.log(results.calibrationPoints);
+      //   console.log(sourceCalib);
       let crop = autoCrop(sourceCalib, this.videoSource.videoWidth, this.videoSource.videoHeight);
       console.log("Auto Crop:", crop);
       this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
-      input = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
+      imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
+      input = ImageProcessor.normalize(imgData).data;
       let calibration = await this.targetDetector.detect(input, cropContext);
       console.log("Calibration:", calibration);
       if (!calibration) {
@@ -131,5 +121,14 @@ class DartNet {
     //     this.showLoading(false);
     // }
     //this.showLoading(false);
+  }
+
+  async detectDartImpact() {
+    const imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
+    this.dartDetector.onNewFrame(imgData);
+  }
+
+  async onDetectedDartImpact(data) {
+    //console.log("DartImpact:", data);
   }
 }

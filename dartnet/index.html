@@ -76,11 +76,17 @@
             margin-bottom: 0;
         }
 
-        .gpu-indicator {
+        .status-indicators {
             position: absolute;
             top: 10px;
             right: 10px;
             z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .status-indicator {
             background: rgba(0, 0, 0, 0.7);
             padding: 5px 10px;
             border-radius: 15px;
@@ -89,13 +95,15 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            min-width: 120px;
         }
 
-        .gpu-status-dot {
+        .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             display: inline-block;
+            flex-shrink: 0;
         }
 
         .gpu-available {
@@ -109,19 +117,62 @@
         .gpu-unknown {
             background-color: #ffc107;
         }
+
+        /* Dart detection status colors */
+        .dart-initializing {
+            background-color: #FFA500;
+        }
+
+        .dart-detecting {
+            background-color: #28a745;
+        }
+
+        .dart-paused {
+            background-color: #ffc107;
+        }
+
+        .dart-detected {
+            background-color: #dc3545;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .dart-unknown {
+            background-color: #6c757d;
+        }
+
+        /* Status text styling */
+        .status-text {
+            font-weight: 500;
+            flex-grow: 1;
+        }
     </style>
 </head>
 
 <body>
-    <div class="gpu-indicator" id="gpuIndicator">
-        <span class="gpu-status-dot gpu-unknown" id="gpuStatusDot"></span>
-        <span id="gpuStatusText">Checking GPU...</span>
+    <div class="status-indicators">
+        <div class="status-indicator" id="gpuIndicator">
+            <span class="status-dot gpu-unknown" id="gpuStatusDot"></span>
+            <span class="status-text" id="gpuStatusText">Checking GPU...</span>
+        </div>
+        
+        <div class="status-indicator" id="dartDetectionIndicator">
+            <span class="status-dot dart-unknown" id="dartStatusDot"></span>
+            <span class="status-text" id="dartStatusText">Not Started</span>
+        </div>
     </div>
 
     <div class="controls">
         <div class="control-group">
             <button id="webcamBtn" class="btn btn-primary btn-sm me-2">Start Webcam</button>
             <button id="autoCalibBtn" class="btn btn-primary btn-sm me-2">Auto-Calibrate</button>
+            <button id="startDetectionBtn" class="btn btn-success btn-sm me-2">Start Detection</button>
+            <button id="stopDetectionBtn" class="btn btn-danger btn-sm me-2" disabled>Stop Detection</button>
         </div>
         <div class="control-group">
             <select id="cameraSelect" class="form-select form-select-sm d-inline-block me-2" style="width: 200px;">
@@ -143,7 +194,6 @@
         <canvas id="overlayCanvas"></canvas>
         <video id="videoElement" autoplay muted></video>
     </div>
-    <!-- <canvas id="processingCanvas" autoplay muted></canvas> -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../ext/ort.min.js"></script>
@@ -153,9 +203,11 @@
     <script src="../core/utils/image.js"></script>
     <script src="../core/Board.js"></script>
     <script src="../core/utils/GPUDetector.js"></script>
+    <script src="../core/utils/yolo.js"></script>
     <script src="../core/TargetDetector.js"></script>
+    <script src="../core/DartDetector.js"  type="text/javascript"></script>
     <script src="../ui/ZoomablePannableCanvas.js"></script>
-    <script src ="../utils/CameraManager.js"></script>
+    <script src="../utils/CameraManager.js"></script>
     <script src="DartNet.js"></script>
     <script>
 
@@ -168,21 +220,21 @@
         gpuDetector.onStatusUpdate((status, details) => {
             switch (status) {
                 case 'checking':
-                    gpuStatusDot.className = 'gpu-status-dot gpu-unknown';
+                    gpuStatusDot.className = 'status-dot gpu-unknown';
                     gpuStatusText.textContent = 'Checking GPU...';
                     break;
                 case 'webgpu':
-                    gpuStatusDot.className = 'gpu-status-dot gpu-available';
+                    gpuStatusDot.className = 'status-dot gpu-available';
                     gpuStatusText.textContent = 'WebGPU';
                     gpuStatusDot.title = details;
                     break;
                 case 'webgl':
-                    gpuStatusDot.className = 'gpu-status-dot gpu-available';
+                    gpuStatusDot.className = 'status-dot gpu-available';
                     gpuStatusText.textContent = 'WebGL';
                     gpuStatusDot.title = details;
                     break;
                 case 'none':
-                    gpuStatusDot.className = 'gpu-status-dot gpu-unavailable';
+                    gpuStatusDot.className = 'status-dot gpu-unavailable';
                     gpuStatusText.textContent = 'No GPU';
                     gpuStatusDot.title = details;
                     break;
@@ -193,6 +245,53 @@
         gpuDetector.detectGPU().then(result => {
             console.log('GPU Detection Results:', result);
         });
+
+        // Dart Detection Status Management
+        const dartStatusDot = document.getElementById('dartStatusDot');
+        const dartStatusText = document.getElementById('dartStatusText');
+        const startDetectionBtn = document.getElementById('startDetectionBtn');
+        const stopDetectionBtn = document.getElementById('stopDetectionBtn');
+
+        // Dart detection status handler
+        function updateDartDetectionStatus(status, statusName) {
+            // Remove all status classes
+            dartStatusDot.className = 'status-dot';
+            
+            switch (status) {
+                case DartDetectorStatus.INITIALIZING:
+                    dartStatusDot.classList.add('dart-initializing');
+                    dartStatusText.textContent = '⚙️ Initializing...';
+                    startDetectionBtn.disabled = true;
+                    stopDetectionBtn.disabled = false;
+                    break;
+                case DartDetectorStatus.DETECTING:
+                    dartStatusDot.classList.add('dart-detecting');
+                    dartStatusText.textContent = '🔍 Detecting';
+                    startDetectionBtn.disabled = true;
+                    stopDetectionBtn.disabled = false;
+                    break;
+                case DartDetectorStatus.PAUSE:
+                    dartStatusDot.classList.add('dart-paused');
+                    dartStatusText.textContent = '⏸️ Paused';
+                    startDetectionBtn.disabled = false;
+                    stopDetectionBtn.disabled = true;
+                    break;
+                case DartDetectorStatus.DETECTED:
+                    dartStatusDot.classList.add('dart-detected');
+                    dartStatusText.textContent = '🎯 Impact Detected!';
+                    // Keep buttons as they are during detection
+                    break;
+                default:
+                    dartStatusDot.classList.add('dart-unknown');
+                    dartStatusText.textContent = 'Not Started';
+                    startDetectionBtn.disabled = false;
+                    stopDetectionBtn.disabled = true;
+                    break;
+            }
+        }
+
+        // Initialize with default status
+        updateDartDetectionStatus(-1, 'Not Started');
 
         // Initialize the canvas with debug overlay
         const zoomableCanvas = new ZoomablePannableCanvas('videoCanvas', 'canvasContainer', 'overlayCanvas');
@@ -256,8 +355,43 @@
             }
         });
 
-       
         const dartnet = new DartNet(document.getElementById("videoElement"));
+
+        // Set up status change callback
+        dartnet.dartDetector.addStatusChangeCallback((newStatus, oldStatus) => {
+            console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
+            updateDartDetectionStatus(newStatus);
+        });
+
+
+        // Detection control buttons
+        startDetectionBtn.addEventListener('click', () => {
+            if (dartnet.dartDetector) {
+                dartnet.dartDetector.start();
+            }
+        });
+
+        stopDetectionBtn.addEventListener('click', () => {
+            if (dartnet.dartDetector) {
+                dartnet.dartDetector.stop();
+            }
+        });
+
+        let animationId=null;
+       async function processFrame() {
+            let wait = false;
+            if (dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTING && dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTED) wait=true;
+            if (!dartnet.videoSource || dartnet.dartDetector.pauseDetection || dartnet.videoSource.readyState !== dartnet.videoSource.HAVE_ENOUGH_DATA) wait=true;
+            if(!wait) {
+                try {
+                    dartnet.detectDartImpact();
+                } catch (err) {
+                    console.error('Error processing frame:', err);
+                }
+            }
+            animationId = requestAnimationFrame(processFrame);
+        }
+        processFrame();
 
         const autoCalib = async () => {
             console.log("Auto-calib start")
@@ -265,7 +399,6 @@
         }
 
         autoCalibBtn.addEventListener('click', autoCalib);
-
 
         function recomputeUpTextPos(){
             const upText = PerspectiveUtils.transformPoints([
@@ -412,12 +545,7 @@
                 }
                 ctx.stroke();
 
-
-                // Circles drawing    this.r_double = 0.17; //162.0;
-                this.r_treble = 0.1064; //107.0;
-                this.r_outer_bull = 0.0174; //15.9;
-                this.r_inner_bull = 0.007; //6.35;
-                this.w_double_treble = 0.01; //8.0;
+                // Circles drawing
                 const radii = [board.r_inner_bull, board.r_outer_bull, board.r_double - board.w_double_treble,
                 board.r_double,
                 board.r_treble - board.w_double_treble, board.r_treble
@@ -436,16 +564,6 @@
                     ctx.stroke();
                 });
             }
-            // ,
-            // // Custom virtual target hit test=>scores???
-            // (element, worldX, worldY) => {
-            //     const halfWidth = element.width / 2;
-            //     const halfHeight = element.height / 2;
-            //     return worldX >= element.x - halfWidth &&
-            //         worldX <= element.x + halfWidth &&
-            //         worldY >= element.y - halfHeight &&
-            //         worldY <= element.y + halfHeight;
-            // }
         );
        
        // Add "20" Element to help reorient in case it is needed
@@ -460,6 +578,39 @@
             },
             (element, worldX, worldY) => false // Disable picking drag and drop
         );
+
+
+        // Add "20" Element to help reorient in case it is needed
+        zoomableCanvas.addOverlayElement("dartDebug",
+            {
+                img: null, net:dartnet, x: 0, y: 0, color: [255,0,0,0.8], setDetected(grayImg, width, height) {
+                    const imageData = new ImageData(width, height);
+                    const data = imageData.data;
+
+                    for (let i = 0; i < grayImg.data.length; i++) {
+                    const value = grayImg.data[i];
+                    data[i * 4] = Math.floor(value * this.color[0] / 255); // R
+                    data[i * 4 + 1] = Math.floor(value * this.color[1] / 255); // G
+                    data[i * 4 + 2] = Math.floor(value * this.color[2] / 255); // B
+                    data[i * 4 + 3] = Math.floor(this.color[3] * 255); // A
+                    }
+                    this.img = ImageProcessor.imageDataToImage(imageData);
+                }
+            },
+            // Draw callback
+            (ctx, element) => {
+                const ca = element.net?.cropArea
+                if(!ca || !element.img) return;
+                
+                ctx.drawImage(element.img, ca[0],ca[1],ca[2]-ca[0],ca[3]-ca[1]);
+            }
+        );
+
+        dartnet.dartDetector.onDetectionCallbacks.push((data) => {
+            console.log("DartImpact:", data);
+            zoomableCanvas.getOverlayElement("dartDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
+        });
+
 
         // Set up event callbacks
         zoomableCanvas.setOnElementSelected((id, element) => {
@@ -492,19 +643,15 @@
             console.log(`Finished dragging ${id}`);
         });
 
-
         document.getElementById("videoCanvas").addEventListener('mousemove', (event) => {
-            //console.log('mousemove:',event)
-            //const worldP = [event.clientX,event.clientY];
             const srcP = zoomableCanvas.canvasToWorld(event.clientX,event.clientY);
-            //const score = dartnet.targetDetector.getDartScores([srcP])[0];
-            // TODO: use detector's one
             const score = dartnet.sourceCalibPts ? dartnet.board.getDartScores(dartnet.sourceCalibPts, [[srcP.x, srcP.y]]) [0] : null;
             let element = zoomableCanvas.getOverlayElement("scoreViewer");
             element.x = srcP.x + 40 / zoomableCanvas.scale;
             element.y = srcP.y;
             element.text = score;
         });
+
     </script>
 </body>
 

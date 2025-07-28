@@ -530,6 +530,7 @@ class ZoomablePannableCanvas {
     this.isPlaying = true;
 
     this.centerViewOnVideo();
+    this.autoZoomVideo(20, true);
     this.startAnimation();
   }
 
@@ -548,6 +549,86 @@ class ZoomablePannableCanvas {
 
       this.requestRedraw();
     }
+  }
+
+  /**
+   * Auto-zoom the video to fit within the canvas viewport while maintaining aspect ratio
+   * @param {number} padding - Optional padding in pixels around the video (default: 20)
+   * @param {boolean} animated - Whether to animate the zoom transition (default: false)
+   */
+  autoZoomVideo(padding = 20, animated = false) {
+    if (!this.videoElement) {
+      console.warn("No video element set. Cannot auto-zoom.");
+      return;
+    }
+
+    const videoWidth = this.videoElement.videoWidth || this.videoElement.width;
+    const videoHeight = this.videoElement.videoHeight || this.videoElement.height;
+
+    if (!videoWidth || !videoHeight) {
+      console.warn("Video dimensions not available. Cannot auto-zoom.");
+      return;
+    }
+
+    // Calculate available canvas space (minus padding)
+    const availableWidth = this.canvas.width - padding * 2;
+    const availableHeight = this.canvas.height - padding * 2;
+
+    // Calculate scale to fit video within available space
+    const scaleX = availableWidth / videoWidth;
+    const scaleY = availableHeight / videoHeight;
+    const targetScale = Math.min(scaleX, scaleY);
+
+    // Calculate center position
+    const targetTranslateX = (this.canvas.width - videoWidth * targetScale) / 2;
+    const targetTranslateY = (this.canvas.height - videoHeight * targetScale) / 2;
+
+    if (animated) {
+      // Animate the transition
+      this.animateToTransform(targetScale, targetTranslateX, targetTranslateY, 300);
+    } else {
+      // Set immediately
+      this.scale = targetScale;
+      this.translateX = targetTranslateX;
+      this.translateY = targetTranslateY;
+      this.requestRedraw();
+    }
+  }
+
+  /**
+   * Animate to a specific transform state
+   * @param {number} targetScale - Target scale value
+   * @param {number} targetTranslateX - Target X translation
+   * @param {number} targetTranslateY - Target Y translation
+   * @param {number} duration - Animation duration in milliseconds
+   */
+  animateToTransform(targetScale, targetTranslateX, targetTranslateY, duration = 300) {
+    const startTime = Date.now();
+    const startScale = this.scale;
+    const startTranslateX = this.translateX;
+    const startTranslateY = this.translateY;
+
+    // Easing function (ease-out)
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+    const animateStep = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeOut(progress);
+
+      // Interpolate values
+      this.scale = startScale + (targetScale - startScale) * easedProgress;
+      this.translateX = startTranslateX + (targetTranslateX - startTranslateX) * easedProgress;
+      this.translateY = startTranslateY + (targetTranslateY - startTranslateY) * easedProgress;
+
+      this.requestRedraw();
+
+      if (progress < 1) {
+        requestAnimationFrame(animateStep);
+      }
+    };
+
+    requestAnimationFrame(animateStep);
   }
 
   clearVideoSource() {

@@ -188,10 +188,6 @@
             <select id="cameraSelect" class="form-select form-select-sm d-inline-block me-2" style="width: 200px;">
                 <option value="">Select Camera...</option>
             </select>
-            <select id="resolutionSelect" class="form-select form-select-sm d-inline-block me-2" style="width: 150px;"
-                disabled>
-                <option value="">Select Resolution...</option>
-            </select>
         </div>
         <div class="control-group">
             <input type="file" id="videoFile" accept="video/*" class="form-control form-control-sm d-inline-block"
@@ -202,7 +198,7 @@
     <div id="canvasContainer">
         <canvas id="videoCanvas"></canvas>
         <canvas id="overlayCanvas"></canvas>
-        <video id="videoElement" autoplay muted></video>
+        <video id="videoElement" autoplay muted controls width="1920" height="1080"></video>
     </div>
     <!-- <canvas id="debugCanvas"></canvas> -->
 
@@ -223,7 +219,9 @@
     <script>
 
         // Init main class instance
-        const dartnet = new DartNet(document.getElementById("videoElement"));
+        
+        const videoElement = document.getElementById("videoElement");
+        const dartnet = new DartNet(videoElement);
 
         // Initialize GPU detector UI
         const gpuStatusDot = document.getElementById('gpuStatusDot');
@@ -255,34 +253,7 @@
 
             if(status != 'checking' && !dartnet.dartDetector) {
                 dartnet.initDetectors();
-                dartnet.dartDetector.onDetectionCallbacks.push((data) => {
-                    console.log("DartImpact:", data);
-
-                    const debugCanvas = document.getElementById("debugCanvas");
-                    if(debugCanvas) {
-                        debugCanvas.width = 640;
-                        debugCanvas.height = 640;
-                        
-                        const debugCtx = debugCanvas.getContext("2d");
-                        debugCtx.putImageData( ImageProcessor.grayscaleToImageData(data.delta),0,0);
-                        debugCtx.strokeStyle= "rgba(255, 255, 0, 1.0)";
-                        data.boxes.forEach((b) => {
-                            debugCtx.strokeRect(b[0],b[1],b[2]-b[0], b[3]-b[1]);
-                        });                    
-                    }
-
-                    zoomableCanvas.getOverlayElement("dartImpactDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
-
-                    //const tipEl = zoomableCanvas.getOverlayElement("dartTip");
-                    //tipEl.x = 
-                    const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");
-                    dartDbg.boxes = data.boxes.map((b) => {
-                        let tl = dartnet.cropppedToSource([b[0],b[1]]);
-                        let br = dartnet.cropppedToSource([b[2],b[3]]);
-                        return [tl[0],tl[1],br[0],br[1],b[4],b[5]];
-                    });
-                    console.log(dartDbg)
-                });
+                dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
                 // Set up status change callback
                 dartnet.dartDetector.addStatusChangeCallback((newStatus, oldStatus) => {
                     console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
@@ -345,7 +316,6 @@
         // Get DOM elements for camera manager
         const elements = {
             cameraSelect: document.getElementById("cameraSelect"),
-            resolutionSelect: document.getElementById("resolutionSelect"),
             webcamBtn: document.getElementById("webcamBtn"),
             videoElement: document.getElementById("videoElement")
         };
@@ -354,10 +324,6 @@
         const options = {
             // Basic options
             autoSelectFirstCamera: true,
-            defaultResolution: "1920x1080",
-            enableOptimalResolution: true,
-            progressDelay: 50,
-            restartDelay: 100,
 
             onWebcamReady: (videoElement, resolution) => {
                 console.log("Webcam ready with resolution:", resolution);
@@ -681,7 +647,7 @@
         // Add "20" Element to help reorient in case it is needed
         zoomableCanvas.addOverlayElement("dartImpactDebug",
             {
-                img: null, net:dartnet, x: 0, y: 0, color: [255,0,0,0.8], setDetected(grayImg, width, height) {
+                img: null, width:0 ,height:0, net:dartnet, x: 0, y: 0, color: [255,0,0,0.8], setDetected(grayImg, width, height) {
                     const imageData = new ImageData(width, height);
                     const data = imageData.data;
 
@@ -693,14 +659,16 @@
                     data[i * 4 + 3] = Math.floor((value<20 ? 0 : 1) * this.color[3] * 255); // A
                     }
                     this.img = ImageProcessor.imageDataToImage(imageData);
+                    this.width = width;
+                    this.height =height;
                 }
             },
             // Draw callback
             (ctx, element) => {
-                const ca = element.net?.cropArea
+                const ca = element.net?.cropArea;
                 if(!ca || !element.img) return;
                 
-                ctx.drawImage(element.img, ca[0],ca[1],ca[2]-ca[0],ca[3]-ca[1]);
+                ctx.drawImage(element.img, 0,0, element.width, element.height, ca[0],ca[1],ca[2],ca[3]);
             }
         );
 
@@ -743,6 +711,35 @@
             element.y = srcP.y;
             element.text = score;
         });
+
+        function onDartDetected(data) {
+            console.log("DartImpact:", data);
+
+            const debugCanvas = document.getElementById("debugCanvas");
+            if (debugCanvas) {
+                debugCanvas.width = 640;
+                debugCanvas.height = 640;
+
+                const debugCtx = debugCanvas.getContext("2d");
+                debugCtx.putImageData(ImageProcessor.grayscaleToImageData(data.delta), 0, 0);
+                debugCtx.strokeStyle = "rgba(255, 255, 0, 1.0)";
+                data.boxes.forEach((b) => {
+                    debugCtx.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
+                });
+            }
+
+            zoomableCanvas.getOverlayElement("dartImpactDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
+
+            //const tipEl = zoomableCanvas.getOverlayElement("dartTip");
+            //tipEl.x = 
+            const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");
+            dartDbg.boxes = data.boxes.map((b) => {
+                let tl = dartnet.cropppedToSource([b[0], b[1]]);
+                let br = dartnet.cropppedToSource([b[2], b[3]]);
+                return [tl[0], tl[1], br[0], br[1], b[4], b[5]];
+            });
+            console.log(dartDbg)
+        }
 
     </script>
 </body>

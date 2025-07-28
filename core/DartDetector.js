@@ -170,6 +170,10 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
     this.updateStatus(DartDetectorStatus.DETECTING);
   }
 
+  stop() {
+    this.onPause();
+  }
+
   onNewFrame(imageData) {
     if (this.currentStatus === DartDetectorStatus.INITIALIZING || this.currentStatus === DartDetectorStatus.PAUSE) {
       return false;

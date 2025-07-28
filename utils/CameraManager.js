@@ -3,7 +3,9 @@ class CameraManager {
     // Required DOM elements
     this.elements = {
       cameraSelect: elements.cameraSelect,
-      webcamBtn: elements.webcamBtn,
+      webcamPlayBtn: elements.webcamPlayBtn,
+      webcamPauseBtn: elements.webcamPauseBtn,
+      webcamStopBtn: elements.webcamStopBtn,
       videoElement: elements.videoElement,
       ...elements,
     };
@@ -46,9 +48,6 @@ class CameraManager {
         await this.selectCamera(selectedCameraId);
       }
     });
-
-    // Initial webcam button setup
-    this.elements.webcamBtn.onclick = () => this.startWebcam();
   }
 
   async ensureAllTracksStop() {
@@ -207,8 +206,9 @@ class CameraManager {
       }
 
       // Update UI
-      this.elements.webcamBtn.textContent = "Stop Webcam";
-      this.elements.webcamBtn.onclick = () => this.stopWebcam();
+      this.elements.webcamPlayBtn.disabled = true;
+      this.elements.webcamPauseBtn.disabled = false;
+      this.elements.webcamStopBtn.disabled = false;
       this.elements.cameraSelect.disabled = true;
 
       this.callbacks.onWebcamStarted(stream);
@@ -219,6 +219,18 @@ class CameraManager {
       alert(errorMsg);
       this.callbacks.onError(new Error(errorMsg));
       throw err;
+    }
+  }
+
+  pauseWebcam() {
+    if (this.currentWebcamStream) {
+      const videoTrack = this.currentWebcamStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = false;
+        this.elements.webcamPlayBtn.disabled = false;
+        this.elements.webcamPauseBtn.disabled = true;
+        console.log("Webcam paused");
+      }
     }
   }
 
@@ -235,8 +247,9 @@ class CameraManager {
     this.elements.videoElement.srcObject = null;
 
     // Update UI
-    this.elements.webcamBtn.textContent = "Start Webcam";
-    this.elements.webcamBtn.onclick = () => this.startWebcam();
+    this.elements.webcamPlayBtn.disabled = false;
+    this.elements.webcamPauseBtn.disabled = true;
+    this.elements.webcamStopBtn.disabled = true;
     this.elements.cameraSelect.disabled = false;
 
     this.callbacks.onWebcamStopped();

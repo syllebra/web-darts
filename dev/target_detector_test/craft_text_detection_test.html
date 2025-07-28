@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRAFT Text Detection Tester</title>
+    <script src="../../ext/ort.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn,
+        .detect-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .upload-btn:hover,
+        .detect-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 10px 15px;
+            border-radius: 25px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="range"],
+        input[type="number"] {
+            padding: 5px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+        }
+
+        input[type="range"] {
+            accent-color: #667eea;
+        }
+
+        .canvas-container {
+            position: relative;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            background: white;
+        }
+
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .status.loading {
+            background: linear-gradient(45deg, #ffeaa7, #fdcb6e);
+            color: #d63031;
+            animation: pulse 2s infinite;
+        }
+
+        .status.success {
+            background: linear-gradient(45deg, #00b894, #00cec9);
+            color: white;
+        }
+
+        .status.error {
+            background: linear-gradient(45deg, #d63031, #e84393);
+            color: white;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .info {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border-left: 5px solid #667eea;
+        }
+
+        .model-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-item strong {
+            color: #667eea;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔍 CRAFT Text Detection</h1>
+
+        <div class="upload-section">
+            <p style="margin-bottom: 20px; font-size: 18px; color: #666;">
+                Load your ONNX model and test image
+            </p>
+            <input type="file" id="modelFile" class="file-input" accept=".onnx">
+            <input type="file" id="imageFile" class="file-input" accept="image/*">
+            <button class="upload-btn" onclick="document.getElementById('modelFile').click()">
+                📁 Load ONNX Model
+            </button>
+            <button class="upload-btn" onclick="document.getElementById('imageFile').click()">
+                🖼️ Load Image
+            </button>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="textThreshold">Text Threshold:</label>
+                <input type="range" id="textThreshold" min="0" max="1" step="0.01" value="0.7">
+                <input type="number" id="textThresholdNum" min="0" max="1" step="0.01" value="0.7" style="width: 80px;">
+            </div>
+            <div class="control-group">
+                <label for="linkThreshold">Link Threshold:</label>
+                <input type="range" id="linkThreshold" min="0" max="1" step="0.01" value="0.4">
+                <input type="number" id="linkThresholdNum" min="0" max="1" step="0.01" value="0.4" style="width: 80px;">
+            </div>
+            <button class="detect-btn" id="detectBtn" onclick="detectText()" disabled>
+                ✨ Detect Text
+            </button>
+        </div>
+
+        <div class="info">
+            <h3>Model Information</h3>
+            <div class="model-info" id="modelInfo">
+                <div class="info-item">
+                    <strong>Status:</strong> <span id="modelStatus">No model loaded</span>
+                </div>
+                <div class="info-item">
+                    <strong>Input Shape:</strong> <span id="inputShape">-</span>
+                </div>
+                <div class="info-item">
+                    <strong>Output Shape:</strong> <span id="outputShape">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let session = null;
+        let inputImage = null;
+        let originalCanvas = null;
+        let modelInputSize = 512; // Default, will be updated when model loads
+
+        // Sync threshold inputs
+        document.getElementById('textThreshold').oninput = function () {
+            document.getElementById('textThresholdNum').value = this.value;
+        };
+        document.getElementById('textThresholdNum').oninput = function () {
+            document.getElementById('textThreshold').value = this.value;
+        };
+        document.getElementById('linkThreshold').oninput = function () {
+            document.getElementById('linkThresholdNum').value = this.value;
+        };
+        document.getElementById('linkThresholdNum').oninput = function () {
+            document.getElementById('linkThreshold').value = this.value;
+        };
+
+        window.addEventListener("load", (event) => {
+            console.log("Loaded");
+            loadModel("../../models/craft_mlt_25k.onnx");
+            });
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        async function loadModel(file){
+            showStatus('Loading ONNX model...', 'loading');
+
+            try {
+                
+                session = await ort.InferenceSession.create(file);
+
+                // Get input information from the model
+                const inputName = session.inputNames[0];
+                let inputShape = "Unknown";
+                let modelSize = 512; // Default fallback
+
+                // Try to access input shapes from the session
+                try {
+                    // Some versions expose this through different methods
+                    if (session._model && session._model.graph && session._model.graph.input) {
+                        const input = session._model.graph.input[0];
+                        if (input.type && input.type.tensorType && input.type.tensorType.shape) {
+                            const shape = input.type.tensorType.shape.dim.map(d => d.dimValue || d.dimParam || '?');
+                            inputShape = `[${shape.join(', ')}]`;
+
+                            // Extract size for square inputs (assuming NCHW format)
+                            if (shape.length >= 4 && shape[2] === shape[3] && !isNaN(shape[2])) {
+                                modelSize = parseInt(shape[2]);
+                            }
+                        }
+                    } else {
+                        // Fallback: try common sizes by attempting tensor creation
+                        const commonSizes = [512, 640, 320, 416, 608];
+                        for (const size of commonSizes) {
+                            try {
+                                const testTensor = new ort.Tensor('float32', new Float32Array(1 * 3 * size * size), [1, 3, size, size]);
+                                const testFeeds = {};
+                                testFeeds[inputName] = testTensor;
+                                // Just validate the input shape without running inference
+                                modelSize = size;
+                                inputShape = `[1, 3, ${size}, ${size}] (detected)`;
+                                break;
+                            } catch (e) {
+                                // Continue trying other sizes
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not determine exact input shape:', e);
+                }
+
+                modelInputSize = modelSize;
+
+                document.getElementById('modelStatus').textContent = `Loaded (${modelInputSize}x${modelInputSize})`;
+                document.getElementById('inputShape').textContent = `${inputName}: ${inputShape}`;
+                document.getElementById('outputShape').textContent = session.outputNames.join(', ');
+
+                showStatus(`Model loaded successfully! Input size: ${modelInputSize}x${modelInputSize}`, 'success');
+                updateDetectButton();
+            } catch (error) {
+                showStatus('Error loading model: ' + error.message, 'error');
+                console.error('Model loading error:', error);
+            }
+        }
+
+        document.getElementById('modelFile').onchange = async function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const arrayBuffer = await file.arrayBuffer();
+            loadModel(arrayBuffer);
+        };
+
+        document.getElementById('imageFile').onchange = function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    inputImage = img;
+                    displayImage(img);
+                    showStatus('Image loaded successfully!', 'success');
+                    updateDetectButton();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        function displayImage(img) {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            // Store original canvas for restoration
+            originalCanvas = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        function updateDetectButton() {
+            const btn = document.getElementById('detectBtn');
+            btn.disabled = !(session && inputImage);
+        }
+
+        function preprocessImage(img, targetSize = null) {
+            // Use model's required input size
+            if (!targetSize) targetSize = modelInputSize;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // CRAFT models typically expect square inputs
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+
+            // Draw image maintaining aspect ratio, centered
+            const scale = Math.min(targetSize / img.width, targetSize / img.height);
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+            const offsetX = (targetSize - scaledWidth) / 2;
+            const offsetY = (targetSize - scaledHeight) / 2;
+
+            // Fill with gray background (common for text detection)
+            ctx.fillStyle = '#808080';
+            ctx.fillRect(0, 0, targetSize, targetSize);
+
+            // Draw the scaled image
+            ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+            const imageData = ctx.getImageData(0, 0, targetSize, targetSize);
+
+            // Convert to tensor format [1, 3, H, W] with normalization
+            const tensor = new Float32Array(1 * 3 * targetSize * targetSize);
+            const mean = [0.485, 0.456, 0.406];
+            const std = [0.229, 0.224, 0.225];
+
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const idx = i / 4;
+                const y = Math.floor(idx / targetSize);
+                const x = idx % targetSize;
+
+                // RGB channels with normalization
+                tensor[0 * targetSize * targetSize + y * targetSize + x] = (imageData.data[i] / 255.0 - mean[0]) / std[0];
+                tensor[1 * targetSize * targetSize + y * targetSize + x] = (imageData.data[i + 1] / 255.0 - mean[1]) / std[1];
+                tensor[2 * targetSize * targetSize + y * targetSize + x] = (imageData.data[i + 2] / 255.0 - mean[2]) / std[2];
+            }
+
+            return {
+                tensor,
+                width: targetSize,
+                height: targetSize,
+                scale: scale,
+                offsetX: offsetX,
+                offsetY: offsetY
+            };
+        }
+
+    function postProcessOutput(results, originalWidth, originalHeight, processedWidth, processedHeight, scale, offsetX, offsetY, textThreshold, linkThreshold) {
+            console.log('Raw results structure:', results);
+            console.log('Results keys:', Object.keys(results));
+
+            // Your CRAFT model has 'y' output with shape [1, 256, 256, 2]
+            // Channel 0: region map, Channel 1: linkage map
+            const yOutput = results.y;
+            if (!yOutput || (!yOutput.cpuData && !yOutput.data) || !yOutput.dims) {
+                console.error('Missing y output or required properties');
+                return null;
+            }
+
+            const data = yOutput.data? yOutput.data: yOutput.cpuData;
+            const shape = yOutput.dims; // [1, 256, 256, 2]
+
+            console.log('Y output shape:', shape);
+            console.log('Y output data length:', data.length);
+
+            // Extract dimensions
+            const batch = shape[0];      // 1
+            const height = shape[1];     // 256  
+            const width = shape[2];      // 256
+            const channels = shape[3];   // 2
+
+            const outputDimensions = { height, width };
+            console.log('Determined output dimensions:', outputDimensions);
+
+            // Split the data into region and linkage maps
+            // Data layout: [batch, height, width, channels]
+            const regionMap = new Float32Array(height * width);
+            const linkageMap = new Float32Array(height * width);
+
+            for (let h = 0; h < height; h++) {
+                for (let w = 0; w < width; w++) {
+                    const baseIndex = h * width * channels + w * channels;
+                    const outputIndex = h * width + w;
+
+                    regionMap[outputIndex] = data[baseIndex];     // Channel 0
+                    linkageMap[outputIndex] = data[baseIndex + 1]; // Channel 1
+                }
+            }
+
+            console.log('Post-processing output...');
+
+            console.log('Original dimensions:', originalWidth, 'x', originalHeight);
+            console.log('Processed dimensions:', processedWidth, 'x', processedHeight);
+
+            // Handle different output formats
+            const textData = regionMap;//textMap.data || textMap;
+            const linkData = linkageMap; //linkMap ? (linkMap.data || linkMap) : null;
+
+            console.log('Text data length:', textData.length);
+            console.log('Text data type:', typeof textData);
+            console.log('First few values:', Array.from(textData.slice(0, 10)));
+
+            // Try different output dimension possibilities
+            let outputHeight=height, outputWidth=width;
+
+
+            console.log('Using output dimensions:', outputWidth, 'x', outputHeight);
+
+            const scaleX = originalWidth / outputWidth;
+            const scaleY = originalHeight / outputHeight;
+
+            console.log('Scale factors:', scaleX, scaleY);
+
+            const textRegions = [];
+            let detectedPixels = 0;
+
+            // Simple thresholding approach - find pixels above threshold
+            for (let y = 0; y < outputHeight; y += 2) { // Sample every 2 pixels for performance
+                for (let x = 0; x < outputWidth; x += 2) {
+                    const idx = y * outputWidth + x;
+                    if (idx >= textData.length) continue;
+
+                    const textScore = textData[idx];
+                    const linkScore = linkData && idx < linkData.length ? linkData[idx] : 0;
+
+                    if (textScore > textThreshold || linkScore > linkThreshold) {
+                        detectedPixels++;
+
+                        // Create a simple bounding box around detected pixels
+                        // Look for nearby high-scoring pixels to form regions
+                        const region = findSimpleRegion(textData, outputWidth, outputHeight, x, y, textThreshold, 8);
+
+                        if (region && region.width > 2 && region.height > 2) {
+                            textRegions.push({
+                                x: region.x * scaleX,
+                                y: region.y * scaleY,
+                                width: region.width * scaleX,
+                                height: region.height * scaleY,
+                                confidence: region.confidence
+                            });
+                        }
+                    }
+                }
+            }
+
+            console.log('Detected pixels:', detectedPixels);
+            console.log('Raw regions found:', textRegions.length);
+
+            // Remove overlapping regions
+            const filtered = removeOverlaps(textRegions);
+            console.log('Filtered regions:', filtered.length);
+
+            return {
+                regionMap: regionMap,
+                linkageMap: linkageMap,
+                regions: filtered
+            };
+        }
+
+
+        function findSimpleRegion(data, width, height, centerX, centerY, threshold, regionSize) {
+            let minX = centerX, maxX = centerX;
+            let minY = centerY, maxY = centerY;
+            let totalScore = 0;
+            let count = 0;
+
+            // Look in a small neighborhood around the center point
+            for (let dy = -regionSize; dy <= regionSize; dy++) {
+                for (let dx = -regionSize; dx <= regionSize; dx++) {
+                    const x = centerX + dx;
+                    const y = centerY + dy;
+
+                    if (x >= 0 && x < width && y >= 0 && y < height) {
+                        const idx = y * width + x;
+                        if (idx < data.length) {
+                            const score = data[idx];
+                            if (score > threshold) {
+                                minX = Math.min(minX, x);
+                                maxX = Math.max(maxX, x);
+                                minY = Math.min(minY, y);
+                                maxY = Math.max(maxY, y);
+                                totalScore += score;
+                                count++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (count > 0) {
+                return {
+                    x: minX,
+                    y: minY,
+                    width: maxX - minX + 1,
+                    height: maxY - minY + 1,
+                    confidence: totalScore / count
+                };
+            }
+
+            return null;
+        }
+
+        function findConnectedRegion(data, width, height, startX, startY, threshold) {
+            const visited = new Set();
+            const stack = [{ x: startX, y: startY }];
+            const points = [];
+            let totalScore = 0;
+
+            while (stack.length > 0 && points.length < 1000) { // Limit region size
+                const { x, y } = stack.pop();
+                const key = `${x},${y}`;
+
+                if (visited.has(key) || x < 0 || x >= width || y < 0 || y >= height) continue;
+                visited.add(key);
+
+                const idx = y * width + x;
+                if (idx >= data.length) continue;
+
+                const score = data[idx];
+
+                if (score > threshold) {
+                    points.push({ x, y, score });
+                    totalScore += score;
+
+                    // Add neighbors
+                    stack.push({ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 });
+                }
+            }
+
+            return { points, avgScore: points.length > 0 ? totalScore / points.length : 0 };
+        }
+
+        function getBoundingBox(points) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            for (const point of points) {
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            }
+
+            return {
+                x: minX,
+                y: minY,
+                width: maxX - minX,
+                height: maxY - minY
+            };
+        }
+
+        function removeOverlaps(regions) {
+            // Simple overlap removal based on IoU
+            regions.sort((a, b) => b.confidence - a.confidence);
+            const filtered = [];
+
+            for (const region of regions) {
+                let isOverlap = false;
+                for (const existing of filtered) {
+                    const iou = calculateIoU(region, existing);
+                    if (iou > 0.3) {
+                        isOverlap = true;
+                        break;
+                    }
+                }
+                if (!isOverlap) {
+                    filtered.push(region);
+                }
+            }
+
+            return filtered;
+        }
+
+        function calculateIoU(box1, box2) {
+            const x1 = Math.max(box1.x, box2.x);
+            const y1 = Math.max(box1.y, box2.y);
+            const x2 = Math.min(box1.x + box1.width, box2.x + box2.width);
+            const y2 = Math.min(box1.y + box1.height, box2.y + box2.height);
+
+            if (x2 <= x1 || y2 <= y1) return 0;
+
+            const intersection = (x2 - x1) * (y2 - y1);
+            const area1 = box1.width * box1.height;
+            const area2 = box2.width * box2.height;
+            const union = area1 + area2 - intersection;
+
+            return intersection / union;
+        }
+
+        async function detectText() {
+            if (!session || !inputImage) {
+                showStatus('Please load both model and image first!', 'error');
+                return;
+            }
+
+            showStatus('Running text detection...', 'loading');
+            console.log('Starting text detection...');
+
+            try {
+                const textThreshold = parseFloat(document.getElementById('textThreshold').value);
+                const linkThreshold = parseFloat(document.getElementById('linkThreshold').value);
+
+                console.log('Using thresholds - Text:', textThreshold, 'Link:', linkThreshold);
+
+                // Preprocess image
+                console.log('Preprocessing image...');
+                const preprocessed = preprocessImage(inputImage);
+                console.log('Preprocessed size:', preprocessed.width, 'x', preprocessed.height);
+
+                // Create input tensor for ONNX Runtime
+                const inputName = session.inputNames[0];
+                console.log('Creating input tensor for:', inputName);
+                const inputTensor = new ort.Tensor('float32', preprocessed.tensor, [1, 3, preprocessed.height, preprocessed.width]);
+
+                // Run inference
+                console.log('Running inference...');
+                const feeds = {};
+                feeds[inputName] = inputTensor;
+                const results = await session.run(feeds);
+
+                console.log('Inference complete!');
+                console.log('Model outputs:', Object.keys(results));
+                console.log('Output shapes:', Object.keys(results).map(k => `${k}: [${results[k].dims.join(', ')}]`));
+
+                // Add detailed logging before postProcessOutput
+                console.log('=== DEBUGGING MODEL OUTPUT ===');
+                console.log('Results type:', typeof results);
+                console.log('Results constructor:', results.constructor.name);
+                console.log('Is array:', Array.isArray(results));
+
+                if (typeof results === 'object' && results !== null) {
+                    console.log('Object keys:', Object.keys(results));
+
+                    Object.keys(results).forEach(key => {
+                        const value = results[key];
+                        console.log(`Key "${key}":`, {
+                            type: typeof value,
+                            constructor: value?.constructor?.name,
+                            hasData: 'data' in (value || {}),
+                            hasShape: 'shape' in (value || {}) || 'dims' in (value || {}),
+                            dataLength: (value?.data || value)?.length,
+                            shape: value?.shape || value?.dims
+                        });
+                    });
+                }
+                console.log('=== END DEBUGGING ===');
+
+                const processedOutput = postProcessOutput(results);
+
+                // Log some sample values from each output
+                Object.keys(results).forEach((key, index) => {
+                    const output = results[key];
+                    const data = output.data || output;
+                    const sampleSize = Math.min(20, data.length);
+                    const sample = Array.from(data.slice(0, sampleSize));
+
+                    // More efficient: calculate min/max in single pass
+                    let max = -Infinity;
+                    let min = Infinity;
+
+                    for (let i = 0; i < data.length; i++) {
+                        const value = data[i];
+                        if (value > max) max = value;
+                        if (value < min) min = value;
+                    }
+
+                    console.log(`Output ${index} (${key}): min=${min.toFixed(4)}, max=${max.toFixed(4)}, sample:`, sample.map(v => v.toFixed(4)));
+                });
+
+                // Post-process results
+                console.log('Post-processing results...');
+                const processed = postProcessOutput(
+                    results,
+                    inputImage.width,
+                    inputImage.height,
+                    preprocessed.width,
+                    preprocessed.height,
+                    preprocessed.scale,
+                    preprocessed.offsetX,
+                    preprocessed.offsetY,
+                    textThreshold,
+                    linkThreshold
+                );
+
+                const textRegions = processed.regions;
+                console.log('Final text regions:', textRegions);
+
+                // Always try to display something, even if no regions found
+                displayResults(textRegions);
+
+                if (textRegions.length === 0) {
+                    showStatus('Detection complete, but no text regions found. Try lowering the thresholds.', 'success');
+                } else {
+                    showStatus(`Detection complete! Found ${textRegions.length} text regions.`, 'success');
+                }
+
+            } catch (error) {
+                showStatus('Detection error: ' + error.message, 'error');
+                console.error('Detection error:', error);
+                console.error('Error stack:', error.stack);
+            }
+        }
+
+        function displayResults(textRegions) {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Restore original image
+            if (originalCanvas) {
+                ctx.putImageData(originalCanvas, 0, 0);
+            }
+
+            // Draw bounding boxes
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+
+            for (const region of textRegions) {
+                ctx.fillRect(region.x, region.y, region.width, region.height);
+                ctx.strokeRect(region.x, region.y, region.width, region.height);
+
+                // Draw confidence score
+                ctx.fillStyle = '#FF0000';
+                ctx.font = '12px Arial';
+                ctx.fillText(
+                    region.confidence.toFixed(2),
+                    region.x,
+                    region.y - 5
+                );
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+            }
+        }
+    </script>
+</body>
+
+</html>

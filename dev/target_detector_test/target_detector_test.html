@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YoloTargetDetector JavaScript</title>
+    <script src="../../ext/ort.min.js"></script>
+    <style>
+        body {
+            transform: translate3d(0, 0, 0);
+        }
+
+        #canvas {
+            border: 2px solid #333;
+            cursor: crosshair;
+        }
+
+        #hoverInfo {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+
+        #tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        #zoomCanvas {
+            border: 2px solid #666;
+            margin-top: 5px;
+        }
+
+        #tooltip .score {
+            font-weight: bold;
+            font-size: 16px;
+            color: #ffdd44;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="demo">
+        <h1>YoloTargetDetector JavaScript</h1>
+        <input type="file" id="imageInput" accept="image/*">
+        <canvas id="canvas" width="640" height="640"></canvas>
+
+        <!-- Tooltip with zoom area -->
+        <div id="tooltip">
+            <div class="score" id="tooltipScore">Score: -</div>
+            <div id="tooltipPos">Position: -</div>
+            <canvas id="zoomCanvas" width="100" height="100"></canvas>
+        </div>
+        <div id="hoverInfo">
+            <strong>Mouse Position:</strong> <span id="mousePos">-</span><br>
+            <strong>Dart Score:</strong> <span id="dartScore">-</span>
+        </div>
+        <div id="results"></div>
+    </div>
+
+    <script src="../../ext/opencv.js"></script>
+    <script>
+        // Wait for OpenCV to load
+        let cvLoaded = false;
+
+        function onOpenCvReady() {
+            cvLoaded = true;
+            console.log('OpenCV.js is ready');
+        }
+
+        // Check if OpenCV is already loaded or wait for it
+        if (typeof cv !== 'undefined') {
+            onOpenCvReady();
+        } else {
+            window.addEventListener('load', () => {
+                if (typeof cv !== 'undefined') {
+                    onOpenCvReady();
+                } else {
+                    // Fallback check
+                    const checkCV = setInterval(() => {
+                        if (typeof cv !== 'undefined') {
+                            clearInterval(checkCV);
+                            onOpenCvReady();
+                        }
+                    }, 100);
+                }
+            });
+        }
+    </script>
+
+    <script src="../../core/utils/image.js"></script>
+    <script src="../../core/utils/ransac.js"></script>
+    <script src="../../core/utils/icp.js"></script>
+
+    <script src="../../core/Board.js"></script>
+    <script src="../../core/TargetDetector.js"></script>
+
+    <script>
+
+        async function checkGPU() {
+            if (!navigator.gpu) {
+                throw Error("WebGPU not supported.");
+            }
+
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) {
+                throw Error("Couldn't request WebGPU adapter.");
+            }
+
+            const device = await adapter.requestDevice();
+            console.log("Device:", device)
+        }
+        checkGPU()
+
+        const board = new Board();
+        const detector = new YoloTargetDetector(board, modelPath = "../../models/best_n_tip_boxes_cross_640_B.onnx", autoAmCalib = false, initCallback = () => { load_and_detect_image("winmau_blade_6.jpg") });
+
+        // Mouse hover functionality
+        let isDetectorReady = false;
+        let currentImageData = null;
+
+        function setupCanvasHover() {
+            const canvas = document.getElementById('canvas');
+            const mousePosSpan = document.getElementById('mousePos');
+            const dartScoreSpan = document.getElementById('dartScore');
+            const tooltip = document.getElementById('tooltip');
+            const tooltipScore = document.getElementById('tooltipScore');
+            const tooltipPos = document.getElementById('tooltipPos');
+            const zoomCanvas = document.getElementById('zoomCanvas');
+            const zoomCtx = zoomCanvas.getContext('2d');
+
+            canvas.addEventListener('mousemove', (event) => {
+                if (!isDetectorReady || !currentImageData) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                // Update mouse position display
+                mousePosSpan.textContent = `(${Math.round(x)}, ${Math.round(y)})`;
+
+                // Show tooltip
+                tooltip.style.display = 'block';
+                tooltip.style.left = (event.pageX + 15) + 'px';
+                tooltip.style.top = (event.pageY - tooltip.offsetHeight - 10) + 'px';
+
+                // Update tooltip position
+                tooltipPos.textContent = `Position: (${Math.round(x)}, ${Math.round(y)})`;
+
+                try {
+                    // Get dart score at mouse position
+                    const scores = detector.getDartScores([[x, y]], false);
+                    const score = scores[0] || 'No score';
+                    dartScoreSpan.textContent = score;
+                    tooltipScore.textContent = `Score: ${score}`;
+
+                    // Draw zoom area
+                    drawZoomArea(zoomCtx, x, y, currentImageData);
+
+                } catch (error) {
+                    dartScoreSpan.textContent = 'Error';
+                    tooltipScore.textContent = 'Score: Error';
+                    console.error('Error getting dart score:', error);
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                mousePosSpan.textContent = '-';
+                dartScoreSpan.textContent = '-';
+                tooltip.style.display = 'none';
+            });
+        }
+
+        function drawZoomArea(zoomCtx, centerX, centerY, imageData) {
+            const zoomFactor = 3;
+            const zoomSize = 100;
+            const sourceSize = zoomSize / zoomFactor;
+
+            // Clear zoom canvas
+            zoomCtx.clearRect(0, 0, zoomSize, zoomSize);
+
+            // Calculate source area bounds
+            const sourceX = Math.max(0, centerX - sourceSize / 2);
+            const sourceY = Math.max(0, centerY - sourceSize / 2);
+            const sourceW = Math.min(sourceSize, 640 - sourceX);
+            const sourceH = Math.min(sourceSize, 640 - sourceY);
+
+            // Create temporary canvas to extract source area
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 640;
+            tempCanvas.height = 640;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.putImageData(imageData, 0, 0);
+
+            // Draw zoomed area
+            zoomCtx.drawImage(
+                tempCanvas,
+                sourceX, sourceY, sourceW, sourceH,
+                0, 0, zoomSize, zoomSize
+            );
+
+            // Draw crosshair in zoom area
+            zoomCtx.strokeStyle = 'red';
+            zoomCtx.lineWidth = 2;
+            zoomCtx.beginPath();
+            zoomCtx.moveTo(zoomSize / 2 - 10, zoomSize / 2);
+            zoomCtx.lineTo(zoomSize / 2 + 10, zoomSize / 2);
+            zoomCtx.moveTo(zoomSize / 2, zoomSize / 2 - 10);
+            zoomCtx.lineTo(zoomSize / 2, zoomSize / 2 + 10);
+            zoomCtx.stroke();
+        }
+
+        async function prepare_input(buf) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.src = typeof (buf) == "string" ? buf : URL.createObjectURL(buf);
+                img.onload = () => {
+                    const [img_width, img_height] = [img.width, img.height]
+                    const canvas = document.createElement("canvas");
+                    canvas.width = 640;
+                    canvas.height = 640;
+                    const context = canvas.getContext("2d");
+                    context.drawImage(img, 0, 0, 640, 640);
+                    const imgData = context.getImageData(0, 0, 640, 640);
+                    const pixels = imgData.data;
+
+                    const red = [], green = [], blue = [];
+                    for (let index = 0; index < pixels.length; index += 4) {
+                        red.push(pixels[index] / 255.0);
+                        green.push(pixels[index + 1] / 255.0);
+                        blue.push(pixels[index + 2] / 255.0);
+                    }
+                    const input = [...red, ...green, ...blue];
+                    resolve([input, img_width, img_height, imgData])
+                }
+            })
+        }
+
+        async function load_and_detect_image(file) {
+            if (!file) return;
+
+            const canvas = document.getElementById('canvas');
+            const canvasContext = canvas.getContext("2d");
+            const results = document.getElementById('results');
+
+            prepared_input = await prepare_input(file)
+
+            // Store image data for zoom functionality
+            currentImageData = prepared_input[3];
+
+            // Détection
+            const result = await detector.detect(prepared_input[0], canvasContext, prepared_input[3]);
+
+            // Mark detector as ready for hover functionality
+            isDetectorReady = true;
+
+            // Afficher les résultats
+            results.innerHTML = `
+                    <h3>Résultats de détection:</h3>
+                    <p>Points de calibration: ${result.calibrationPoints ? result.calibrationPoints.length : 0}</p>
+                    <p>Confiance: ${result.confidence}</p>
+                `;
+
+            // Test des scores de fléchettes
+            const testTips = [[150, 150], [200, 200]];
+            const scores = detector.getDartScores(testTips, false);
+            results.innerHTML += `<p>Scores test: ${scores.join(', ')}</p>`;
+            results.innerHTML += `<p><em>Hover over the canvas to see dart scores with zoom tooltip!</em></p>`;
+        }
+
+        // Démonstration d'utilisation
+        document.addEventListener('DOMContentLoaded', async () => {
+            const imageInput = document.getElementById('imageInput');
+            imageInput.addEventListener('change', async (event) => {
+                load_and_detect_image(event.target.files[0]);
+            });
+
+            // Setup canvas hover functionality
+            setupCanvasHover();
+
+            console.log("YoloTargetDetector JavaScript initialisé");
+        });
+    </script>
+</body>
+
+</html>

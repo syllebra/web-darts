@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RANSAC Modular Implementation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .demo-section h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        canvas {
+            border: 2px solid #333;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+            align-items: center;
+        }
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #333;
+        }
+        input, select {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .info-panel {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #17a2b8;
+        }
+        .error-display {
+            background: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 RANSAC Modular Implementation</h1>
+        
+        <div class="demo-section">
+            <h2>Interactive Demo</h2>
+            <div class="controls">
+                <div class="input-group">
+                    <label for="modelSelect">Model Type:</label>
+                    <select id="modelSelect">
+                        <option value="ellipse">Ellipse Model</option>
+                        <option value="circle">Fixed Center Circle</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="noiseLevel">Noise Level:</label>
+                    <input type="range" id="noiseLevel" min="0" max="20" value="5">
+                    <span id="noiseValue">5</span>
+                </div>
+                <div class="input-group">
+                    <label for="outlierRatio">Outlier Ratio:</label>
+                    <input type="range" id="outlierRatio" min="0" max="0.8" step="0.1" value="0.3">
+                    <span id="outlierValue">0.3</span>
+                </div>
+                <button onclick="generateData()">Generate Data</button>
+                <button onclick="runRANSAC()">Run RANSAC</button>
+                <button onclick="clearCanvas()">Clear</button>
+            </div>
+            
+            <canvas id="canvas" width="800" height="600"></canvas>
+            
+            <div class="info-panel">
+                <h3>Results:</h3>
+                <div id="results">Click "Generate Data" to start</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../ext/opencv.js"></script>
+    <script>
+        // Wait for OpenCV to load
+        let cvLoaded = false;
+        
+        function onOpenCvReady() {
+            cvLoaded = true;
+            console.log('OpenCV.js is ready');
+            document.getElementById('results').innerHTML = 'OpenCV loaded - Ready to use!';
+        }
+        
+        // Check if OpenCV is already loaded or wait for it
+        if (typeof cv !== 'undefined') {
+            onOpenCvReady();
+        } else {
+            window.addEventListener('load', () => {
+                if (typeof cv !== 'undefined') {
+                    onOpenCvReady();
+                } else {
+                    // Fallback check
+                    const checkCV = setInterval(() => {
+                        if (typeof cv !== 'undefined') {
+                            clearInterval(checkCV);
+                            onOpenCvReady();
+                        }
+                    }, 100);
+                }
+            });
+        }
+    </script>
+
+    <script src="ransac.js"></script>
+    <script>
+
+
+        // Canvas and visualization
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let currentPoints = [];
+        let currentModel = null;
+        let fittedModel = null;
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            currentPoints = [];
+            currentModel = null;
+            fittedModel = null;
+            document.getElementById('results').innerHTML = 'Canvas cleared';
+        }
+
+        function generateData() {
+            if (!cvLoaded) {
+                document.getElementById('results').innerHTML = 'Please wait for OpenCV to load...';
+                return;
+            }
+            
+            clearCanvas();
+            
+            const modelType = document.getElementById('modelSelect').value;
+            const noiseLevel = parseInt(document.getElementById('noiseLevel').value);
+            const outlierRatio = parseFloat(document.getElementById('outlierRatio').value);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            if (modelType === 'ellipse') {
+                currentModel = new EllipseModel();
+                currentPoints = generateEllipseData(centerX, centerY, 120, 80, noiseLevel, outlierRatio);
+            } else {
+                currentModel = new FixedCenterCircleModel([centerX, centerY]);
+                currentPoints = generateCircleData(centerX, centerY, 100, noiseLevel, outlierRatio);
+            }
+            
+            drawPoints();
+            document.getElementById('results').innerHTML = `Generated ${currentPoints.length} points`;
+        }
+
+        function generateEllipseData(cx, cy, a, b, noiseLevel, outlierRatio) {
+            const points = [];
+            const numPoints = 100;
+            const numOutliers = Math.floor(numPoints * outlierRatio);
+            const numInliers = numPoints - numOutliers;
+            
+            // Generate inlier points on ellipse with random rotation
+            const ellipseAngle = MathUtils.random(0, 2 * Math.PI);
+            const cosAngle = Math.cos(ellipseAngle);
+            const sinAngle = Math.sin(ellipseAngle);
+            
+            for (let i = 0; i < numInliers; i++) {
+                const t = (i / numInliers) * 2 * Math.PI;
+                const localX = a * Math.cos(t);
+                const localY = b * Math.sin(t);
+                
+                // Rotate the ellipse
+                const rotatedX = localX * cosAngle - localY * sinAngle;
+                const rotatedY = localX * sinAngle + localY * cosAngle;
+                
+                const x = cx + rotatedX + MathUtils.random(-noiseLevel, noiseLevel);
+                const y = cy + rotatedY + MathUtils.random(-noiseLevel, noiseLevel);
+                points.push([x, y]);
+            }
+            
+            // Generate outlier points
+            for (let i = 0; i < numOutliers; i++) {
+                const x = MathUtils.random(50, canvas.width - 50);
+                const y = MathUtils.random(50, canvas.height - 50);
+                points.push([x, y]);
+            }
+            
+            return points;
+        }
+
+        function generateCircleData(cx, cy, radius, noiseLevel, outlierRatio) {
+            const points = [];
+            const numPoints = 100;
+            const numOutliers = Math.floor(numPoints * outlierRatio);
+            const numInliers = numPoints - numOutliers;
+            
+            // Generate inlier points on circle
+            for (let i = 0; i < numInliers; i++) {
+                const angle = (i / numInliers) * 2 * Math.PI;
+                const x = cx + radius * Math.cos(angle) + MathUtils.random(-noiseLevel, noiseLevel);
+                const y = cy + radius * Math.sin(angle) + MathUtils.random(-noiseLevel, noiseLevel);
+                points.push([x, y]);
+            }
+            
+            // Generate outlier points
+            for (let i = 0; i < numOutliers; i++) {
+                const x = MathUtils.random(50, canvas.width - 50);
+                const y = MathUtils.random(50, canvas.height - 50);
+                points.push([x, y]);
+            }
+            
+            return points;
+        }
+
+        function drawPoints() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw points
+            currentPoints.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point[0], point[1], 3, 0, 2 * Math.PI);
+                ctx.fillStyle = 'blue';
+                ctx.fill();
+            });
+        }
+
+        function runRANSAC() {
+            if (!cvLoaded) {
+                document.getElementById('results').innerHTML = 'Please wait for OpenCV to load...';
+                return;
+            }
+            
+            if (!currentModel || currentPoints.length === 0) {
+                document.getElementById('results').innerHTML = 'Please generate data first';
+                return;
+            }
+            
+            const outlierRatio = parseFloat(document.getElementById('outlierRatio').value);
+            const result = ransacFit(currentModel, currentPoints, 0.9998, outlierRatio, 0.5);
+            
+            if (result) {
+                fittedModel = result;
+                drawPoints();
+                drawFittedModel();
+                
+                document.getElementById('results').innerHTML = `
+                    <strong>RANSAC Results:</strong><br>
+                    Inliers: ${result.inliers}<br>
+                    Error: ${result.error.toFixed(4)}<br>
+                    Model fitted successfully!
+                `;
+            } else {
+                document.getElementById('results').innerHTML = 'RANSAC failed to find a good model';
+            }
+        }
+
+        function drawFittedModel() {
+            if (!fittedModel) return;
+            
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 3;
+            
+            if (currentModel instanceof EllipseModel) {
+                drawEllipse(currentModel.ellipse);
+            } else if (currentModel instanceof FixedCenterCircleModel) {
+                drawCircle(currentModel.center, currentModel.radius);
+            }
+        }
+
+        function drawEllipse(ellipse) {
+            const { center, axes, angle } = ellipse;
+            const [cx, cy] = center;
+            const [a, b] = axes;
+            
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, a, b, angle, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+
+        function drawCircle(center, radius) {
+            ctx.beginPath();
+            ctx.arc(center[0], center[1], radius, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+
+        // Event listeners for controls
+        document.getElementById('noiseLevel').addEventListener('input', function() {
+            document.getElementById('noiseValue').textContent = this.value;
+        });
+
+        document.getElementById('outlierRatio').addEventListener('input', function() {
+            document.getElementById('outlierValue').textContent = this.value;
+        });
+
+        // Initialize - wait for OpenCV to load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Don't generate data immediately, wait for OpenCV
+            if (cvLoaded) {
+                generateData();
+            } else {
+                document.getElementById('results').innerHTML = 'Loading OpenCV... Please wait';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perspective Fit Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .debug-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .debug-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .warning {
+            background-color: #fff3e0;
+            color: #ef6c00;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .canvas-container {
+            margin: 20px 0;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+        }
+        .point-input {
+            margin: 10px 0;
+        }
+        .point-input input {
+            width: 60px;
+            margin: 2px;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Perspective Fit Debug Tool</h1>
+        <div id="opencv-status" class="debug-section">
+            <h3>OpenCV.js Status</h3>
+            <div id="opencv-loading">Loading OpenCV.js...</div>
+        </div>
+    </div>
+
+    <div class="container" id="main-content" style="display: none;">
+        <div class="debug-section">
+            <h3>Test Data Setup</h3>
+            <p>Define source and destination points for perspective transformation:</p>
+            
+            <div class="point-input">
+                <strong>Source Points (4 corners):</strong><br>
+                Point 1: <input type="number" id="src1x" value="0"> , <input type="number" id="src1y" value="0"><br>
+                Point 2: <input type="number" id="src2x" value="100"> , <input type="number" id="src2y" value="0"><br>
+                Point 3: <input type="number" id="src3x" value="100"> , <input type="number" id="src3y" value="100"><br>
+                Point 4: <input type="number" id="src4x" value="0"> , <input type="number" id="src4y" value="100"><br>
+            </div>
+            
+            <div class="point-input">
+                <strong>Destination Points (4 corners):</strong><br>
+                Point 1: <input type="number" id="dst1x" value="10"> , <input type="number" id="dst1y" value="10"><br>
+                Point 2: <input type="number" id="dst2x" value="110"> , <input type="number" id="dst2y" value="5"><br>
+                Point 3: <input type="number" id="dst3x" value="105"> , <input type="number" id="dst3y" value="110"><br>
+                Point 4: <input type="number" id="dst4x" value="5"> , <input type="number" id="dst4y" value="105"><br>
+            </div>
+            
+            <button onclick="runDebugTest()">Run Debug Test</button>
+            <button onclick="testWithRandomPoints()">Test with Random Perspective</button>
+            <button onclick="testKeystoneEffect()">Test Keystone Effect</button>
+            <button onclick="testDocumentScan()">Test Document Scan</button>
+        </div>
+
+        <div class="debug-section">
+            <h3>Canvas Visualization</h3>
+            <div class="canvas-container">
+                <div>
+                    <strong>Source Points (Blue)</strong><br>
+                    <canvas id="sourceCanvas" width="200" height="200"></canvas>
+                </div>
+                <div>
+                    <strong>Destination Points (Red) & Transformed Points (Green)</strong><br>
+                    <canvas id="destCanvas" width="200" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="debug-output"></div>
+    </div>
+
+    <script src="../../ext/opencv.js"></script>
+    <script>
+        // Base Model class
+        class Model {
+            constructor() {}
+        }
+        // function transformPoints(points, matrix) {
+        //     if (!matrix || points.length === 0) return null;
+
+        //     try {
+        //         const transformMatrix = cv.matFromArray(3, 3, cv.CV_64FC1, matrix.flat());
+        //         const srcPoints = cv.matFromArray(points.length, 1, cv.CV_32FC2, points.flat());
+        //         const dstPoints = new cv.Mat();
+
+        //         cv.perspectiveTransform(srcPoints, dstPoints, transformMatrix);
+
+        //         const transformedPoints = [];
+        //         for (let i = 0; i < points.length; i++) {
+        //             const x = dstPoints.floatPtr(i, 0)[0];
+        //             const y = dstPoints.floatPtr(i, 0)[1];
+        //             transformedPoints.push([x, y]);
+        //         }
+
+        //         srcPoints.delete();
+        //         dstPoints.delete();
+        //         transformMatrix.delete();
+
+        //         return transformedPoints;
+        //     } catch (error) {
+        //         console.error("Error in transformPoints:", error);
+        //         return null;
+        //     }
+        // }
+
+        // class NearestNeighbors {
+        //     constructor(nNeighbors = 1, algorithm = "kd_tree") {
+        //         this.nNeighbors = nNeighbors;
+        //         this.algorithm = algorithm;
+        //         this.fittedData = null;
+        //     }
+
+        //     fit(data) {
+        //         this.fittedData = data;
+        //         return this;
+        //     }
+
+        //     kneighbors(queryPoints) {
+        //         if (!this.fittedData) {
+        //             throw new Error("Model not fitted yet. Call fit() first.");
+        //         }
+
+        //         const distances = [];
+        //         const indices = [];
+
+        //         queryPoints.forEach((queryPoint) => {
+        //             const pointDistances = this.fittedData.map((point, index) => ({
+        //                 distance: this.euclideanDistance(queryPoint, point),
+        //                 index: index,
+        //             }));
+
+        //             pointDistances.sort((a, b) => a.distance - b.distance);
+
+        //             distances.push([pointDistances[0].distance]);
+        //             indices.push(pointDistances[0].index);
+        //         });
+
+        //         return { distances, indices };
+        //     }
+
+        //     euclideanDistance(p1, p2) {
+        //         const dx = p1[0] - p2[0];
+        //         const dy = p1[1] - p2[1];
+        //         return Math.sqrt(dx * dx + dy * dy);
+        //     }
+        // }
+
+        // class PerspectiveBoardFit extends Model {
+        //     constructor(src, dst, minDist = 5) {
+        //         super();
+        //         this.N = 4;
+        //         this.M = null;
+        //         this.src = src;
+        //         this.dst = dst;
+        //         this.minDist = minDist;
+        //     }
+
+        //     build(pairs) {
+        //         try {
+        //             const srcIndices = pairs.map((pair) => pair[0]);
+        //             const dstIndices = pairs.map((pair) => pair[1]);
+
+        //             const src = srcIndices.map((idx) => this.src[idx]);
+        //             const dst = dstIndices.map((idx) => this.dst[idx]);
+
+        //             if (pairs.length !== 4 || src.length !== 4 || dst.length !== 4) {
+        //                 return null;
+        //             }
+
+        //             const srcMat = cv.matFromArray(4, 1, cv.CV_32FC2, src.flat());
+        //             const dstMat = cv.matFromArray(4, 1, cv.CV_32FC2, dst.flat());
+
+        //             const transformMatrix = cv.getPerspectiveTransform(srcMat, dstMat);
+
+        //             this.M = [];
+        //             for (let i = 0; i < 3; i++) {
+        //                 const row = [];
+        //                 for (let j = 0; j < 3; j++) {
+        //                     row.push(transformMatrix.doublePtr(i, j));
+        //                 }
+        //                 this.M.push(row);
+        //             }
+
+        //             srcMat.delete();
+        //             dstMat.delete();
+        //             transformMatrix.delete();
+
+        //             return this.M;
+        //         } catch (error) {
+        //             console.error("Error in build:", error);
+        //             return null;
+        //         }
+        //     }
+
+        //     calcErrors(pairs) {
+        //         try {
+        //             const proj = transformPoints(this.src, this.M);
+
+        //             if (!proj) {
+        //                 return Array(this.dst.length).fill([10000]);
+        //             }
+
+        //             const nbrs = new NearestNeighbors(1, "kd_tree").fit(proj);
+        //             const { distances, indices } = nbrs.kneighbors(this.dst);
+
+        //             const indexCounts = {};
+        //             indices.forEach((idx) => {
+        //                 indexCounts[idx] = (indexCounts[idx] || 0) + 1;
+        //             });
+
+        //             for (let i = 0; i < indices.length; i++) {
+        //                 const id = indices[i];
+        //                 const numCorr = indexCounts[id];
+        //                 if (numCorr !== 1) {
+        //                     distances[i] = [10000];
+        //                 }
+        //             }
+
+        //             return distances;
+        //         } catch (error) {
+        //             console.error("Error in calcErrors:", error);
+        //             return Array(this.dst.length).fill([10000]);
+        //         }
+        //     }
+        // }
+        // Math utilities
+const MathUtils = {
+  random: (min, max) => Math.random() * (max - min) + min,
+
+  norm: (vector) => Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0)),
+
+  distance: (p1, p2) => Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2),
+
+  randomInt: (min, max) => Math.floor(Math.random() * (max - min) + min),
+
+  mean: (arr) => arr.reduce((sum, val) => sum + val, 0) / arr.length,
+
+  log: Math.log,
+
+  pow: Math.pow,
+
+  PI: Math.PI,
+
+  sin: Math.sin,
+
+  cos: Math.cos,
+
+  sqrt: Math.sqrt,
+
+  abs: Math.abs,
+
+  // Matrix operations for perspective transform
+  matrixMultiply: (A, B) => {
+    const result = [];
+    for (let i = 0; i < A.length; i++) {
+      result[i] = [];
+      for (let j = 0; j < B[0].length; j++) {
+        result[i][j] = 0;
+        for (let k = 0; k < B.length; k++) {
+          result[i][j] += A[i][k] * B[k][j];
+        }
+      }
+    }
+    return result;
+  },
+
+  // Solve linear system Ax = b using Gaussian elimination
+  solveLinearSystem: (A, b) => {
+    const n = A.length;
+    const augmented = A.map((row, i) => [...row, b[i]]);
+
+    // Forward elimination
+    for (let i = 0; i < n; i++) {
+      // Find pivot
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+
+      // Swap rows
+      [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+      // Make diagonal element 1
+      const pivot = augmented[i][i];
+      if (Math.abs(pivot) < 1e-10) return null; // Singular matrix
+
+      for (let j = i; j < n + 1; j++) {
+        augmented[i][j] /= pivot;
+      }
+
+      // Eliminate column
+      for (let k = i + 1; k < n; k++) {
+        const factor = augmented[k][i];
+        for (let j = i; j < n + 1; j++) {
+          augmented[k][j] -= factor * augmented[i][j];
+        }
+      }
+    }
+
+    // Back substitution
+    const x = new Array(n);
+    for (let i = n - 1; i >= 0; i--) {
+      x[i] = augmented[i][n];
+      for (let j = i + 1; j < n; j++) {
+        x[i] -= augmented[i][j] * x[j];
+      }
+    }
+
+    return x;
+  },
+};
+
+// Perspective transformation utilities
+const PerspectiveUtils = {
+  // Calculate perspective transform matrix from 4 point correspondences
+  getPerspectiveTransform: (src, dst) => {
+    if (src.length !== 4 || dst.length !== 4) {
+      throw new Error("Need exactly 4 point correspondences");
+    }
+
+    // Set up the system of equations for perspective transformation
+    // We need to solve for 8 unknowns (h11, h12, h13, h21, h22, h23, h31, h32)
+    // h33 is set to 1 for normalization
+    const A = [];
+    const b = [];
+
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i];
+      const [u, v] = dst[i];
+
+      // First equation: u = (h11*x + h12*y + h13) / (h31*x + h32*y + 1)
+      // Rearranged: h11*x + h12*y + h13 - u*h31*x - u*h32*y = u
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]);
+      b.push(u);
+
+      // Second equation: v = (h21*x + h22*y + h23) / (h31*x + h32*y + 1)
+      // Rearranged: h21*x + h22*y + h23 - v*h31*x - v*h32*y = v
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]);
+      b.push(v);
+    }
+
+    const solution = MathUtils.solveLinearSystem(A, b);
+    if (!solution) return null;
+
+    // Construct the 3x3 transformation matrix
+    return [
+      [solution[0], solution[1], solution[2]],
+      [solution[3], solution[4], solution[5]],
+      [solution[6], solution[7], 1],
+    ];
+  },
+
+  // Transform points using perspective transformation matrix
+  transformPoints: (points, matrix) => {
+    if (!matrix) return null;
+
+    return points.map((point) => {
+      const [x, y] = point;
+      const w = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2];
+      const u = (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / w;
+      const v = (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / w;
+      return [u, v];
+    });
+  },
+};
+
+// Simple nearest neighbor implementation
+class NearestNeighbors {
+  constructor(points) {
+    this.points = points;
+  }
+
+  kneighbors(queryPoints, k = 1) {
+    const distances = [];
+    const indices = [];
+
+    queryPoints.forEach((queryPoint) => {
+      const pointDistances = this.points.map((point, index) => ({
+        distance: MathUtils.distance(queryPoint, point),
+        index: index,
+      }));
+
+      pointDistances.sort((a, b) => a.distance - b.distance);
+
+      distances.push([pointDistances[0].distance]);
+      indices.push(pointDistances[0].index);
+    });
+
+    return { distances, indices };
+  }
+}
+
+// PerspectiveBoardFit model implementation
+class PerspectiveBoardFit extends Model {
+  constructor(src, dst, minDist = 5) {
+    super();
+    this.N = 4; // Need 4 point correspondences for perspective transform
+    this.M = null; // Transformation matrix
+    this.src = src; // Source points
+    this.dst = dst; // Destination points
+    this.minDist = minDist;
+  }
+
+  build(pairs) {
+    if (pairs.length !== 4) {
+      return null;
+    }
+
+    // Extract source and destination points from pairs
+    const srcPoints = pairs.map((pair) => this.src[pair[0]]);
+    const dstPoints = pairs.map((pair) => this.dst[pair[1]]);
+
+    // Validate that we have exactly 4 points
+    if (srcPoints.length !== 4 || dstPoints.length !== 4) {
+      return null;
+    }
+
+    // Calculate perspective transformation matrix
+    this.M = PerspectiveUtils.getPerspectiveTransform(srcPoints, dstPoints);
+    return this.M;
+  }
+
+  calcErrors(pairs) {
+    if (!this.M) {
+      //throw new Error("Model not built yet. Call build() first.");
+      return Array(this.dst.length).fill(10000);
+    }
+
+    // Transform all source points using the perspective matrix
+    const projectedPoints = PerspectiveUtils.transformPoints(this.src, this.M);
+
+    if (!projectedPoints) {
+      return Array(this.dst.length).fill(10000);
+    }
+
+    // Find nearest neighbors
+    const nbrs = new NearestNeighbors(projectedPoints);
+    const { distances, indices } = nbrs.kneighbors(this.dst, 1);
+
+    // Count occurrences of each index to detect multiple matches
+    const indexCounts = {};
+    indices.forEach((idx) => {
+      indexCounts[idx] = (indexCounts[idx] || 0) + 1;
+    });
+
+    // Penalize points that are matched multiple times
+    const penalizedDistances = distances.map((dist, i) => {
+      const idx = indices[i];
+      if (indexCounts[idx] !== 1) {
+        return 10000; // High error for multiple matches
+      }
+      return dist[0];
+    });
+
+    return penalizedDistances;
+  }
+}
+        // Debug functions
+        function addDebugOutput(title, content, type = 'info') {
+            const output = document.getElementById('debug-output');
+            const section = document.createElement('div');
+            section.className = 'debug-section';
+            
+            const titleEl = document.createElement('h3');
+            titleEl.textContent = title;
+            section.appendChild(titleEl);
+            
+            const contentEl = document.createElement('div');
+            contentEl.className = type;
+            
+            if (typeof content === 'object') {
+                const pre = document.createElement('pre');
+                pre.textContent = JSON.stringify(content, null, 2);
+                contentEl.appendChild(pre);
+            } else {
+                contentEl.innerHTML = content;
+            }
+            
+            section.appendChild(contentEl);
+            output.appendChild(section);
+        }
+
+        function drawPoints(canvasId, points, color = 'red', label = '') {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            if (label === '') {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#ddd';
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.fillStyle = color;
+            ctx.strokeStyle = color;
+            points.forEach((point, index) => {
+                const x = point[0] * (canvas.width / 120);
+                const y = point[1] * (canvas.height / 120);
+                
+                // Draw point
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Draw label
+                ctx.fillStyle = color;
+                ctx.font = '12px Arial';
+                ctx.fillText(`${label}${index}`, x + 5, y - 5);
+            });
+            
+            // Draw connecting lines if 4 points
+            if (points.length === 4) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(points[0][0] * (canvas.width / 120), points[0][1] * (canvas.height / 120));
+                for (let i = 1; i < 4; i++) {
+                    ctx.lineTo(points[i][0] * (canvas.width / 120), points[i][1] * (canvas.height / 120));
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+        }
+
+        function drawMultiplePointSets(canvasId, pointSets) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#ddd';
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            
+            pointSets.forEach(({points, color, label}) => {
+                if (points && points.length > 0) {
+                    drawPoints(canvasId, points, color, label);
+                }
+            });
+        }
+
+        function getPointsFromInputs() {
+            const src = [
+                [parseFloat(document.getElementById('src1x').value), parseFloat(document.getElementById('src1y').value)],
+                [parseFloat(document.getElementById('src2x').value), parseFloat(document.getElementById('src2y').value)],
+                [parseFloat(document.getElementById('src3x').value), parseFloat(document.getElementById('src3y').value)],
+                [parseFloat(document.getElementById('src4x').value), parseFloat(document.getElementById('src4y').value)]
+            ];
+            
+            const dst = [
+                [parseFloat(document.getElementById('dst1x').value), parseFloat(document.getElementById('dst1y').value)],
+                [parseFloat(document.getElementById('dst2x').value), parseFloat(document.getElementById('dst2y').value)],
+                [parseFloat(document.getElementById('dst3x').value), parseFloat(document.getElementById('dst3y').value)],
+                [parseFloat(document.getElementById('dst4x').value), parseFloat(document.getElementById('dst4y').value)]
+            ];
+            
+            return { src, dst };
+        }
+
+        function runDebugTest() {
+            document.getElementById('debug-output').innerHTML = '';
+            
+            const { src, dst } = getPointsFromInputs();
+            
+            drawPoints('sourceCanvas', src, 'blue', 'S');
+            
+            // Draw destination points and transformed points on the same canvas
+            const pointSets = [
+                {points: dst, color: 'red', label: 'D'},
+            ];
+            
+            drawMultiplePointSets('destCanvas', pointSets);
+            
+            addDebugOutput('Input Data', { src, dst });
+            
+            // Create PerspectiveBoardFit instance
+            const perspectiveFit = new PerspectiveBoardFit(src, dst);
+            
+            // Test with identity pairs (0->0, 1->1, 2->2, 3->3)
+            const pairs = [[0, 0], [1, 1], [2, 2], [3, 3]];
+            
+            addDebugOutput('Test Pairs', pairs);
+            
+            // Build the model
+            console.log("=== Starting build phase ===");
+            const matrix = perspectiveFit.build(pairs);
+            
+            if (matrix) {
+                addDebugOutput('Build Result', { success: true, matrix }, 'success');
+                
+                // Calculate errors
+                console.log("=== Starting calcErrors phase ===");
+                const errors = perspectiveFit.calcErrors(pairs);
+                addDebugOutput('Errors Result', { errors }, 'success');
+                
+                // Test point transformation
+                console.log("=== Testing point transformation ===");
+                const transformedPoints = PerspectiveUtils.transformPoints(src, matrix);
+                addDebugOutput('Transformed Points', { transformedPoints }, 'success');
+                
+                // Update canvas with transformed points
+                if (transformedPoints) {
+                    const pointSets = [
+                        {points: dst, color: 'red', label: 'D'},
+                        {points: transformedPoints, color: 'green', label: 'T'}
+                    ];
+                    drawMultiplePointSets('destCanvas', pointSets);
+                }
+                
+                // Compare with expected
+                if (transformedPoints) {
+                    const differences = transformedPoints.map((point, i) => [
+                        point[0] - dst[i][0],
+                        point[1] - dst[i][1]
+                    ]);
+                    
+                    const maxError = Math.max(...differences.map(diff => Math.sqrt(diff[0]*diff[0] + diff[1]*diff[1])));
+                    
+                    addDebugOutput('Expected vs Actual', {
+                        expected: dst,
+                        actual: transformedPoints,
+                        differences: differences,
+                        maxError: maxError.toFixed(3)
+                    });
+                } else {
+                    addDebugOutput('Transformation Failed', { error: 'transformPoints returned null' }, 'error');
+                }
+                
+            } else {
+                addDebugOutput('Build Result', { success: false, error: 'Matrix calculation failed' }, 'error');
+            }
+        }
+
+        function testWithRandomPoints() {
+            // Generate a plausible perspective transformation
+            // Start with a rectangular source (like a document or board)
+            const baseSize = 80;
+            const src = [
+                [10, 10],              // top-left
+                [10 + baseSize, 10],   // top-right
+                [10 + baseSize, 10 + baseSize], // bottom-right
+                [10, 10 + baseSize]    // bottom-left
+            ];
+            
+            // Create realistic perspective distortion
+            const perspectiveStrength = 0.3; // How much perspective distortion
+            const rotationAngle = (Math.random() - 0.5) * 0.5; // Small rotation
+            const scaleVariation = 0.1 + Math.random() * 0.2; // Scale between 0.1 and 0.3
+            
+            // Apply perspective transformation to create destination points
+            const dst = src.map((point, i) => {
+                let [x, y] = point;
+                
+                // Apply rotation
+                const cos = Math.cos(rotationAngle);
+                const sin = Math.sin(rotationAngle);
+                const centerX = 10 + baseSize / 2;
+                const centerY = 10 + baseSize / 2;
+                
+                x -= centerX;
+                y -= centerY;
+                const rotX = x * cos - y * sin;
+                const rotY = x * sin + y * cos;
+                x = rotX + centerX;
+                y = rotY + centerY;
+                
+                // Apply perspective distortion (keystone effect)
+                let perspectiveX = 0;
+                let perspectiveY = 0;
+                
+                switch(i) {
+                    case 0: // top-left
+                        perspectiveX = -perspectiveStrength * (Math.random() * 10 + 5);
+                        perspectiveY = -perspectiveStrength * (Math.random() * 10 + 5);
+                        break;
+                    case 1: // top-right
+                        perspectiveX = perspectiveStrength * (Math.random() * 10 + 5);
+                        perspectiveY = -perspectiveStrength * (Math.random() * 10 + 5);
+                        break;
+                    case 2: // bottom-right
+                        perspectiveX = perspectiveStrength * (Math.random() * 15 + 10);
+                        perspectiveY = perspectiveStrength * (Math.random() * 15 + 10);
+                        break;
+                    case 3: // bottom-left
+                        perspectiveX = -perspectiveStrength * (Math.random() * 15 + 10);
+                        perspectiveY = perspectiveStrength * (Math.random() * 15 + 10);
+                        break;
+                }
+                
+                x += perspectiveX;
+                y += perspectiveY;
+                
+                // Apply slight scale variation
+                const scale = 1 + (Math.random() - 0.5) * scaleVariation;
+                x *= scale;
+                y *= scale;
+                
+                // Add small random noise
+                x += (Math.random() - 0.5) * 2;
+                y += (Math.random() - 0.5) * 2;
+                
+                return [x, y];
+            });
+            
+            // Update inputs
+            document.getElementById('src1x').value = src[0][0].toFixed(1);
+            document.getElementById('src1y').value = src[0][1].toFixed(1);
+            document.getElementById('src2x').value = src[1][0].toFixed(1);
+            document.getElementById('src2y').value = src[1][1].toFixed(1);
+            document.getElementById('src3x').value = src[2][0].toFixed(1);
+            document.getElementById('src3y').value = src[2][1].toFixed(1);
+            document.getElementById('src4x').value = src[3][0].toFixed(1);
+            document.getElementById('src4y').value = src[3][1].toFixed(1);
+            
+            document.getElementById('dst1x').value = dst[0][0].toFixed(1);
+            document.getElementById('dst1y').value = dst[0][1].toFixed(1);
+            document.getElementById('dst2x').value = dst[1][0].toFixed(1);
+            document.getElementById('dst2y').value = dst[1][1].toFixed(1);
+            document.getElementById('dst3x').value = dst[2][0].toFixed(1);
+            document.getElementById('dst3y').value = dst[2][1].toFixed(1);
+            document.getElementById('dst4x').value = dst[3][0].toFixed(1);
+            document.getElementById('dst4y').value = dst[3][1].toFixed(1);
+            
+            runDebugTest();
+        }
+
+        function testKeystoneEffect() {
+            // Simulate keystone effect (projector/camera angle)
+            const src = [
+                [20, 20],    // top-left
+                [100, 20],   // top-right
+                [100, 100],  // bottom-right
+                [20, 100]    // bottom-left
+            ];
+            
+            // Keystone makes bottom wider than top
+            const dst = [
+                [25, 25],    // top-left (slightly inward)
+                [95, 25],    // top-right (slightly inward)
+                [110, 95],   // bottom-right (outward)
+                [10, 95]     // bottom-left (outward)
+            ];
+            
+            updateInputsWithPoints(src, dst);
+            runDebugTest();
+        }
+
+        function testDocumentScan() {
+            // Simulate document photographed at an angle
+            const src = [
+                [0, 0],      // top-left
+                [210, 0],    // top-right (A4 ratio)
+                [210, 297],  // bottom-right
+                [0, 297]     // bottom-left
+            ];
+            
+            // Document viewed from an angle
+            const dst = [
+                [15, 30],    // top-left
+                [180, 10],   // top-right
+                [195, 280],  // bottom-right
+                [25, 290]    // bottom-left
+            ];
+            
+            // Scale to fit canvas
+            const scaleFactor = 120 / 300;
+            const scaledSrc = src.map(p => [p[0] * scaleFactor, p[1] * scaleFactor]);
+            const scaledDst = dst.map(p => [p[0] * scaleFactor, p[1] * scaleFactor]);
+            
+            updateInputsWithPoints(scaledSrc, scaledDst);
+            runDebugTest();
+        }
+
+        function updateInputsWithPoints(src, dst) {
+            document.getElementById('src1x').value = src[0][0].toFixed(1);
+            document.getElementById('src1y').value = src[0][1].toFixed(1);
+            document.getElementById('src2x').value = src[1][0].toFixed(1);
+            document.getElementById('src2y').value = src[1][1].toFixed(1);
+            document.getElementById('src3x').value = src[2][0].toFixed(1);
+            document.getElementById('src3y').value = src[2][1].toFixed(1);
+            document.getElementById('src4x').value = src[3][0].toFixed(1);
+            document.getElementById('src4y').value = src[3][1].toFixed(1);
+            
+            document.getElementById('dst1x').value = dst[0][0].toFixed(1);
+            document.getElementById('dst1y').value = dst[0][1].toFixed(1);
+            document.getElementById('dst2x').value = dst[1][0].toFixed(1);
+            document.getElementById('dst2y').value = dst[1][1].toFixed(1);
+            document.getElementById('dst3x').value = dst[2][0].toFixed(1);
+            document.getElementById('dst3y').value = dst[2][1].toFixed(1);
+            document.getElementById('dst4x').value = dst[3][0].toFixed(1);
+            document.getElementById('dst4y').value = dst[3][1].toFixed(1);
+        }
+
+        // OpenCV.js loading
+        function onOpenCvReady() {
+            document.getElementById('opencv-status').innerHTML = 
+                '<h3>OpenCV.js Status</h3><div class="success">OpenCV.js loaded successfully!</div>';
+            document.getElementById('main-content').style.display = 'block';
+        }
+
+        // Wait for OpenCV to load
+        if (typeof cv !== 'undefined') {
+            onOpenCvReady();
+        } else {
+            window.onload = function() {
+                setTimeout(function() {
+                    if (typeof cv !== 'undefined') {
+                        onOpenCvReady();
+                    } else {
+                        document.getElementById('opencv-status').innerHTML = 
+                            '<h3>OpenCV.js Status</h3><div class="error">Failed to load OpenCV.js</div>';
+                    }
+                }, 3000);
+            };
+        }
+    </script>
+</body>
+</html>

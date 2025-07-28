@@ -62,8 +62,8 @@ class YoloTargetDetector {
 
   async initializeModel() {
     try {
-      //this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ['webgpu'] });
-      this.session = await ort.InferenceSession.create(this.modelPath);
+      let properties = gpuDetector.status == "webgpu" ? { executionProviders: ["webgpu"] } : null;
+      this.session = await ort.InferenceSession.create(this.modelPath, properties);
       console.log("Modèle ONNX chargé avec succès", this.session);
       if (this.initCallback) this.initCallback();
     } catch (error) {
@@ -80,7 +80,6 @@ class YoloTargetDetector {
     }
 
     try {
-      console.log(imageData);
       const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
       const results = await this.session.run({ images: tensor });
 

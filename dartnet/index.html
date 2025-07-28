@@ -151,6 +151,16 @@
             font-weight: 500;
             flex-grow: 1;
         }
+
+        #debugCanvas {
+            pointer-events: none;
+            z-index: 100;
+            position: absolute;
+            left : 0;
+            bottom: 0;
+            width: 640px;
+            height: 640px;
+        }        
     </style>
 </head>
 
@@ -194,6 +204,7 @@
         <canvas id="overlayCanvas"></canvas>
         <video id="videoElement" autoplay muted></video>
     </div>
+    <canvas id="debugCanvas"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../ext/ort.min.js"></script>
@@ -211,8 +222,10 @@
     <script src="DartNet.js"></script>
     <script>
 
-        // Initialize GPU detector and UI
-        const gpuDetector = new GPUDetector();
+        // Init main class instance
+        const dartnet = new DartNet(document.getElementById("videoElement"));
+
+        // Initialize GPU detector UI
         const gpuStatusDot = document.getElementById('gpuStatusDot');
         const gpuStatusText = document.getElementById('gpuStatusText');
 
@@ -239,12 +252,42 @@
                     gpuStatusDot.title = details;
                     break;
             }
+
+            if(status != 'checking' && !dartnet.dartDetector) {
+                dartnet.initDetectors();
+                dartnet.dartDetector.onDetectionCallbacks.push((data) => {
+                    console.log("DartImpact:", data);
+                    zoomableCanvas.getOverlayElement("dartImpactDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
+
+                    const debugCanvas = document.getElementById("debugCanvas");
+                    debugCanvas.width = 640;
+                    debugCanvas.height = 640;
+                    
+                    const debugCtx = debugCanvas.getContext("2d");
+                    debugCtx.putImageData( ImageProcessor.grayscaleToImageData(data.delta),0,0);
+                    debugCtx.strokeStyle= "rgba(255, 255, 0, 1.0)";
+                    data.boxes.forEach((b) => {
+                        debugCtx.strokeRect(b[0],b[1],b[2]-b[0], b[3]-b[1]);
+                    });                    
+
+                    //const tipEl = zoomableCanvas.getOverlayElement("dartTip");
+                    //tipEl.x = 
+                    const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");
+                    dartDbg.boxes = data.boxes.map((b) => {
+                        let tl = dartnet.cropppedToSource([b[0],b[1]]);
+                        let br = dartnet.cropppedToSource([b[2],b[3]]);
+                        return [tl[0],tl[1],br[0],br[1],b[4],b[5]];
+                    });
+                    console.log(dartDbg)
+                });
+                // Set up status change callback
+                dartnet.dartDetector.addStatusChangeCallback((newStatus, oldStatus) => {
+                    console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
+                    updateDartDetectionStatus(newStatus);
+                });
+            }
         });
 
-        // Start GPU detection
-        gpuDetector.detectGPU().then(result => {
-            console.log('GPU Detection Results:', result);
-        });
 
         // Dart Detection Status Management
         const dartStatusDot = document.getElementById('dartStatusDot');
@@ -296,7 +339,7 @@
         // Initialize the canvas with debug overlay
         const zoomableCanvas = new ZoomablePannableCanvas('videoCanvas', 'canvasContainer', 'overlayCanvas');
 
-        // Get DOM elements
+        // Get DOM elements for camera manager
         const elements = {
             cameraSelect: document.getElementById("cameraSelect"),
             resolutionSelect: document.getElementById("resolutionSelect"),
@@ -355,14 +398,6 @@
             }
         });
 
-        const dartnet = new DartNet(document.getElementById("videoElement"));
-
-        // Set up status change callback
-        dartnet.dartDetector.addStatusChangeCallback((newStatus, oldStatus) => {
-            console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
-            updateDartDetectionStatus(newStatus);
-        });
-
 
         // Detection control buttons
         startDetectionBtn.addEventListener('click', () => {
@@ -380,8 +415,8 @@
         let animationId=null;
        async function processFrame() {
             let wait = false;
-            if (dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTING && dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTED) wait=true;
-            if (!dartnet.videoSource || dartnet.dartDetector.pauseDetection || dartnet.videoSource.readyState !== dartnet.videoSource.HAVE_ENOUGH_DATA) wait=true;
+            if (dartnet.dartDetector && dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTING && dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTED) wait=true;
+            if (!dartnet.videoSource || dartnet.dartDetector?.pauseDetection || dartnet.videoSource.readyState !== dartnet.videoSource.HAVE_ENOUGH_DATA) wait=true;
             if(!wait) {
                 try {
                     dartnet.detectDartImpact();
@@ -566,6 +601,65 @@
             }
         );
        
+       // Add score viewer on mouse hover
+        zoomableCanvas.addOverlayElement("scoreViewer", { x: 0, y: 0, color: 'rgba(0, 255, 128, 0.75)', text:null },
+            // Draw callback
+            (ctx, element) => {
+                if(!element.text) return;
+                ctx.fillStyle = element.color;
+                ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
+            },
+            (element, worldX, worldY) => false // Disable picking drag and drop
+        );
+
+        // Add Dart tip debug viewer
+        zoomableCanvas.addOverlayElement("dartTip", { x: 40, y: 0, pt_radius: 1.5, radius: 10, color: 'rgba(0, 128, 255, 0.5)'},
+            // Draw callback
+            (ctx, element) => {
+                //if(!element.text) return;
+                ctx.fillStyle = element.color;
+                ctx.beginPath();
+                ctx.arc(element.x, element.y, element.pt_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = element.color;
+                ctx.lineWidth = 1 / zoomableCanvas.scale;
+                ctx.beginPath();
+                let  dec = element.radius / zoomableCanvas.scale;
+                ctx.moveTo(element.x-dec, element.y-dec);
+                ctx.lineTo(element.x+dec, element.y+dec);
+                ctx.moveTo(element.x+dec, element.y-dec);
+                ctx.lineTo(element.x-dec, element.y+dec);
+                ctx.stroke();
+
+                // ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
+                // ctx.textAlign = 'center';
+                // ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
+            },
+            (element, worldX, worldY) => false // Disable picking drag and drop
+        );
+
+                // Add Dart tip debug viewer
+        zoomableCanvas.addOverlayElement("dartDebug", { x: 0, y: 0, boxes: null},
+            // Draw callback
+            (ctx, element) => {
+                if(!element.boxes) return;
+                element.boxes.forEach((b) => {
+                ctx.strokeStyle = classes_colors[b[4]];
+                ctx.lineWidth = 1.5 / zoomableCanvas.scale;
+                ctx.strokeRect(b[0],b[1],b[2]-b[0],b[3]-b[1]);
+
+                });
+
+                // ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
+                // ctx.textAlign = 'center';
+                // ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
+            },
+            (element, worldX, worldY) => false // Disable picking drag and drop
+        );
+
+
        // Add "20" Element to help reorient in case it is needed
         zoomableCanvas.addOverlayElement("scoreViewer", { x: 0, y: 0, color: 'rgba(0, 255, 128, 0.75)', text:null },
             // Draw callback
@@ -580,8 +674,9 @@
         );
 
 
+
         // Add "20" Element to help reorient in case it is needed
-        zoomableCanvas.addOverlayElement("dartDebug",
+        zoomableCanvas.addOverlayElement("dartImpactDebug",
             {
                 img: null, net:dartnet, x: 0, y: 0, color: [255,0,0,0.8], setDetected(grayImg, width, height) {
                     const imageData = new ImageData(width, height);
@@ -605,12 +700,6 @@
                 ctx.drawImage(element.img, ca[0],ca[1],ca[2]-ca[0],ca[3]-ca[1]);
             }
         );
-
-        dartnet.dartDetector.onDetectionCallbacks.push((data) => {
-            console.log("DartImpact:", data);
-            zoomableCanvas.getOverlayElement("dartDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
-        });
-
 
         // Set up event callbacks
         zoomableCanvas.setOnElementSelected((id, element) => {

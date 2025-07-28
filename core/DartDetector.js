@@ -22,8 +22,8 @@ class DartDetector {
 
   async initializeModel() {
     try {
-      //this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ['webgpu'] });
-      this.session = await ort.InferenceSession.create(this.modelPath);
+      let properties = gpuDetector.status == "webgpu" ? { executionProviders: ["webgpu"] } : null;
+      this.session = await ort.InferenceSession.create(this.modelPath, properties);
       console.log("Modèle ONNX chargé avec succès:", this.session);
       if (this.initCallback) this.initCallback();
     } catch (error) {

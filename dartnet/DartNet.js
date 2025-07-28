@@ -8,6 +8,11 @@ class DartNet {
     this.sourceCalibPts = null;
     this.M = null; //Transformation matrix from source image to board ref
     this.Mi = null; //Transformation matrix from board ref to source image
+    this.targetDetector = null;
+    this.dartDetector = null;
+  }
+
+  initDetectors() {
     this.targetDetector = new YoloTargetDetector(
       this.board,
       "../../models/best_n_tip_boxes_cross_640_B.onnx",
@@ -65,6 +70,11 @@ class DartNet {
   }
 
   async calibrate(onSuccess = null) {
+    if (!this.targetDetector) {
+      console.log("❌ Target detector not ready", "error");
+      return;
+    }
+
     if (!this.videoSource.videoWidth) {
       console.log("❌ Camera not ready", "error");
       return;
@@ -124,6 +134,7 @@ class DartNet {
   }
 
   async detectDartImpact() {
+    if (!this.dartDetector) return;
     const imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
     this.dartDetector.onNewFrame(imgData);
   }

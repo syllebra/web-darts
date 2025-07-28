@@ -7,6 +7,7 @@ class GPUDetector {
     this.gpuDevice = null;
     this.webGLContext = null;
     this.statusCallback = null;
+    this.status = null;
   }
 
   // Set callback for status updates
@@ -16,6 +17,7 @@ class GPUDetector {
 
   // Update status and call callback if set
   updateStatus(status, details = "") {
+    this.status = status;
     if (this.statusCallback) {
       this.statusCallback(status, details);
     }
@@ -136,3 +138,9 @@ class GPUDetector {
     this.webGLContext = null;
   }
 }
+
+const gpuDetector = new GPUDetector();
+// Start GPU detection
+gpuDetector.detectGPU().then((result) => {
+  console.log("GPU Detection Results:", result);
+});

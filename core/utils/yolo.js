@@ -1,5 +1,5 @@
 class YOLO {
-  static processYoloOnnxResults(results) {
+  static processYoloOnnxResults(results, confidence_threshold = 0.3, model_size = 640) {
     // Traitement des résultats ONNX
     // Cette partie dépend du format de sortie du modèle ONNX
     //const output = results.output;
@@ -66,6 +66,7 @@ class YOLO {
 
       const output = outputs["output0"].data;
       const num_classes = outputs["output0"]["dims"][1] - 4; //yolo_classes.length;
+      console.log("YOLO CLASSES:", num_classes);
       let boxes = [];
 
       // Iterate through all 8400 anchor boxes
@@ -83,7 +84,7 @@ class YOLO {
           }
         }
         // Skip boxes with low confidence
-        if (max_confidence < 0.3) {
+        if (max_confidence < confidence_threshold) {
           continue;
         }
 
@@ -93,10 +94,10 @@ class YOLO {
         const h = output[3 * 8400 + index]; // height
 
         // Convert from center+width to xyxy format
-        const x1 = ((xc - w / 2) * img_width) / 640;
-        const y1 = ((yc - h / 2) * img_height) / 640;
-        const x2 = ((xc + w / 2) * img_width) / 640;
-        const y2 = ((yc + h / 2) * img_height) / 640;
+        const x1 = ((xc - w / 2) * img_width) / model_size;
+        const y1 = ((yc - h / 2) * img_height) / model_size;
+        const x2 = ((xc + w / 2) * img_width) / model_size;
+        const y2 = ((yc + h / 2) * img_height) / model_size;
         const box = [x1, y1, x2, y2, max_class, max_confidence];
         boxes.push(box);
       }
@@ -115,7 +116,7 @@ class YOLO {
       // return [boxes, inferred];
     }
 
-    var outputs = process_output(results, 640, 640, null);
+    var outputs = process_output(results, model_size, model_size, null);
     var boxes = outputs[0];
     console.log(
       "DETECTED BOXES:",

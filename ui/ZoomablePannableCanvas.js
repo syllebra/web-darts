@@ -556,7 +556,7 @@ class ZoomablePannableCanvas {
    * @param {number} padding - Optional padding in pixels around the video (default: 20)
    * @param {boolean} animated - Whether to animate the zoom transition (default: false)
    */
-  autoZoomVideo(padding = 20, animated = false) {
+  autoZoomVideo(padding = 20, animated = false, srcCrop = null) {
     if (!this.videoElement) {
       console.warn("No video element set. Cannot auto-zoom.");
       return;
@@ -570,18 +570,22 @@ class ZoomablePannableCanvas {
       return;
     }
 
+    const [x, y, w, h] = srcCrop
+      ? [srcCrop[0], srcCrop[1], srcCrop[2] - srcCrop[0], srcCrop[3] - srcCrop[1]]
+      : [0, 0, videoWidth, videoHeight];
+    console.log("AUTO-ZOOM:", [x, y, w, h]);
     // Calculate available canvas space (minus padding)
     const availableWidth = this.canvas.width - padding * 2;
     const availableHeight = this.canvas.height - padding * 2;
 
     // Calculate scale to fit video within available space
-    const scaleX = availableWidth / videoWidth;
-    const scaleY = availableHeight / videoHeight;
+    const scaleX = availableWidth / w;
+    const scaleY = availableHeight / h;
     const targetScale = Math.min(scaleX, scaleY);
 
     // Calculate center position
-    const targetTranslateX = (this.canvas.width - videoWidth * targetScale) / 2;
-    const targetTranslateY = (this.canvas.height - videoHeight * targetScale) / 2;
+    const targetTranslateX = this.canvas.width * 0.5 - (x + w * 0.5) * targetScale;
+    const targetTranslateY = this.canvas.height * 0.5 - (y + h * 0.5) * targetScale;
 
     if (animated) {
       // Animate the transition

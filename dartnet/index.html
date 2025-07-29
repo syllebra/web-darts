@@ -1003,15 +1003,21 @@
 
             zoomableCanvas.getOverlayElement("dartImpactDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
 
-            //const tipEl = zoomableCanvas.getOverlayElement("dartTip");
-            //tipEl.x = 
+            const confidencesTips = data.boxes.map((b) => b[4] === 0 ? b[5] : 0.0);
+            if(confidencesTips && confidencesTips.length) {
+                var indexMax = confidencesTips.indexOf(Math.max(...confidencesTips));
+                const b = data.boxes[indexMax];
+                const pt = dartnet.cropppedToSource([(b[0]+b[2])*0.5, (b[1]+b[3])*0.5])
+                const tipEl = zoomableCanvas.getOverlayElement("dartTip");
+                tipEl.x = pt[0];
+                tipEl.y = pt[1];
+            }
             const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");
             dartDbg.boxes = data.boxes.map((b) => {
                 let tl = dartnet.cropppedToSource([b[0], b[1]]);
                 let br = dartnet.cropppedToSource([b[2], b[3]]);
                 return [tl[0], tl[1], br[0], br[1], b[4], b[5]];
             });
-            console.log(dartDbg)
         }
 
     </script>

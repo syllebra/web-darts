@@ -66,7 +66,7 @@ class YOLO {
 
       const output = outputs["output0"].data;
       const num_classes = outputs["output0"]["dims"][1] - 4; //yolo_classes.length;
-      console.log("YOLO CLASSES:", num_classes);
+      //console.log("YOLO CLASSES:", num_classes);
       let boxes = [];
 
       // Iterate through all 8400 anchor boxes

@@ -47,7 +47,6 @@
             z-index: 1000;
             background: rgba(0, 0, 0, 0.7);
             padding: 10px;
-            border-radius: 5px;
         }
 
         .debug-layer {
@@ -188,49 +187,58 @@
 
     <div class="controls">
         <div class="control-group">
-            <select id="cameraSelect" class="form-select form-select-sm d-inline-block me-2" style="width: 200px;">
-                <option value="">Select Camera...</option>
-            </select>
-            <div class="btn-group btn-group-sm me-3" role="group">
-                <button id="webcamPlayBtn" class="btn btn-primary" title="Start Webcam">
+            <div class="btn-group me-3" role="group">
+                <button id="webcamPlayBtn" class="btn" title="Start Webcam" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                     <i class="fas fa-play"></i>
                 </button>
-                <button id="webcamStopBtn" class="btn btn-danger" disabled title="Stop Webcam">
+                <button id="webcamStopBtn" class="btn" disabled title="Stop Webcam" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                     <i class="fas fa-stop"></i>
                 </button>
             </div>
+        <button id="cameraSelectBtn" class="btn" disabled title="Select Camera" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+            <i class="fas fa-camera"></i>
+        </button>
         </div>
         <div class="control-group">
-            <input type="file" id="videoFile" accept="video/*" class="form-control form-control-sm d-inline-block"
-                style="width: 200px;">
-            <div class="btn-group btn-group-sm me-3" role="group">
-                <button id="videoFilePlayBtn" class="btn btn-primary" disabled title="Play Video File">
+            <div class="btn-group me-3" role="group">
+                <button id="videoFilePlayBtn" class="btn" disabled title="Play Video File" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                     <i class="fas fa-play"></i>
                 </button>
-                <button id="videoFilePauseBtn" class="btn btn-warning" disabled title="Pause Video File">
+                <button id="videoFilePauseBtn" class="btn" disabled title="Pause Video File" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                     <i class="fas fa-pause"></i>
                 </button>
-                <button id="videoFileStopBtn" class="btn btn-danger" disabled title="Stop Video File">
+                <button id="videoFileStopBtn" class="btn" disabled title="Stop Video File" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                     <i class="fas fa-stop"></i>
                 </button>
             </div>
+            <input type="file" id="videoFile" accept="video/*" class="form-control form-control-sm d-inline-block"
+                style="width: 200px;">
         </div>
         <div class="control-group">
-            <button id="autoCalibBtn" class="btn btn-primary btn-sm" title="Auto-Calibrate">
+            <button id="autoCalibBtn" class="btn" title="Auto-Calibrate" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                 <i class="fas fa-bullseye"></i> Auto-Calibrate
             </button>
         </div>
         <div class="control-group">
-            <div class="btn-group btn-group-sm me-3" role="group">
-                <button id="startDetectionBtn" class="btn btn-success" title="Start Detection">
-                    <i class="fas fa-play"></i>
-                </button>
-                <button id="pauseDetectionBtn" class="btn btn-warning" disabled title="Pause Detection">
-                    <i class="fas fa-pause"></i>
-                </button>
-                <button id="stopDetectionBtn" class="btn btn-danger" disabled title="Stop Detection">
-                    <i class="fas fa-stop"></i>
-                </button>
+            <button id="toggleDetectionBtn" class="btn" title="Toggle Dart Detection" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Camera Selection Modal -->
+    <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Select Camera</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cameraList" class="d-flex flex-wrap gap-3 justify-content-center align-items-center h-100">
+                        <!-- Camera options will be populated here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -311,45 +319,45 @@
         // Dart Detection Status Management
         const dartStatusDot = document.getElementById('dartStatusDot');
         const dartStatusText = document.getElementById('dartStatusText');
-        const startDetectionBtn = document.getElementById('startDetectionBtn');
-        const pauseDetectionBtn = document.getElementById('pauseDetectionBtn');
-        const stopDetectionBtn = document.getElementById('stopDetectionBtn');
 
         // Dart detection status handler
         function updateDartDetectionStatus(status, statusName) {
             // Remove all status classes
             dartStatusDot.className = 'status-dot';
+            const toggleBtn = document.getElementById('toggleDetectionBtn');
+            const icon = toggleBtn.querySelector('i');
 
             switch (status) {
                 case DartDetectorStatus.INITIALIZING:
                     dartStatusDot.classList.add('dart-initializing');
                     dartStatusText.textContent = '⚙️ Initializing...';
-                    startDetectionBtn.disabled = true;
-                    stopDetectionBtn.disabled = false;
+                    toggleBtn.disabled = true;
                     break;
                 case DartDetectorStatus.DETECTING:
                     dartStatusDot.classList.add('dart-detecting');
                     dartStatusText.textContent = '🔍 Detecting';
-                    startDetectionBtn.disabled = true;
-                    stopDetectionBtn.disabled = false;
+                    icon.className = 'fas fa-bullseye';
+                    toggleBtn.title = 'Stop Dart Detection';
+                    toggleBtn.disabled = false;
                     break;
                 case DartDetectorStatus.PAUSE:
                     dartStatusDot.classList.add('dart-paused');
                     dartStatusText.textContent = '⏸️ Paused';
-                    startDetectionBtn.disabled = false;
-                    pauseDetectionBtn.disabled = true;
-                    stopDetectionBtn.disabled = true;
+                    icon.className = 'fas fa-eye';
+                    toggleBtn.title = 'Start Dart Detection';
+                    toggleBtn.disabled = false;
                     break;
                 case DartDetectorStatus.DETECTED:
                     dartStatusDot.classList.add('dart-detected');
                     dartStatusText.textContent = '🎯 Impact Detected!';
-                    // Keep buttons as they are during detection
+                    toggleBtn.disabled = false;
                     break;
                 default:
                     dartStatusDot.classList.add('dart-unknown');
                     dartStatusText.textContent = 'Not Started';
-                    startDetectionBtn.disabled = false;
-                    stopDetectionBtn.disabled = true;
+                    icon.className = 'fas fa-eye';
+                    toggleBtn.title = 'Start Dart Detection';
+                    toggleBtn.disabled = false;
                     break;
             }
         }
@@ -388,7 +396,54 @@
         };
 
         // Initialize CameraManager
-        let cameraManager = new CameraManager(elements, options);
+        const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+        let cameraManager = new CameraManager({
+            cameraSelect: null,
+            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
+            webcamStopBtn: document.getElementById("webcamStopBtn"),
+            videoElement: document.getElementById("videoElement")
+        }, options);
+
+        // Camera selection button handler
+        document.getElementById('cameraSelectBtn').addEventListener('click', () => {
+            cameraModal.show();
+        });
+
+        // Update camera manager to populate modal instead of dropdown
+        options.onCamerasEnumerated = (cameras) => {
+            const cameraList = document.getElementById('cameraList');
+            cameraList.innerHTML = '';
+            
+            if (cameras.length === 0) {
+                cameraList.innerHTML = '<div class="text-center">No cameras found</div>';
+                return;
+            }
+
+            // Enable camera select button now that we have cameras
+            document.getElementById('cameraSelectBtn').disabled = false;
+
+            cameras.forEach((camera, index) => {
+                const cameraCard = document.createElement('div');
+                cameraCard.className = 'card bg-secondary text-white';
+                cameraCard.style.width = '300px';
+                cameraCard.style.cursor = 'pointer';
+                cameraCard.innerHTML = `
+                    <div class="card-body text-center">
+                        <i class="fas fa-camera fa-3x mb-3"></i>
+                        <h5 class="card-title">${camera.label || `Camera ${index + 1}`}</h5>
+                    </div>
+                `;
+                cameraCard.addEventListener('click', () => {
+                    cameraManager.selectCamera(camera.deviceId);
+                    cameraModal.hide();
+                    cameraManager.startWebcam();
+                });
+                cameraList.appendChild(cameraCard);
+            });
+
+            // Enable camera select button now that we have cameras
+            document.getElementById('cameraSelectBtn').disabled = false;
+        };
 
         // Setup webcam button handlers
         elements.webcamPlayBtn.onclick = () => {
@@ -426,7 +481,12 @@
         };
 
         // Reinitialize CameraManager with updated options
-        cameraManager = new CameraManager(elements, options);
+        cameraManager = new CameraManager({
+            cameraSelect: null,
+            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
+            webcamStopBtn: document.getElementById("webcamStopBtn"),
+            videoElement: document.getElementById("videoElement")
+        }, options);
 
         // Video file functionality
         const videoFilePlayBtn = document.getElementById('videoFilePlayBtn');
@@ -480,14 +540,14 @@
                     videoFilePauseBtn.disabled = true;
                 });
 
-                videoElement.addEventListener('error', (e) => {
-                    console.error('Video loading error:', e);
-                    alert('Could not load video file');
-                    // Reset controls on error
-                    videoFilePlayBtn.disabled = true;
-                    videoFilePauseBtn.disabled = true;
-                    videoFileStopBtn.disabled = true;
-                });
+                // videoElement.addEventListener('error', (e) => {
+                //     console.error('Video loading error:', e);
+                //     alert('Could not load video file');
+                //     // Reset controls on error
+                //     videoFilePlayBtn.disabled = true;
+                //     videoFilePauseBtn.disabled = true;
+                //     videoFileStopBtn.disabled = true;
+                // });
             }
         });
 
@@ -508,8 +568,14 @@
 
         videoFileStopBtn.addEventListener('click', () => {
             const videoElement = document.getElementById('videoElement');
-            videoElement.pause();
+            
+            // First clear the src to prevent further loading
             videoElement.src = '';
+            
+            // Then pause the video
+            videoElement.pause();
+            
+            // Update UI controls
             videoFilePlayBtn.disabled = true;
             videoFilePauseBtn.disabled = true;
             videoFileStopBtn.disabled = true;
@@ -519,22 +585,20 @@
         });
 
 
-        // Detection control buttons
-        startDetectionBtn.addEventListener('click', () => {
-            if (dartnet.dartDetector) {
-                dartnet.dartDetector.start();
-            }
-        });
-
-        pauseDetectionBtn.addEventListener('click', () => {
-            if (dartnet.dartDetector) {
-                dartnet.dartDetector.pause();
-            }
-        });
-
-        stopDetectionBtn.addEventListener('click', () => {
-            if (dartnet.dartDetector) {
+        // Toggle detection button handler
+        const toggleDetectionBtn = document.getElementById('toggleDetectionBtn');
+        toggleDetectionBtn.addEventListener('click', () => {
+            if (!dartnet.dartDetector) return;
+            
+            const icon = toggleDetectionBtn.querySelector('i');
+            if (dartnet.dartDetector.currentStatus === DartDetectorStatus.DETECTING) {
                 dartnet.dartDetector.stop();
+                icon.className = 'fas fa-eye';
+                toggleDetectionBtn.title = 'Start Dart Detection';
+            } else {
+                dartnet.dartDetector.start();
+                icon.className = 'fas fa-bullseye';
+                toggleDetectionBtn.title = 'Stop Dart Detection';
             }
         });
 

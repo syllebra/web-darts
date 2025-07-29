@@ -2,7 +2,6 @@ class CameraManager {
   constructor(elements, options = {}) {
     // Required DOM elements
     this.elements = {
-      cameraSelect: elements.cameraSelect,
       videoElement: elements.videoElement,
       ...elements,
     };
@@ -33,18 +32,7 @@ class CameraManager {
   }
 
   async initialize() {
-    this.setupEventListeners();
     await this.enumerateCameras();
-  }
-
-  setupEventListeners() {
-    // Camera selection change handler
-    this.elements.cameraSelect.addEventListener("change", async () => {
-      const selectedCameraId = this.elements.cameraSelect.value;
-      if (selectedCameraId) {
-        await this.selectCamera(selectedCameraId);
-      }
-    });
   }
 
   async ensureAllTracksStop() {
@@ -104,20 +92,8 @@ class CameraManager {
       const devices = await navigator.mediaDevices.enumerateDevices();
       this.availableCameras = devices.filter((device) => device.kind === "videoinput");
 
-      // Clear existing options
-      this.elements.cameraSelect.innerHTML = '<option value="">Select Camera...</option>';
-
-      // Add camera options
-      this.availableCameras.forEach((camera, index) => {
-        const option = document.createElement("option");
-        option.value = camera.deviceId;
-        option.textContent = camera.label || `Camera ${index + 1}`;
-        this.elements.cameraSelect.appendChild(option);
-      });
-
       // Select first camera by default if enabled
       if (this.options.autoSelectFirstCamera && this.availableCameras.length > 0) {
-        this.elements.cameraSelect.value = this.availableCameras[0].deviceId;
         await this.selectCamera(this.availableCameras[0].deviceId);
       }
 
@@ -143,10 +119,17 @@ class CameraManager {
     }
 
     this.selectedCameraId = deviceId;
-    this.elements.cameraSelect.value = deviceId;
 
-    this.callbacks.onCameraSelected(deviceId);
-    console.log(`Selected camera: ${deviceId}`);
+    // Find the selected camera to get its label
+    const selectedCamera = this.availableCameras.find((cam) => cam.deviceId === deviceId);
+    const cameraInfo = {
+      deviceId,
+      label:
+        selectedCamera?.label || `Camera ${this.availableCameras.findIndex((cam) => cam.deviceId === deviceId) + 1}`,
+    };
+
+    this.callbacks.onCameraSelected(cameraInfo);
+    console.log(`Selected camera: ${cameraInfo.label} (${deviceId})`);
   }
 
   async startWebcam() {
@@ -202,9 +185,6 @@ class CameraManager {
         this.elements.videoElement.addEventListener("loadedmetadata", onVideoReady, { once: true });
       }
 
-      // Update UI
-      this.elements.cameraSelect.disabled = true;
-
       this.callbacks.onWebcamStarted(stream);
       return stream;
     } catch (err) {
@@ -227,9 +207,6 @@ class CameraManager {
 
     // Clear video element
     this.elements.videoElement.srcObject = null;
-
-    // Update UI
-    this.elements.cameraSelect.disabled = false;
 
     this.callbacks.onWebcamStopped();
   }

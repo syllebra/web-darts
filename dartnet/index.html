@@ -986,7 +986,7 @@
         });
 
         function onDartDetected(data) {
-            console.log("DartImpact:", data);
+            //console.log("DartImpact:", data);
 
             const debugCanvas = document.getElementById("debugCanvas");
             if (debugCanvas) {
@@ -1004,14 +1004,20 @@
             zoomableCanvas.getOverlayElement("dartImpactDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
 
             const confidencesTips = data.boxes.map((b) => b[4] === 0 ? b[5] : 0.0);
-            if(confidencesTips && confidencesTips.length) {
+            if(dartnet.targetDetector && confidencesTips && confidencesTips.length) {
                 var indexMax = confidencesTips.indexOf(Math.max(...confidencesTips));
                 const b = data.boxes[indexMax];
-                const pt = dartnet.cropppedToSource([(b[0]+b[2])*0.5, (b[1]+b[3])*0.5])
+                const srcP = dartnet.cropppedToSource([(b[0]+b[2])*0.5, (b[1]+b[3])*0.5])
                 const tipEl = zoomableCanvas.getOverlayElement("dartTip");
-                tipEl.x = pt[0];
-                tipEl.y = pt[1];
+                if(tipEl) {
+                    tipEl.x = srcP[0];
+                    tipEl.y = srcP[1];
+                }
+                console.log(dartnet.sourceCalibPts);
+                var score  = dartnet.sourceCalibPts ? dartnet.board.getDartScores(dartnet.sourceCalibPts, [[srcP.x, srcP.y]])[0] : null;
+                console.log("HIT ZONE:", score);
             }
+
             const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");
             dartDbg.boxes = data.boxes.map((b) => {
                 let tl = dartnet.cropppedToSource([b[0], b[1]]);

@@ -40,7 +40,7 @@ class DartDetector {
     }
     var imageData = ImageProcessor.grayscaleToYOLOInput(obj.delta, this.modelSize, this.modelSize);
     try {
-      console.log(imageData);
+      //console.log(imageData);
       //const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
       const tensor = new ort.Tensor(Float32Array.from(imageData.data), [1, 3, this.modelSize, this.modelSize]);
       const results = await this.session.run({ images: tensor });

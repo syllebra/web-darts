@@ -137,6 +137,7 @@ class YoloTargetDetector {
         canvasContext.stroke();
       });
     }
+    console.log("CORNERS:", corners);
 
     // Step 2: Coarse initialisation using rough center/scale
     // -------------

@@ -93,7 +93,7 @@ class DartNet {
     //const cropContext = zoomableCanvas.getOverlayContext();
     const cropContext = this.processingCanvas.getContext("2d", { willReadFrequently: true });
     let results = await this.targetDetector.detect(input, cropContext);
-    if (results.calibrationPoints) {
+    if (results?.calibrationPoints) {
       let sourceCalib = results.calibrationPoints.map((p) => [
         (p[0] * this.videoSource.videoWidth) / this.targetDetector.modelSize,
         (p[1] * this.videoSource.videoHeight) / this.targetDetector.modelSize,

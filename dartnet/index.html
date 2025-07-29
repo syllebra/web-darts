@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoomable Video Canvas</title>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -294,15 +295,18 @@
     <script src="../core/DartDetector.js" type="text/javascript"></script>
     <script src="../ui/ZoomablePannableCanvas.js"></script>
     <script src="../utils/CameraManager.js"></script>
+    <script src="../utils/sound.js"></script>
     <script src="DartNet.js"></script>
+
+    <script>eruda.init();</script>
     <script>
 
         // Init main class instance
 
         const videoElement = document.getElementById("videoElement");
-        videoElement.addEventListener('loadedmetadata', () => {
-            console.log("AUTO-ZOOM:",videoElement.videoWidth, videoElement.videoHeight)
-            });
+        // videoElement.addEventListener('loadedmetadata', () => {
+        //     console.log("AUTO-ZOOM:",videoElement.videoWidth, videoElement.videoHeight)
+        //     });
 
 
         const dartnet = new DartNet(videoElement);
@@ -340,7 +344,7 @@
                 dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
                 // Set up status change callback
                 dartnet.dartDetector.addStatusChangeCallback((newStatus, oldStatus) => {
-                    console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
+                    //console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
                     updateDartDetectionStatus(newStatus);
                 });
             }
@@ -441,14 +445,6 @@
             btn.disabled = true;
             cameraModal.show();
         });
-
-        // // Show loading spinner when enumerating cameras
-        // options.onCamerasEnumerating = () => {
-        //     const btn = document.getElementById('cameraSelectBtn');
-        //     btn.classList.add('btn-loading');
-        //     btn.innerHTML = '<i class="fas fa-spinner loading-spinner"></i>';
-        //     btn.disabled = true;
-        // };
 
         // Update camera manager to populate modal instead of dropdown
         options.onCamerasEnumerated = (cameras) => {
@@ -1013,9 +1009,10 @@
                     tipEl.x = srcP[0];
                     tipEl.y = srcP[1];
                 }
-                console.log(dartnet.sourceCalibPts);
-                var score  = dartnet.sourceCalibPts ? dartnet.board.getDartScores(dartnet.sourceCalibPts, [[srcP.x, srcP.y]])[0] : null;
+                //console.log(dartnet.sourceCalibPts, srcP);
+                var score  = dartnet.sourceCalibPts ? dartnet.board.getDartScores(dartnet.sourceCalibPts, [[srcP[0], srcP[1]]])[0] : null;
                 console.log("HIT ZONE:", score);
+                Sound.zone(score);
             }
 
             const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");

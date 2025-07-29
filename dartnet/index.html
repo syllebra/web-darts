@@ -160,6 +160,32 @@
             flex-grow: 1;
         }
 
+        /* Loading spinner styles */
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+            color: white;
+            animation: spin 1s linear infinite;
+            font-size: 1.2rem;
+        }
+
+        .btn-loading {
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .btn-loading {
+            position: relative;
+        }
+
         #debugCanvas {
             pointer-events: none;
             z-index: 100;
@@ -188,6 +214,11 @@
     <div class="controls">
         <div class="control-group">
             <div class="btn-group me-3" role="group">
+                <button id="cameraSelectBtn" class="btn" disabled title="Select Camera"
+                    style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                    <i class="fas fa-camera fa-spinner loading-spinner"></i>
+                </button>
+
                 <button id="webcamPlayBtn" class="btn" title="Start Webcam" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                     <i class="fas fa-play"></i>
                 </button>
@@ -195,12 +226,13 @@
                     <i class="fas fa-stop"></i>
                 </button>
             </div>
-        <button id="cameraSelectBtn" class="btn" disabled title="Select Camera" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
-            <i class="fas fa-camera"></i>
-        </button>
         </div>
         <div class="control-group">
             <div class="btn-group me-3" role="group">
+                <button id="videoFileSelectBtn" class="btn" title="Select Video File"
+                    style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                    <i class="fas fa-video"></i>
+                </button>
                 <button id="videoFilePlayBtn" class="btn" disabled title="Play Video File" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
                     <i class="fas fa-play"></i>
                 </button>
@@ -211,8 +243,7 @@
                     <i class="fas fa-stop"></i>
                 </button>
             </div>
-            <input type="file" id="videoFile" accept="video/*" class="form-control form-control-sm d-inline-block"
-                style="width: 200px;">
+            <input type="file" id="videoFile" accept="video/*" style="display: none;">
         </div>
         <div class="control-group">
             <button id="autoCalibBtn" class="btn" title="Auto-Calibrate" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
@@ -336,7 +367,7 @@
                 case DartDetectorStatus.DETECTING:
                     dartStatusDot.classList.add('dart-detecting');
                     dartStatusText.textContent = '🔍 Detecting';
-                    icon.className = 'fas fa-bullseye';
+                    icon.className = 'fas fa-arrows-to-dot';
                     toggleBtn.title = 'Stop Dart Detection';
                     toggleBtn.disabled = false;
                     break;
@@ -406,8 +437,18 @@
 
         // Camera selection button handler
         document.getElementById('cameraSelectBtn').addEventListener('click', () => {
+            const btn = document.getElementById('cameraSelectBtn');
+            btn.disabled = true;
             cameraModal.show();
         });
+
+        // // Show loading spinner when enumerating cameras
+        // options.onCamerasEnumerating = () => {
+        //     const btn = document.getElementById('cameraSelectBtn');
+        //     btn.classList.add('btn-loading');
+        //     btn.innerHTML = '<i class="fas fa-spinner loading-spinner"></i>';
+        //     btn.disabled = true;
+        // };
 
         // Update camera manager to populate modal instead of dropdown
         options.onCamerasEnumerated = (cameras) => {
@@ -420,7 +461,10 @@
             }
 
             // Enable camera select button now that we have cameras
-            document.getElementById('cameraSelectBtn').disabled = false;
+            const btn = document.getElementById('cameraSelectBtn');
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
+            btn.innerHTML = '<i class="fas fa-camera"></i>';
 
             cameras.forEach((camera, index) => {
                 const cameraCard = document.createElement('div');
@@ -458,7 +502,7 @@
         elements.webcamStopBtn.onclick = () => cameraManager.stopWebcam();
 
         // Set initial button states
-        elements.webcamPlayBtn.disabled = false;
+        elements.webcamPlayBtn.disabled = true;
         elements.webcamStopBtn.disabled = true;
 
         // Update camera manager options to handle webcam state changes
@@ -492,6 +536,12 @@
         const videoFilePlayBtn = document.getElementById('videoFilePlayBtn');
         const videoFilePauseBtn = document.getElementById('videoFilePauseBtn');
         const videoFileStopBtn = document.getElementById('videoFileStopBtn');
+        const videoFileSelectBtn = document.getElementById('videoFileSelectBtn');
+
+        // Handle video file selection button click
+        videoFileSelectBtn.addEventListener('click', () => {
+            document.getElementById('videoFile').click();
+        });
 
         document.getElementById('videoFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -597,7 +647,7 @@
                 toggleDetectionBtn.title = 'Start Dart Detection';
             } else {
                 dartnet.dartDetector.start();
-                icon.className = 'fas fa-bullseye';
+                icon.className = 'fas fa-arrows-to-dot';
                 toggleDetectionBtn.title = 'Stop Dart Detection';
             }
         });

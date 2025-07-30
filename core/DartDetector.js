@@ -22,8 +22,9 @@ class DartDetector {
 
   async initializeModel() {
     try {
-      let properties = gpuDetector.status == "webgpu" ? { executionProviders: ["webgpu"] } : null;
-      this.session = await ort.InferenceSession.create(this.modelPath, properties);
+      if (g_useGPU)
+        this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ["webgpu"] });
+      else this.session = await ort.InferenceSession.create(this.modelPath);
       console.log("Modèle ONNX chargé avec succès:", this.session);
       if (this.initCallback) this.initCallback();
     } catch (error) {
@@ -40,7 +41,7 @@ class DartDetector {
     }
     var imageData = ImageProcessor.grayscaleToYOLOInput(obj.delta, this.modelSize, this.modelSize);
     try {
-      console.log(imageData);
+      //console.log(imageData);
       //const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
       const tensor = new ort.Tensor(Float32Array.from(imageData.data), [1, 3, this.modelSize, this.modelSize]);
       const results = await this.session.run({ images: tensor });
@@ -171,6 +172,7 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
   }
 
   stop() {
+    console.log("Dart Detector Stopped.");
     this.onPause();
   }
 

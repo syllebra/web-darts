@@ -1,30 +1,97 @@
 class DartNet {
-  constructor(videoSource) {
+  constructor(videoSource, mqttBroker = location.hostname, mqttStatusCallback = null) {
     this.processingCanvas = null;
     this.videoSource = videoSource;
     this.board = new Board();
-    this.targetDetectorReady = false;
     this.cropArea = null;
     this.sourceCalibPts = null;
     this.M = null; //Transformation matrix from source image to board ref
     this.Mi = null; //Transformation matrix from board ref to source image
     this.targetDetector = null;
     this.dartDetector = null;
+    this.mqttBroker = mqttBroker;
+    this.mqttPort = 8083;
+    this.mqttClient = null;
+    this.mqttStatusCallback = mqttStatusCallback;
+  }
+
+  initMqtt() {
+    // Create MQTT client
+    const clientId = "DARTNET_" + Math.random().toString(16).substr(2, 8);
+    this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
+
+    // Set callback handlers
+    this.mqttClient.onConnectionLost = this.onMqttConnectionLost.bind(this);
+    this.mqttClient.onMessageArrived = this.onMqttMessage.bind(this);
+
+    this.updateMqttStatus("connecting");
+    // Connect to MQTT broker
+    this.mqttClient.connect({
+      onSuccess: this.onMqttConnect.bind(this),
+      onFailure: this.onMqttConnectFailure.bind(this),
+    });
+
+    console.log("Starting MQTT client...");
+  }
+
+  updateMqttStatus(status) {
+    if (this.mqttStatusCallback) this.mqttStatusCallback(status);
+  }
+
+  onMqttConnect() {
+    console.log("Connected to MQTT broker");
+    this.mqttClient.subscribe("#");
+    this.isStarted = true;
+    this.updateMqttStatus("connected");
+  }
+
+  onMqttConnectFailure(error) {
+    console.error("Failed to connect to MQTT broker: " + error.errorMessage);
+    this.updateMqttStatus("error");
+  }
+
+  onMqttConnectionLost(responseObject) {
+    if (responseObject.errorCode !== 0) {
+      console.log("Connection lost: " + responseObject.errorMessage);
+      this.isStarted = false;
+      this.updateMqttStatus("disconnected");
+    }
+  }
+
+  onMqttMessage(message) {
+    const topic = message.destinationName;
+    const payload = message.payloadString;
+
+    console.log(`MQTT: ${topic} - ${payload}`);
+
+    // if (topic.includes("sensors/tap")) {
+    //   this.playSound();
+    //   this.lastImpact = Date.now();
+    //   this.updateStatus(DartDetectorStatus.DETECTED);
+
+    //   // Reset to detecting after a brief period
+    //   setTimeout(() => {
+    //     if (this.currentStatus === DartDetectorStatus.DETECTED) {
+    //       this.updateStatus(DartDetectorStatus.DETECTING);
+    //     }
+    //   }, 1000);
+    // }
   }
 
   initDetectors() {
-    this.targetDetector = new YoloTargetDetector(
-      this.board,
-      "../../models/best_n_tip_boxes_cross_640_B.onnx",
-      640,
-      false,
-      () => {
-        this.targetDetectorReady = true;
-      }
-    );
+    if (!this.targetDetector) {
+      this.targetDetector = new YoloTargetDetector(
+        this.board,
+        "../../models/best_n_tip_boxes_cross_640_B.onnx",
+        640,
+        false
+      );
+    } else this.targetDetector.initializeModel();
 
-    this.dartDetector = new DeltaVideoOnlyDartDetector();
-    this.dartDetector.onDetectionCallbacks.push(this.onDetectedDartImpact);
+    if (!this.dartDetector) {
+      this.dartDetector = new DeltaVideoOnlyDartDetector();
+      this.dartDetector.onDetectionCallbacks.push(this.onDetectedDartImpact);
+    } else this.dartDetector.initializeModel();
   }
 
   preprocessImageForModel(srcBox = null, modelSize = 640) {
@@ -93,7 +160,7 @@ class DartNet {
     //const cropContext = zoomableCanvas.getOverlayContext();
     const cropContext = this.processingCanvas.getContext("2d", { willReadFrequently: true });
     let results = await this.targetDetector.detect(input, cropContext);
-    if (results.calibrationPoints) {
+    if (results?.calibrationPoints) {
       let sourceCalib = results.calibrationPoints.map((p) => [
         (p[0] * this.videoSource.videoWidth) / this.targetDetector.modelSize,
         (p[1] * this.videoSource.videoHeight) / this.targetDetector.modelSize,

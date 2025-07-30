@@ -5,7 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoomable Video Canvas</title>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/eruda"></script> -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         body,
         html {
@@ -46,13 +49,6 @@
             z-index: 1000;
             background: rgba(0, 0, 0, 0.7);
             padding: 10px;
-            border-radius: 5px;
-        }
-
-        .debug-layer {
-            position: absolute;
-            pointer-events: none;
-            z-index: 100;
         }
 
         #videoElement {
@@ -65,15 +61,104 @@
             z-index: 101;
             bottom: 0;
             left: 0;
-
         }
 
         .control-group {
             margin-bottom: 8px;
+            position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .control-group:last-child {
             margin-bottom: 0;
+        }
+
+        .control-group-expandable {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .main-button {
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+            border-right: none;
+            margin-right: 0;
+            z-index: 2;
+            position: relative;
+        }
+
+        .main-button:hover:not(:disabled) {
+            background-color: #dee2e6;
+            border-color: #adb5bd;
+        }
+
+        .main-button:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+            opacity: 0.8;
+        }
+
+        .expanded-buttons {
+            max-width: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            opacity: 0;
+            white-space: nowrap;
+        }
+
+        .expanded-buttons.show {
+            max-width: 400px;
+            opacity: 1;
+        }
+
+        .expanded-buttons .btn {
+            font-size: 1.0rem;
+            padding: 0.375rem 0.75rem;
+            background-color: #f8f9fa;
+            border: 1px solid #ccc;
+            border-left: none;
+            border-radius: 0;
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+        .expanded-buttons .btn:last-child {
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+            margin-right: 8px;
+        }
+
+        .group-spinner {
+            opacity: 0;
+            color: #007bff;
+            font-size: 1.2rem;
+            margin-left: 8px;
+            transition: opacity 0.3s ease-in-out;
+            animation: spin 1s linear infinite;
+            min-width: 20px;
+        }
+
+        .group-spinner.show {
+            opacity: 1;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .status-indicators {
@@ -94,6 +179,7 @@
             color: white;
             display: flex;
             align-items: center;
+            text-align: right;
             gap: 5px;
             min-width: 120px;
         }
@@ -137,13 +223,34 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
 
         .dart-unknown {
             background-color: #6c757d;
+        }
+
+        /* MQTT connection status colors */
+        .mqtt-connected {
+            background-color: #28a745;
+        }
+        
+        .mqtt-disconnected {
+            background-color: #dc3545;
+        }
+        
+        .mqtt-connecting {
+            background-color: #ffc107;
         }
 
         /* Status text styling */
@@ -152,46 +259,225 @@
             flex-grow: 1;
         }
 
+        /* Loading spinner styles */
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+            color: white;
+            animation: spin 1s linear infinite;
+            font-size: 1.2rem;
+        }
+
+        .btn-loading {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toggle-btn-group {
+            position: relative;
+            display: inline-flex;
+            vertical-align: middle;
+        }
+
+        .toggle-btn {
+            position: relative;
+            flex: 1 1 auto;
+            padding: 0.375rem 0.875rem;
+            font-size: 0.9rem;
+            border: 1px solid #6c757d;
+            background-color: #adb5bd;
+            color: #495057;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-width: 70px;
+            text-align: center;
+            transform: scale(0.95);
+            margin: 0;
+        }
+
+        .toggle-btn:first-child {
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .toggle-btn:last-child {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+            border-left: none;
+        }
+
+        .toggle-btn.active {
+            background-color: #f0f0f0;
+            border-color: #ccc;
+            color: #495057;
+            z-index: 2;
+            font-weight: 500;
+            font-size: 1rem;
+            transform: scale(1);
+        }
+
+        .toggle-btn:hover:not(:disabled):not(.active) {
+            background-color: #868e96;
+            border-color: #6c757d;
+            transform: scale(0.98);
+        }
+
+        .toggle-btn:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+            opacity: 0.8;
+            cursor: not-allowed;
+        }
+
+        .toggle-btn.active:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        /* Animation for state changes */
+        .toggle-btn.changing {
+            transform: scale(0.95);
+        }
+
+        /* Icon and text styling */
+        .toggle-btn i {
+            margin-right: 0.25rem;
+        }
+
+        .toggle-btn:last-child i {
+            margin-left: 0.25rem;
+            margin-right: 0;
+        }        
+
+        .toggle-btn-small {
+            padding: 0px 6px;
+            min-width: 0;
+            min-height: 0;
+            margin: 0;
+        }
+
         #debugCanvas {
             pointer-events: none;
             z-index: 100;
             position: absolute;
-            left : 0;
+            left: 0;
             bottom: 0;
             width: 640px;
             height: 640px;
-        }        
+        }
     </style>
 </head>
 
 <body>
     <div class="status-indicators">
         <div class="status-indicator" id="gpuIndicator">
-            <span class="status-dot gpu-unknown" id="gpuStatusDot"></span>
             <span class="status-text" id="gpuStatusText">Checking GPU...</span>
+            <div id="gpuToggle" class="toggle-btn-group" data-value="cpu">
+                <button class="toggle-btn toggle-btn-small active" data-value="cpu" disabled>
+                    CPU
+                </button>
+                <button class="toggle-btn toggle-btn-small" data-value="gpu" disabled>
+                    GPU
+                </button>
+            </div>
+            <span class="status-dot gpu-unknown" id="gpuStatusDot"></span>
         </div>
-        
+
         <div class="status-indicator" id="dartDetectionIndicator">
-            <span class="status-dot dart-unknown" id="dartStatusDot"></span>
             <span class="status-text" id="dartStatusText">Not Started</span>
+            <div id="dartDetectionToggle" class="toggle-btn-group" data-value="off">
+                <button class="toggle-btn toggle-btn-small active" data-value="off" disabled>
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button class="toggle-btn toggle-btn-small" data-value="on" disabled>
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
+            <span class="status-dot dart-unknown" id="dartStatusDot"></span>
+        </div>
+
+        <div class="status-indicator" id="mqttIndicator">
+            <span class="status-text" id="mqttStatusText">MQTT</span>
+            <span class="status-dot mqtt-disconnected" id="mqttStatusDot"></span>
         </div>
     </div>
 
     <div class="controls">
-        <div class="control-group">
-            <button id="webcamBtn" class="btn btn-primary btn-sm me-2">Start Webcam</button>
-            <button id="autoCalibBtn" class="btn btn-primary btn-sm me-2">Auto-Calibrate</button>
-            <button id="startDetectionBtn" class="btn btn-success btn-sm me-2">Start Detection</button>
-            <button id="stopDetectionBtn" class="btn btn-danger btn-sm me-2" disabled>Stop Detection</button>
+        <!-- Camera Control Group -->
+        <div class="control-group control-group-expandable">
+            <button id="cameraMainBtn" class="btn main-button" disabled title="Camera Controls">
+                <i class="fas fa-camera"></i>
+            </button>
+            <div id="cameraExpandedBtns" class="expanded-buttons">
+                <button id="cameraSelectBtn" class="btn" disabled title="Select Camera">
+                    <i class="fas fa-list"></i>
+                </button>
+                <button id="webcamPlayBtn" class="btn" title="Start Webcam">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="webcamStopBtn" class="btn" disabled title="Stop Webcam">
+                    <i class="fas fa-stop"></i>
+                </button>
+            </div>
+            <i id="cameraSpinner" class="fas fa-spinner group-spinner"></i>
         </div>
-        <div class="control-group">
-            <select id="cameraSelect" class="form-select form-select-sm d-inline-block me-2" style="width: 200px;">
-                <option value="">Select Camera...</option>
-            </select>
+
+        <!-- Video File Control Group -->
+        <div class="control-group control-group-expandable">
+            <button id="videoMainBtn" class="btn main-button" title="Video File Controls">
+                <i class="fas fa-video"></i>
+            </button>
+            <div id="videoExpandedBtns" class="expanded-buttons">
+                <button id="videoFileSelectBtn" class="btn" title="Select Video File">
+                    <i class="fas fa-folder-open"></i>
+                </button>
+                <button id="videoFilePlayBtn" class="btn" disabled title="Play Video File">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="videoFilePauseBtn" class="btn" disabled title="Pause Video File">
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button id="videoFileStopBtn" class="btn" disabled title="Stop Video File">
+                    <i class="fas fa-stop"></i>
+                </button>
+            </div>
+            <i id="videoSpinner" class="fas fa-spinner group-spinner"></i>
+            <input type="file" id="videoFile" accept="video/*" style="display: none;">
         </div>
+
+        <!-- Auto Calibrate Control -->
         <div class="control-group">
-            <input type="file" id="videoFile" accept="video/*" class="form-control form-control-sm d-inline-block"
-                style="width: 200px;">
+            <button id="autoCalibBtn" class="btn main-button" title="Auto-Calibrate">
+                <i class="fas fa-bullseye"></i> Auto-Calibrate
+            </button>
+        </div>
+    </div>
+
+    <!-- Camera Selection Modal -->
+    <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Select Camera</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cameraList" class="d-flex flex-wrap gap-3 justify-content-center align-items-center h-100">
+                        <!-- Camera options will be populated here -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -204,24 +490,110 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../ext/ort.min.js"></script>
+    <script src="../core/global.js"></script>
     <script src="../core/utils/tools.js"></script>
     <script src="../core/utils/icp.js"></script>
     <script src="../core/utils/ransac.js"></script>
     <script src="../core/utils/image.js"></script>
     <script src="../core/Board.js"></script>
+    <script src="../core/Throw.js"></script>
     <script src="../core/utils/GPUDetector.js"></script>
     <script src="../core/utils/yolo.js"></script>
     <script src="../core/TargetDetector.js"></script>
-    <script src="../core/DartDetector.js"  type="text/javascript"></script>
+    <script src="../core/DartDetector.js" type="text/javascript"></script>
+    <script src="../ui/ToggleButton.js"></script>
     <script src="../ui/ZoomablePannableCanvas.js"></script>
     <script src="../utils/CameraManager.js"></script>
+    <script src="../utils/sound.js"></script>
     <script src="DartNet.js"></script>
-    <script>
+    <script src="main.js"></script>
 
-        // Init main class instance
-        
-        const videoElement = document.getElementById("videoElement");
-        const dartnet = new DartNet(videoElement);
+    <!-- <script>eruda.init();</script> -->
+    <script>
+        // Button group management functions
+        function toggleButtonGroup(groupId) {
+            const expandedBtns = document.getElementById(groupId + 'ExpandedBtns');
+            const mainBtn = document.getElementById(groupId + 'MainBtn');
+
+            if (expandedBtns.classList.contains('show')) {
+                expandedBtns.classList.remove('show');
+            } else {
+                // Hide all other expanded groups first
+                document.querySelectorAll('.expanded-buttons.show').forEach(group => {
+                    group.classList.remove('show');
+                });
+                expandedBtns.classList.add('show');
+            }
+        }
+
+        function showGroupSpinner(groupId) {
+            const spinner = document.getElementById(groupId + 'Spinner');
+            const mainBtn = document.getElementById(groupId + 'MainBtn');
+
+            if (spinner) {
+                spinner.classList.add('show');
+            }
+            if (mainBtn) {
+                mainBtn.disabled = true;
+            }
+        }
+
+        function hideGroupSpinner(groupId) {
+            const spinner = document.getElementById(groupId + 'Spinner');
+            const mainBtn = document.getElementById(groupId + 'MainBtn');
+
+            if (spinner) {
+                spinner.classList.remove('show');
+            }
+            if (mainBtn) {
+                mainBtn.disabled = false;
+            }
+        }
+
+        // Set up main button click handlers
+        document.getElementById('cameraMainBtn').addEventListener('click', () => {
+            toggleButtonGroup('camera');
+        });
+
+        document.getElementById('videoMainBtn').addEventListener('click', () => {
+            toggleButtonGroup('video');
+        });
+
+        // Hide expanded groups when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.control-group-expandable')) {
+                document.querySelectorAll('.expanded-buttons.show').forEach(group => {
+                    group.classList.remove('show');
+                });
+            }
+        });
+
+        function reinitDetectors() {
+            dartnet.initDetectors();
+            if (!dartnet?.dartDetector?.onDetectionCallbacks.includes(onDartDetected))
+                dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
+            if (!dartnet?.dartDetector?.statusChangeCallbacks.includes(updateDartDetectionStatus)) {
+                dartnet.dartDetector.addStatusChangeCallback(updateDartDetectionStatus);
+            }
+            //updateDartDetectionStatus(-1, 'Not Started');
+            dartnet?.dartDetector?.start();
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            toggleButtons["gpuToggle"].setDisabled(false);
+            toggleButtons["gpuToggle"].onChangeCallbacks.push((v, el) => {
+                g_useGPU = v == "gpu";
+                reinitDetectors();
+            });
+            toggleButtons["dartDetectionToggle"].onChangeCallbacks.push((v, el) => {
+                if(v == "off")
+                    dartnet?.dartDetector?.stop()
+                else
+                    dartnet?.dartDetector?.start()
+            });
+
+
+        });
 
         // Initialize GPU detector UI
         const gpuStatusDot = document.getElementById('gpuStatusDot');
@@ -251,72 +623,89 @@
                     break;
             }
 
-            if(status != 'checking' && !dartnet.dartDetector) {
-                dartnet.initDetectors();
-                dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
-                // Set up status change callback
-                dartnet.dartDetector.addStatusChangeCallback((newStatus, oldStatus) => {
-                    console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
-                    updateDartDetectionStatus(newStatus);
-                });
-            }
+            const gpu = status == "webgpu" || status == "webgl";
+            toggleButtons["gpuToggle"].setValue(gpu ? "gpu" : "cpu");
+            toggleButtons["gpuToggle"].setDisabled(!gpu);
         });
-
 
         // Dart Detection Status Management
         const dartStatusDot = document.getElementById('dartStatusDot');
         const dartStatusText = document.getElementById('dartStatusText');
-        const startDetectionBtn = document.getElementById('startDetectionBtn');
-        const stopDetectionBtn = document.getElementById('stopDetectionBtn');
 
         // Dart detection status handler
         function updateDartDetectionStatus(status, statusName) {
             // Remove all status classes
             dartStatusDot.className = 'status-dot';
-            
+            let enabled = true;
             switch (status) {
                 case DartDetectorStatus.INITIALIZING:
                     dartStatusDot.classList.add('dart-initializing');
                     dartStatusText.textContent = '⚙️ Initializing...';
-                    startDetectionBtn.disabled = true;
-                    stopDetectionBtn.disabled = false;
+                    enabled =false;
                     break;
                 case DartDetectorStatus.DETECTING:
                     dartStatusDot.classList.add('dart-detecting');
                     dartStatusText.textContent = '🔍 Detecting';
-                    startDetectionBtn.disabled = true;
-                    stopDetectionBtn.disabled = false;
                     break;
                 case DartDetectorStatus.PAUSE:
                     dartStatusDot.classList.add('dart-paused');
                     dartStatusText.textContent = '⏸️ Paused';
-                    startDetectionBtn.disabled = false;
-                    stopDetectionBtn.disabled = true;
                     break;
                 case DartDetectorStatus.DETECTED:
                     dartStatusDot.classList.add('dart-detected');
                     dartStatusText.textContent = '🎯 Impact Detected!';
-                    // Keep buttons as they are during detection
                     break;
                 default:
                     dartStatusDot.classList.add('dart-unknown');
                     dartStatusText.textContent = 'Not Started';
-                    startDetectionBtn.disabled = false;
-                    stopDetectionBtn.disabled = true;
+                    enabled = false;
                     break;
+            }
+            let onPause = !enabled || (status == DartDetectorStatus.PAUSE);
+            if(status != DartDetectorStatus.INITIALIZING) {
+                toggleButtons["dartDetectionToggle"].setValue(onPause ? "off" : "on", true, false);
+            }
+            toggleButtons["dartDetectionToggle"].setDisabled(!enabled);
+        }
+
+        // MQTT Connection Status Management
+        const mqttStatusDot = document.getElementById('mqttStatusDot');
+        const mqttStatusText = document.getElementById('mqttStatusText');
+
+        function updateMqttStatus(status) {
+            // Remove all status classes
+            mqttStatusDot.className = 'status-dot';
+            
+            switch (status) {
+                case 'connected':
+                    mqttStatusDot.classList.add('mqtt-connected');
+                    //mqttStatusText.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    mqttStatusDot.classList.add('mqtt-disconnected');
+                    //mqttStatusText.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    mqttStatusDot.classList.add('mqtt-connecting');
+                    //mqttStatusText.textContent = 'Connecting...';
+                    break;
+                default:
+                    mqttStatusDot.classList.add('mqtt-disconnected');
+                    //mqttStatusText.textContent = 'Disconnected';
             }
         }
 
-        // Initialize with default status
-        updateDartDetectionStatus(-1, 'Not Started');
+        // Initialize with disconnected status
+        updateMqttStatus('disconnected');
 
-        // Initialize the canvas with debug overlay
-        const zoomableCanvas = new ZoomablePannableCanvas('videoCanvas', 'canvasContainer', 'overlayCanvas');
+        dartnet.mqttStatusCallback = updateMqttStatus;
+        dartnet.initMqtt();        
 
         // Get DOM elements for camera manager
         const elements = {
             cameraSelect: document.getElementById("cameraSelect"),
-            webcamBtn: document.getElementById("webcamBtn"),
+            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
+            webcamStopBtn: document.getElementById("webcamStopBtn"),
             videoElement: document.getElementById("videoElement")
         };
 
@@ -340,407 +729,227 @@
         };
 
         // Initialize CameraManager
-        const cameraManager = new CameraManager(elements, options);
+        const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+        let cameraManager = new CameraManager({
+            cameraSelect: null,
+            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
+            webcamStopBtn: document.getElementById("webcamStopBtn"),
+            videoElement: document.getElementById("videoElement")
+        }, options);
+
+        // Camera selection button handler
+        document.getElementById('cameraSelectBtn').addEventListener('click', () => {
+            showGroupSpinner('camera');
+            cameraModal.show();
+        });
+
+        // Update camera manager to populate modal instead of dropdown
+        options.onCamerasEnumerated = (cameras) => {
+            const cameraList = document.getElementById('cameraList');
+            cameraList.innerHTML = '';
+
+            hideGroupSpinner('camera');
+
+            if (cameras.length === 0) {
+                cameraList.innerHTML = '<div class="text-center">No cameras found</div>';
+                return;
+            }
+
+            // Enable camera select button now that we have cameras
+            const btn = document.getElementById('cameraSelectBtn');
+            btn.disabled = false;
+
+            cameras.forEach((camera, index) => {
+                const cameraCard = document.createElement('div');
+                cameraCard.className = 'card bg-secondary text-white';
+                cameraCard.style.width = '300px';
+                cameraCard.style.cursor = 'pointer';
+                cameraCard.innerHTML = `
+                    <div class="card-body text-center">
+                        <i class="fas fa-camera fa-3x mb-3"></i>
+                        <h5 class="card-title">${camera.label || `Camera ${index + 1}`}</h5>
+                    </div>
+                `;
+                cameraCard.addEventListener('click', () => {
+                    cameraManager.selectCamera(camera.deviceId);
+                    cameraModal.hide();
+                    cameraManager.startWebcam();
+                });
+                cameraList.appendChild(cameraCard);
+            });
+
+            // Enable camera select button now that we have cameras
+            document.getElementById('cameraSelectBtn').disabled = false;
+        };
+
+        // Setup webcam button handlers
+        elements.webcamPlayBtn.onclick = () => {
+            cameraManager.startWebcam();
+            // Disable video file controls
+            videoFilePlayBtn.disabled = true;
+            videoFilePauseBtn.disabled = true;
+            videoFileStopBtn.disabled = true;
+            // Clear any video file
+            document.getElementById('videoElement').src = '';
+        };
+        elements.webcamStopBtn.onclick = () => cameraManager.stopWebcam();
+
+        // Set initial button states
+        elements.webcamPlayBtn.disabled = true;
+        elements.webcamStopBtn.disabled = true;
+
+        // Show group spinner and disable main button initially
+        showGroupSpinner('camera');
+
+        // Update camera manager options to handle webcam state changes
+        options.onWebcamReady = (videoElement, resolution) => {
+            console.log("Webcam ready with resolution:", resolution);
+            if (zoomableCanvas) {
+                zoomableCanvas.setVideoSource(videoElement);
+            }
+            // Update button states
+            elements.webcamPlayBtn.disabled = true;
+            elements.webcamStopBtn.disabled = false;
+        };
+
+        options.onWebcamStopped = () => {
+            // Re-enable video file controls when webcam stops
+            videoFilePlayBtn.disabled = false;
+            // Update webcam button states
+            elements.webcamPlayBtn.disabled = false;
+            elements.webcamStopBtn.disabled = true;
+        };
+
+        // Reinitialize CameraManager with updated options
+        cameraManager = new CameraManager({
+            cameraSelect: null,
+            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
+            webcamStopBtn: document.getElementById("webcamStopBtn"),
+            videoElement: document.getElementById("videoElement")
+        }, options);
 
         // Video file functionality
+        const videoFilePlayBtn = document.getElementById('videoFilePlayBtn');
+        const videoFilePauseBtn = document.getElementById('videoFilePauseBtn');
+        const videoFileStopBtn = document.getElementById('videoFileStopBtn');
+        const videoFileSelectBtn = document.getElementById('videoFileSelectBtn');
+
+        // Handle video file selection button click
+        videoFileSelectBtn.addEventListener('click', () => {
+            document.getElementById('videoFile').click();
+        });
+
         document.getElementById('videoFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                showGroupSpinner('video');
+
                 const videoElement = document.getElementById('videoElement');
                 const url = URL.createObjectURL(file);
                 videoElement.src = url;
                 videoElement.loop = true;
 
+                // Enable controls immediately when file is selected
+                videoFilePlayBtn.disabled = false;
+                videoFilePauseBtn.disabled = true;
+                videoFileStopBtn.disabled = false;
+
                 videoElement.addEventListener('loadedmetadata', () => {
+                    hideGroupSpinner('video');
+
                     videoElement.play().then(() => {
                         zoomableCanvas.setVideoSource(videoElement);
-                        console.log('Video loaded and playing');
+                        console.log('Video loaded.');
+
+                        // Update video controls
+                        videoFilePlayBtn.disabled = true;
+                        videoFilePauseBtn.disabled = false;
+                        videoFileStopBtn.disabled = false;
+
+                        // Disable webcam controls
+                        elements.webcamPlayBtn.disabled = true;
+                        elements.webcamStopBtn.disabled = true;
+                        cameraManager.stopWebcam();
                     }).catch(err => {
                         console.error('Error playing video:', err);
+                        hideGroupSpinner('video');
                     });
                 }, { once: true });
 
-                videoElement.addEventListener('error', (e) => {
-                    console.error('Video loading error:', e);
-                    alert('Could not load video file');
+                videoElement.addEventListener('play', () => {
+                    videoFilePlayBtn.disabled = true;
+                    videoFilePauseBtn.disabled = false;
                 });
+
+                videoElement.addEventListener('pause', () => {
+                    videoFilePlayBtn.disabled = false;
+                    videoFilePauseBtn.disabled = true;
+                });
+
+                videoElement.addEventListener('ended', () => {
+                    videoFilePlayBtn.disabled = false;
+                    videoFilePauseBtn.disabled = true;
+                });
+
+                // videoElement.addEventListener('error', (e) => {
+                //     console.error('Video loading error:', e);
+                //     alert('Could not load video file');
+                //     // Reset controls on error
+                //     videoFilePlayBtn.disabled = true;
+                //     videoFilePauseBtn.disabled = true;
+                //     videoFileStopBtn.disabled = true;
+                //     hideGroupSpinner('video');
+                // });
             }
         });
 
-
-        // Detection control buttons
-        startDetectionBtn.addEventListener('click', () => {
-            if (dartnet.dartDetector) {
-                dartnet.dartDetector.start();
-            }
+        // Video file control handlers
+        videoFilePlayBtn.addEventListener('click', () => {
+            const videoElement = document.getElementById('videoElement');
+            videoElement.play();
+            videoFilePlayBtn.disabled = true;
+            videoFilePauseBtn.disabled = false;
         });
 
-        stopDetectionBtn.addEventListener('click', () => {
-            if (dartnet.dartDetector) {
-                dartnet.dartDetector.stop();
-            }
+        videoFilePauseBtn.addEventListener('click', () => {
+            const videoElement = document.getElementById('videoElement');
+            videoElement.pause();
+            videoFilePlayBtn.disabled = false;
+            videoFilePauseBtn.disabled = true;
         });
 
-        let animationId=null;
-       async function processFrame() {
-            let wait = false;
-            if (dartnet.dartDetector && dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTING && dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTED) wait=true;
-            if (!dartnet.videoSource || dartnet.dartDetector?.pauseDetection || dartnet.videoSource.readyState !== dartnet.videoSource.HAVE_ENOUGH_DATA) wait=true;
-            if(!wait) {
-                try {
-                    dartnet.detectDartImpact();
-                } catch (err) {
-                    console.error('Error processing frame:', err);
-                }
-            }
-            animationId = requestAnimationFrame(processFrame);
-        }
-        processFrame();
+        videoFileStopBtn.addEventListener('click', () => {
+            const videoElement = document.getElementById('videoElement');
 
-        const autoCalib = async () => {
-            console.log("Auto-calib start")
-            dartnet.calibrate(onCalibrationSuccess)
-        }
+            // First clear the src to prevent further loading
+            videoElement.src = '';
 
-        autoCalibBtn.addEventListener('click', autoCalib);
+            // Then pause the video
+            videoElement.pause();
 
-        function recomputeUpTextPos(){
-            const upText = PerspectiveUtils.transformPoints([
-                [Math.cos(Math.PI * 1.5 + Math.PI / 20) * dartnet.board.r_double * 1.2,
-                Math.sin(Math.PI * 1.5 + Math.PI / 20) * dartnet.board.r_double * 1.2]
-            ], dartnet.Mi)[0];
-            let el = zoomableCanvas.getOverlayElement("20");
-            el.x = upText[0];
-            el.y = upText[1];
-        }
+            // Update UI controls
+            videoFilePlayBtn.disabled = true;
+            videoFilePauseBtn.disabled = true;
+            videoFileStopBtn.disabled = true;
 
-        function onCalibrationSuccess(calibPts) {
-            console.log("Calibration succeed:", calibPts)
-            for (let i = 0; i < calibPts.length; i++) {
-                const p = calibPts[i];
-                let el = zoomableCanvas.getOverlayElement(`calib${i}`);
-                el.x = p[0];
-                el.y = p[1];
-            }
-            recomputeUpTextPos();
-        }
+            // Re-enable webcam controls
+            elements.webcamPlayBtn.disabled = false;
+        });
 
-        for (let i = 0; i < 4; i++) {
-            // Add interactive elements
-            zoomableCanvas.addOverlayElement(`calib${i}`,
-                { num: i, x: 100 + i * 20, y: -150, pt_radius: 2, circle_radius: i==0 ? 14 : 10, color: classes_colors[i+1]},
-                // Draw callback
-                (ctx, element, isSelected) => {
-                    ctx.fillStyle = isSelected ? 'rgba(255, 255, 0, 0.7)' : element.color;
-                    ctx.beginPath();
-                    ctx.arc(element.x, element.y, element.pt_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
-                    ctx.fill();
-
-                    ctx.strokeStyle = ctx.fillStyle;
-                    ctx.lineWidth = (element.num == 0 ? 4 : 2) / zoomableCanvas.scale;
-                    ctx.beginPath();
-                    ctx.arc(element.x, element.y, element.circle_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
-                    ctx.stroke();
+        // DEBUG zone
+        document.addEventListener(
+                "keyup",
+                (event) => {
+                    const keyName = event.key;
+                    console.log(keyName);
+                    if (keyName === "q") {
+                        const message = new Paho.MQTT.Message('{"mytest":"DB"}');
+                        message.destinationName = "dartnet/hit";
+                        dartnet.mqttClient?.send(message);
+                    }
                 },
-                // Hit test callback (optional - defaults to circular)
-                (element, worldX, worldY) => {
-                    const dx = worldX - element.x;
-                    const dy = worldY - element.y;
-                    return Math.sqrt(dx * dx + dy * dy) <= element.circle_radius;
-                }
+                false,
             );
-        }
-        
-        // Add "20" Element to help reorient in case it is needed
-        zoomableCanvas.addOverlayElement("cropMask",
-            {
-                net: dartnet, x: 0, y: 0, color: 'rgba(0, 0, 0, 0.6)'
-            },
-            // Draw callback
-            (ctx, element) => {
-                const ca = element.net?.cropArea
-                if(!ca) return;
-                ctx.fillStyle = element.color;
-                //ctx.lineWidth = 2 / zoomableCanvas.scale;
-                ctx.fillRect(0,0, zoomableCanvas.videoElement.videoWidth, ca[1]);
-                ctx.fillRect(0, ca[3], zoomableCanvas.videoElement.videoWidth, zoomableCanvas.videoElement.videoHeight-ca[3]);
-                ctx.fillRect(0, ca[1], 0, ca[3]);
-                ctx.fillRect(ca[2], ca[1], zoomableCanvas.videoElement.videoWidth-ca[2], ca[3]-ca[1]);
-
-                // ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-                // ctx.strokeRect(ca[0], ca[1], ca[2]-ca[0], ca[3]-ca[1]);
-            }
-        );
-
-        // Add "20" Element to help reorient in case it is needed
-        zoomableCanvas.addOverlayElement("20",
-            { net:dartnet, x: 0, y:0, radius:30, color: 'rgba(0, 255, 255, 0.5)', compute_possible: () =>{
-                return PerspectiveUtils.transformPoints(
-                    [...Array(20).keys()].map(i => {
-                        const angle = Math.PI * 2 * i / 20 + Math.PI / 20;
-                        const dis = dartnet.board.r_double * 1.2
-                        return [Math.cos(angle) * dis, Math.sin(angle) * dis];
-                    }), dartnet.Mi);
-            } },
-            // Draw callback
-            (ctx, element, isSelected) => {
-                ctx.fillStyle = isSelected ? 'rgba(128, 255, 128, 0.7)' : element.color;
-                ctx.lineWidth = 2 / zoomableCanvas.scale;
-                ctx.beginPath();
-                ctx.arc(element.x, element.y, element.radius / zoomableCanvas.scale, 0, 2 * Math.PI);
-                ctx.fill();
-
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                ctx.font = `bold ${40 / zoomableCanvas.scale}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.fillText("20", element.x, element.y + 14/ zoomableCanvas.scale);
-
-                if(isSelected && element.net?.Mi) {
-                    const possible = element.compute_possible()
-
-                    possible.forEach((p) => {
-                        ctx.fillStyle = 'rgba(0, 255, 255, 0.25)';
-                        ctx.beginPath();
-                        ctx.arc(p[0], p[1], 8 / zoomableCanvas.scale, 0, 2 * Math.PI);
-                        ctx.fill();
-                    });
-                }
-            },
-            // Hit test callback (optional - defaults to circular)
-            (element, worldX, worldY) => {
-                const dx = worldX - element.x;
-                const dy = worldY - element.y;
-                return Math.sqrt(dx * dx + dy * dy) <= element.radius / zoomableCanvas.scale;
-            }
-        );
-
-        // Add a virtual target visualizer
-        zoomableCanvas.addOverlayElement('virtual_target',
-            { net: dartnet, x: 10, y: 200, lineWidth: 2, color: 'rgba(0, 255, 255, 0.2)' },
-            // Draw callback
-            (ctx, element) => {
-                const pts = element.net?.sourceCalibPts;
-                const Mi = element.net?.Mi;
-                const board = element.net?.board;
-                if (!pts || !Mi || !board) return;
-                ctx.strokeStyle = element.color;
-                ctx.lineWidth = element.lineWidth / zoomableCanvas.scale;
-
-                // Center drawing
-                const srcCenter = PerspectiveUtils.transformPoints([[0, 0]], Mi)[0];
-                ctx.beginPath();
-                ctx.arc(srcCenter[0], srcCenter[1], 1 / zoomableCanvas.scale, 0, 2 * Math.PI);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.arc(srcCenter[0], srcCenter[1], 4 / zoomableCanvas.scale, 0, 2 * Math.PI);
-                ctx.stroke();
-
-                // Segments drawing
-                const boardOuter = board.getOuterPts()
-                const srcOuter = PerspectiveUtils.transformPoints(boardOuter, Mi);
-                const segStart = PerspectiveUtils.transformPoints(boardOuter.map((p) => {
-                    const ratio = board.r_outer_bull / Math.sqrt(p[0] * p[0] + p[1] * p[1]);
-                    return [p[0] * ratio, p[1] * ratio];
-                }), Mi)
-                ctx.beginPath();
-                for (let i = 0; i < segStart.length; i++) {
-                    ctx.moveTo(segStart[i][0], segStart[i][1]);
-                    ctx.lineTo(srcOuter[i][0], srcOuter[i][1]);
-                }
-                ctx.stroke();
-
-                // Circles drawing
-                const radii = [board.r_inner_bull, board.r_outer_bull, board.r_double - board.w_double_treble,
-                board.r_double,
-                board.r_treble - board.w_double_treble, board.r_treble
-                ]
-                
-                radii.forEach((r) => {
-                    const num = Math.max(Math.ceil(r * 200 * (zoomableCanvas.scale < 1 ? 1 : zoomableCanvas.scale)), 20);
-                    const pts = [...Array(num).keys()].map(i => [Math.cos(Math.PI * 2 * i / num) * r, Math.sin(Math.PI * 2 * i / num) * r]);
-                    const srcPts = PerspectiveUtils.transformPoints(pts, Mi);
-                    ctx.beginPath();
-                    ctx.moveTo(srcPts[0], srcPts[1])
-                    for (let i = 0; i <= srcPts.length; i++) {
-                        p = srcPts[(i + 1) % srcPts.length];
-                        ctx.lineTo(p[0], p[1]);
-                    }
-                    ctx.stroke();
-                });
-            }
-        );
-       
-       // Add score viewer on mouse hover
-        zoomableCanvas.addOverlayElement("scoreViewer", { x: 0, y: 0, color: 'rgba(0, 255, 128, 0.75)', text:null },
-            // Draw callback
-            (ctx, element) => {
-                if(!element.text) return;
-                ctx.fillStyle = element.color;
-                ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
-            },
-            (element, worldX, worldY) => false // Disable picking drag and drop
-        );
-
-        // Add Dart tip debug viewer
-        zoomableCanvas.addOverlayElement("dartTip", { x: 40, y: 0, pt_radius: 1.5, radius: 10, color: 'rgba(0, 128, 255, 0.5)'},
-            // Draw callback
-            (ctx, element) => {
-                //if(!element.text) return;
-                ctx.fillStyle = element.color;
-                ctx.beginPath();
-                ctx.arc(element.x, element.y, element.pt_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
-                ctx.fill();
-                ctx.strokeStyle = element.color;
-                ctx.lineWidth = 1 / zoomableCanvas.scale;
-                ctx.beginPath();
-                let  dec = element.radius / zoomableCanvas.scale;
-                ctx.moveTo(element.x-dec, element.y-dec);
-                ctx.lineTo(element.x+dec, element.y+dec);
-                ctx.moveTo(element.x+dec, element.y-dec);
-                ctx.lineTo(element.x-dec, element.y+dec);
-                ctx.stroke();
-
-                // ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
-                // ctx.textAlign = 'center';
-                // ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
-            },
-            (element, worldX, worldY) => false // Disable picking drag and drop
-        );
-
-                // Add Dart tip debug viewer
-        zoomableCanvas.addOverlayElement("dartDebug", { x: 0, y: 0, boxes: null},
-            // Draw callback
-            (ctx, element) => {
-                if(!element.boxes) return;
-                element.boxes.forEach((b) => {
-                ctx.strokeStyle = classes_colors[b[4]];
-                ctx.lineWidth = 1.5 / zoomableCanvas.scale;
-                ctx.strokeRect(b[0],b[1],b[2]-b[0],b[3]-b[1]);
-
-                });
-
-                // ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
-                // ctx.textAlign = 'center';
-                // ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
-            },
-            (element, worldX, worldY) => false // Disable picking drag and drop
-        );
-
-
-       // Add "20" Element to help reorient in case it is needed
-        zoomableCanvas.addOverlayElement("scoreViewer", { x: 0, y: 0, color: 'rgba(0, 255, 128, 0.75)', text:null },
-            // Draw callback
-            (ctx, element) => {
-                if(!element.text) return;
-                ctx.fillStyle = element.color;
-                ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
-            },
-            (element, worldX, worldY) => false // Disable picking drag and drop
-        );
-
-
-
-        // Add "20" Element to help reorient in case it is needed
-        zoomableCanvas.addOverlayElement("dartImpactDebug",
-            {
-                img: null, width:0 ,height:0, net:dartnet, x: 0, y: 0, color: [255,0,0,0.8], setDetected(grayImg, width, height) {
-                    const imageData = new ImageData(width, height);
-                    const data = imageData.data;
-
-                    for (let i = 0; i < grayImg.data.length; i++) {
-                    const value = grayImg.data[i];
-                    data[i * 4] = Math.floor(value * this.color[0] / 255); // R
-                    data[i * 4 + 1] = Math.floor(value * this.color[1] / 255); // G
-                    data[i * 4 + 2] = Math.floor(value * this.color[2] / 255); // B
-                    data[i * 4 + 3] = Math.floor((value<20 ? 0 : 1) * this.color[3] * 255); // A
-                    }
-                    this.img = ImageProcessor.imageDataToImage(imageData);
-                    this.width = width;
-                    this.height =height;
-                }
-            },
-            // Draw callback
-            (ctx, element) => {
-                const ca = element.net?.cropArea;
-                if(!ca || !element.img) return;
-                
-                ctx.drawImage(element.img, 0,0, element.width, element.height, ca[0],ca[1],ca[2],ca[3]);
-            }
-        );
-
-        // Set up event callbacks
-        zoomableCanvas.setOnElementSelected((id, element) => {
-            console.log(`Selected element: ${id}`, element);
-        });
-
-        zoomableCanvas.setOnElementDrag((id, element, worldCoords) => {
-            console.log(`Dragging ${id} to:`, element.x, element.y);
-
-            if (id.includes("calib")) {
-                console.log(`Moving calibration point ${element.num}`)
-                if (dartnet.sourceCalibPts) {
-                    dartnet.sourceCalibPts[element.num] = [element.x, element.y];
-                    dartnet.updateCalibPoints(dartnet.sourceCalibPts);
-                }
-            }
-            else if (id == "20") {
-                const possible = element.compute_possible();
-                const distances = possible.map((p) => MathUtils.distance(p, [element.x, element.y]))
-                var indexMin = distances.indexOf(Math.min(...distances));
-                var rotMatrix = MathUtils.createRotationMatrix(((indexMin+5)%30) *360/20);
-                var boardRotated = MathUtils.rotatePoints(dartnet.board.board_cal_pts,rotMatrix);
-                var newCalib = PerspectiveUtils.transformPoints(boardRotated, dartnet.Mi)
-                dartnet.updateCalibPoints(newCalib);
-                onCalibrationSuccess(newCalib);
-            }
-        });
-
-        zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
-            console.log(`Finished dragging ${id}`);
-        });
-
-        document.getElementById("videoCanvas").addEventListener('mousemove', (event) => {
-            const srcP = zoomableCanvas.canvasToWorld(event.clientX,event.clientY);
-            const score = dartnet.sourceCalibPts ? dartnet.board.getDartScores(dartnet.sourceCalibPts, [[srcP.x, srcP.y]]) [0] : null;
-            let element = zoomableCanvas.getOverlayElement("scoreViewer");
-            element.x = srcP.x + 40 / zoomableCanvas.scale;
-            element.y = srcP.y;
-            element.text = score;
-        });
-
-        function onDartDetected(data) {
-            console.log("DartImpact:", data);
-
-            const debugCanvas = document.getElementById("debugCanvas");
-            if (debugCanvas) {
-                debugCanvas.width = 640;
-                debugCanvas.height = 640;
-
-                const debugCtx = debugCanvas.getContext("2d");
-                debugCtx.putImageData(ImageProcessor.grayscaleToImageData(data.delta), 0, 0);
-                debugCtx.strokeStyle = "rgba(255, 255, 0, 1.0)";
-                data.boxes.forEach((b) => {
-                    debugCtx.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
-                });
-            }
-
-            zoomableCanvas.getOverlayElement("dartImpactDebug").setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
-
-            //const tipEl = zoomableCanvas.getOverlayElement("dartTip");
-            //tipEl.x = 
-            const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");
-            dartDbg.boxes = data.boxes.map((b) => {
-                let tl = dartnet.cropppedToSource([b[0], b[1]]);
-                let br = dartnet.cropppedToSource([b[2], b[3]]);
-                return [tl[0], tl[1], br[0], br[1], b[4], b[5]];
-            });
-            console.log(dartDbg)
-        }
-
     </script>
 </body>
 

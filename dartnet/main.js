@@ -414,7 +414,8 @@ function onDartDetected(data) {
   if (dartnet.targetDetector && confidencesTips && confidencesTips.length) {
     var indexMax = confidencesTips.indexOf(Math.max(...confidencesTips));
     const b = data.boxes[indexMax];
-    const srcP = dartnet.cropppedToSource([(b[0] + b[2]) * 0.5, (b[1] + b[3]) * 0.5]);
+    const croppedP = [(b[0] + b[2]) * 0.5, (b[1] + b[3]) * 0.5];
+    const srcP = dartnet.cropppedToSource(croppedP);
     const tipEl = zoomableCanvas.getOverlayElement("dartTip");
     if (tipEl) {
       tipEl.x = srcP[0];
@@ -426,6 +427,11 @@ function onDartDetected(data) {
       : null;
     console.log("HIT ZONE:", score);
     Sound.zone(score);
+    const cartesian = PerspectiveUtils.transformPoints([srcP], dartnet.M)[0];
+    const hit = Throw.fromCartesian(cartesian[0], cartesian[1], dartnet.board.r_double, score, null);
+    const message = new Paho.MQTT.Message(JSON.stringify(hit));
+    message.destinationName = "dartnet/hit";
+    dartnet.mqttClient?.send(message);
   }
 
   const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");

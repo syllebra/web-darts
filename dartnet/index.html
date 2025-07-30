@@ -496,6 +496,7 @@
     <script src="../core/utils/ransac.js"></script>
     <script src="../core/utils/image.js"></script>
     <script src="../core/Board.js"></script>
+    <script src="../core/Throw.js"></script>
     <script src="../core/utils/GPUDetector.js"></script>
     <script src="../core/utils/yolo.js"></script>
     <script src="../core/TargetDetector.js"></script>
@@ -569,10 +570,8 @@
 
         function reinitDetectors() {
             dartnet.initDetectors();
-            console.log("onDetectionCallbacks:",dartnet?.dartDetector?.onDetectionCallbacks)
             if (!dartnet?.dartDetector?.onDetectionCallbacks.includes(onDartDetected))
                 dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
-            console.log("statusChangeCallbacks:", dartnet?.dartDetector?.statusChangeCallbacks)
             if (!dartnet?.dartDetector?.statusChangeCallbacks.includes(updateDartDetectionStatus)) {
                 dartnet.dartDetector.addStatusChangeCallback(updateDartDetectionStatus);
             }
@@ -583,12 +582,10 @@
         document.addEventListener("DOMContentLoaded", () => {
             toggleButtons["gpuToggle"].setDisabled(false);
             toggleButtons["gpuToggle"].onChangeCallbacks.push((v, el) => {
-                console.log(el, "changed to ", v);
                 g_useGPU = v == "gpu";
                 reinitDetectors();
             });
             toggleButtons["dartDetectionToggle"].onChangeCallbacks.push((v, el) => {
-                console.log(el, "changed to ", v);
                 if(v == "off")
                     dartnet?.dartDetector?.stop()
                 else
@@ -665,9 +662,7 @@
                     break;
             }
             let onPause = !enabled || (status == DartDetectorStatus.PAUSE);
-            console.trace(dartStatusText.textContent," enabled:",enabled,"onPause:", onPause, toggleButtons["dartDetectionToggle"]);
             if(status != DartDetectorStatus.INITIALIZING) {
-                console.log("SETTING UI TO:", onPause)
                 toggleButtons["dartDetectionToggle"].setValue(onPause ? "off" : "on", true, false);
             }
             toggleButtons["dartDetectionToggle"].setDisabled(!enabled);
@@ -864,7 +859,7 @@
 
                     videoElement.play().then(() => {
                         zoomableCanvas.setVideoSource(videoElement);
-                        console.log('Video loaded and playing');
+                        console.log('Video loaded.');
 
                         // Update video controls
                         videoFilePlayBtn.disabled = true;
@@ -951,11 +946,6 @@
                         const message = new Paho.MQTT.Message('{"mytest":"DB"}');
                         message.destinationName = "dartnet/hit";
                         dartnet.mqttClient?.send(message);
-                    }
-                    // As the user releases the Ctrl key, the key is no longer active,
-                    // so event.ctrlKey is false.
-                    if (keyName === "Control") {
-                        alert("Control key was released");
                     }
                 },
                 false,

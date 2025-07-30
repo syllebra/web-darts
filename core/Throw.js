@@ -67,20 +67,20 @@ class Throw {
 
   // Helper method to get cartesian coordinates from angular coordinates
   // Assumes dartboard radius of 1 unit for outer double line
-  getCartesianCoordinates() {
+  getCartesianCoordinates(scale) {
     const angleRad = (this.alpha * Math.PI) / 180;
-    const x = this.d * Math.cos(angleRad);
-    const y = this.d * Math.sin(angleRad);
+    const x = this.d * Math.cos(angleRad) * scale;
+    const y = this.d * Math.sin(angleRad) * scale;
     return { x, y };
   }
 
   // Static method to create a Throw from cartesian coordinates
-  static fromCartesian(x, y, zone, targetZone = null) {
+  static fromCartesian(x, y, scale, zone, targetZone = null) {
     const d = Math.sqrt(x * x + y * y);
     let alpha = (Math.atan2(y, x) * 180) / Math.PI;
     if (alpha < 0) alpha += 360; // Normalize to 0-360
 
-    return new Throw(alpha, d, zone, targetZone);
+    return new Throw(alpha, d / scale, zone, targetZone);
   }
 
   // Method to check if throw hit the target zone

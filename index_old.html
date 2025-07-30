@@ -325,6 +325,7 @@
             if(message.destinationName == "dartnet/hit") {
                 console.log("HIT:",message.payloadString)
                 app.score(message.payloadString);
+                console.log("OBJECT RECEIVED:", JSON.parse(message.payloadString))
             }
                 
         }

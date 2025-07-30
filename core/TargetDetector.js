@@ -62,8 +62,9 @@ class YoloTargetDetector {
 
   async initializeModel() {
     try {
-      let properties = gpuDetector.status == "webgpu" ? { executionProviders: ["webgpu"] } : null;
-      this.session = await ort.InferenceSession.create(this.modelPath, properties);
+      if (g_useGPU)
+        this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ["webgpu"] });
+      else this.session = await ort.InferenceSession.create(this.modelPath);
       console.log("Modèle ONNX chargé avec succès", this.session);
       if (this.initCallback) this.initCallback();
     } catch (error) {

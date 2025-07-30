@@ -1,5 +1,5 @@
 // Init main class instance
-const dartnet = new DartNet(document.getElementById("videoElement"));
+const dartnet = new DartNet(document.getElementById("videoElement"), location.hostname);
 
 // Initialize the canvas with debug overlay
 const zoomableCanvas = new ZoomablePannableCanvas("videoCanvas", "canvasContainer", "overlayCanvas");
@@ -410,7 +410,7 @@ function onDartDetected(data) {
     .getOverlayElement("dartImpactDebug")
     .setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
 
-  const confidencesTips = data.boxes.map((b) => (b[4] === 0 ? b[5] : 0.0));
+  const confidencesTips = data.boxes.map((b) => (b[4] == 0 ? b[5] : -1.0));
   if (dartnet.targetDetector && confidencesTips && confidencesTips.length) {
     var indexMax = confidencesTips.indexOf(Math.max(...confidencesTips));
     const b = data.boxes[indexMax];

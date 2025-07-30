@@ -8,6 +8,7 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/eruda"></script> -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         body,
         html {
@@ -50,12 +51,6 @@
             padding: 10px;
         }
 
-        .debug-layer {
-            position: absolute;
-            pointer-events: none;
-            z-index: 100;
-        }
-
         #videoElement {
             display: none;
         }
@@ -66,15 +61,104 @@
             z-index: 101;
             bottom: 0;
             left: 0;
-
         }
 
         .control-group {
             margin-bottom: 8px;
+            position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .control-group:last-child {
             margin-bottom: 0;
+        }
+
+        .control-group-expandable {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .main-button {
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+            border-right: none;
+            margin-right: 0;
+            z-index: 2;
+            position: relative;
+        }
+
+        .main-button:hover:not(:disabled) {
+            background-color: #dee2e6;
+            border-color: #adb5bd;
+        }
+
+        .main-button:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+            opacity: 0.8;
+        }
+
+        .expanded-buttons {
+            max-width: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            opacity: 0;
+            white-space: nowrap;
+        }
+
+        .expanded-buttons.show {
+            max-width: 400px;
+            opacity: 1;
+        }
+
+        .expanded-buttons .btn {
+            font-size: 1.0rem;
+            padding: 0.375rem 0.75rem;
+            background-color: #f8f9fa;
+            border: 1px solid #ccc;
+            border-left: none;
+            border-radius: 0;
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+        .expanded-buttons .btn:last-child {
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+            margin-right: 8px;
+        }
+
+        .group-spinner {
+            opacity: 0;
+            color: #007bff;
+            font-size: 1.2rem;
+            margin-left: 8px;
+            transition: opacity 0.3s ease-in-out;
+            animation: spin 1s linear infinite;
+            min-width: 20px;
+        }
+
+        .group-spinner.show {
+            opacity: 1;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .status-indicators {
@@ -95,6 +179,7 @@
             color: white;
             display: flex;
             align-items: center;
+            text-align: right;
             gap: 5px;
             min-width: 120px;
         }
@@ -155,6 +240,19 @@
             background-color: #6c757d;
         }
 
+        /* MQTT connection status colors */
+        .mqtt-connected {
+            background-color: #28a745;
+        }
+        
+        .mqtt-disconnected {
+            background-color: #dc3545;
+        }
+        
+        .mqtt-connecting {
+            background-color: #ffc107;
+        }
+
         /* Status text styling */
         .status-text {
             font-weight: 500;
@@ -178,13 +276,94 @@
             overflow: hidden;
         }
 
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        .toggle-btn-group {
+            position: relative;
+            display: inline-flex;
+            vertical-align: middle;
         }
 
-        .btn-loading {
+        .toggle-btn {
             position: relative;
+            flex: 1 1 auto;
+            padding: 0.375rem 0.875rem;
+            font-size: 0.9rem;
+            border: 1px solid #6c757d;
+            background-color: #adb5bd;
+            color: #495057;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-width: 70px;
+            text-align: center;
+            transform: scale(0.95);
+            margin: 0;
+        }
+
+        .toggle-btn:first-child {
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .toggle-btn:last-child {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+            border-left: none;
+        }
+
+        .toggle-btn.active {
+            background-color: #f0f0f0;
+            border-color: #ccc;
+            color: #495057;
+            z-index: 2;
+            font-weight: 500;
+            font-size: 1rem;
+            transform: scale(1);
+        }
+
+        .toggle-btn:hover:not(:disabled):not(.active) {
+            background-color: #868e96;
+            border-color: #6c757d;
+            transform: scale(0.98);
+        }
+
+        .toggle-btn:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+            opacity: 0.8;
+            cursor: not-allowed;
+        }
+
+        .toggle-btn.active:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        /* Animation for state changes */
+        .toggle-btn.changing {
+            transform: scale(0.95);
+        }
+
+        /* Icon and text styling */
+        .toggle-btn i {
+            margin-right: 0.25rem;
+        }
+
+        .toggle-btn:last-child i {
+            margin-left: 0.25rem;
+            margin-right: 0;
+        }        
+
+        .toggle-btn-small {
+            padding: 0px 6px;
+            min-width: 0;
+            min-height: 0;
+            margin: 0;
         }
 
         #debugCanvas {
@@ -202,58 +381,84 @@
 <body>
     <div class="status-indicators">
         <div class="status-indicator" id="gpuIndicator">
-            <span class="status-dot gpu-unknown" id="gpuStatusDot"></span>
             <span class="status-text" id="gpuStatusText">Checking GPU...</span>
+            <div id="gpuToggle" class="toggle-btn-group" data-value="cpu">
+                <button class="toggle-btn toggle-btn-small active" data-value="cpu" disabled>
+                    CPU
+                </button>
+                <button class="toggle-btn toggle-btn-small" data-value="gpu" disabled>
+                    GPU
+                </button>
+            </div>
+            <span class="status-dot gpu-unknown" id="gpuStatusDot"></span>
         </div>
 
         <div class="status-indicator" id="dartDetectionIndicator">
-            <span class="status-dot dart-unknown" id="dartStatusDot"></span>
             <span class="status-text" id="dartStatusText">Not Started</span>
+            <div id="dartDetectionToggle" class="toggle-btn-group" data-value="off">
+                <button class="toggle-btn toggle-btn-small active" data-value="off" disabled>
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button class="toggle-btn toggle-btn-small" data-value="on" disabled>
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
+            <span class="status-dot dart-unknown" id="dartStatusDot"></span>
+        </div>
+
+        <div class="status-indicator" id="mqttIndicator">
+            <span class="status-text" id="mqttStatusText">MQTT</span>
+            <span class="status-dot mqtt-disconnected" id="mqttStatusDot"></span>
         </div>
     </div>
 
     <div class="controls">
-        <div class="control-group">
-            <div class="btn-group me-3" role="group">
-                <button id="cameraSelectBtn" class="btn" disabled title="Select Camera"
-                    style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
-                    <i class="fas fa-camera fa-spinner loading-spinner"></i>
+        <!-- Camera Control Group -->
+        <div class="control-group control-group-expandable">
+            <button id="cameraMainBtn" class="btn main-button" disabled title="Camera Controls">
+                <i class="fas fa-camera"></i>
+            </button>
+            <div id="cameraExpandedBtns" class="expanded-buttons">
+                <button id="cameraSelectBtn" class="btn" disabled title="Select Camera">
+                    <i class="fas fa-list"></i>
                 </button>
-
-                <button id="webcamPlayBtn" class="btn" title="Start Webcam" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                <button id="webcamPlayBtn" class="btn" title="Start Webcam">
                     <i class="fas fa-play"></i>
                 </button>
-                <button id="webcamStopBtn" class="btn" disabled title="Stop Webcam" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                <button id="webcamStopBtn" class="btn" disabled title="Stop Webcam">
                     <i class="fas fa-stop"></i>
                 </button>
             </div>
+            <i id="cameraSpinner" class="fas fa-spinner group-spinner"></i>
         </div>
-        <div class="control-group">
-            <div class="btn-group me-3" role="group">
-                <button id="videoFileSelectBtn" class="btn" title="Select Video File"
-                    style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
-                    <i class="fas fa-video"></i>
+
+        <!-- Video File Control Group -->
+        <div class="control-group control-group-expandable">
+            <button id="videoMainBtn" class="btn main-button" title="Video File Controls">
+                <i class="fas fa-video"></i>
+            </button>
+            <div id="videoExpandedBtns" class="expanded-buttons">
+                <button id="videoFileSelectBtn" class="btn" title="Select Video File">
+                    <i class="fas fa-folder-open"></i>
                 </button>
-                <button id="videoFilePlayBtn" class="btn" disabled title="Play Video File" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                <button id="videoFilePlayBtn" class="btn" disabled title="Play Video File">
                     <i class="fas fa-play"></i>
                 </button>
-                <button id="videoFilePauseBtn" class="btn" disabled title="Pause Video File" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                <button id="videoFilePauseBtn" class="btn" disabled title="Pause Video File">
                     <i class="fas fa-pause"></i>
                 </button>
-                <button id="videoFileStopBtn" class="btn" disabled title="Stop Video File" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+                <button id="videoFileStopBtn" class="btn" disabled title="Stop Video File">
                     <i class="fas fa-stop"></i>
                 </button>
             </div>
+            <i id="videoSpinner" class="fas fa-spinner group-spinner"></i>
             <input type="file" id="videoFile" accept="video/*" style="display: none;">
         </div>
+
+        <!-- Auto Calibrate Control -->
         <div class="control-group">
-            <button id="autoCalibBtn" class="btn" title="Auto-Calibrate" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
+            <button id="autoCalibBtn" class="btn main-button" title="Auto-Calibrate">
                 <i class="fas fa-bullseye"></i> Auto-Calibrate
-            </button>
-        </div>
-        <div class="control-group">
-            <button id="toggleDetectionBtn" class="btn" title="Toggle Dart Detection" style="font-size: 1.2rem; padding: 0.5rem 1rem; background-color: #f0f0f0; border: 1px solid #ccc;">
-                <i class="fas fa-eye"></i>
             </button>
         </div>
     </div>
@@ -264,7 +469,8 @@
             <div class="modal-content bg-dark text-white">
                 <div class="modal-header border-0">
                     <h5 class="modal-title">Select Camera</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div id="cameraList" class="d-flex flex-wrap gap-3 justify-content-center align-items-center h-100">
@@ -284,6 +490,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../ext/ort.min.js"></script>
+    <script src="../core/global.js"></script>
     <script src="../core/utils/tools.js"></script>
     <script src="../core/utils/icp.js"></script>
     <script src="../core/utils/ransac.js"></script>
@@ -293,6 +500,7 @@
     <script src="../core/utils/yolo.js"></script>
     <script src="../core/TargetDetector.js"></script>
     <script src="../core/DartDetector.js" type="text/javascript"></script>
+    <script src="../ui/ToggleButton.js"></script>
     <script src="../ui/ZoomablePannableCanvas.js"></script>
     <script src="../utils/CameraManager.js"></script>
     <script src="../utils/sound.js"></script>
@@ -301,6 +509,95 @@
 
     <!-- <script>eruda.init();</script> -->
     <script>
+        // Button group management functions
+        function toggleButtonGroup(groupId) {
+            const expandedBtns = document.getElementById(groupId + 'ExpandedBtns');
+            const mainBtn = document.getElementById(groupId + 'MainBtn');
+
+            if (expandedBtns.classList.contains('show')) {
+                expandedBtns.classList.remove('show');
+            } else {
+                // Hide all other expanded groups first
+                document.querySelectorAll('.expanded-buttons.show').forEach(group => {
+                    group.classList.remove('show');
+                });
+                expandedBtns.classList.add('show');
+            }
+        }
+
+        function showGroupSpinner(groupId) {
+            const spinner = document.getElementById(groupId + 'Spinner');
+            const mainBtn = document.getElementById(groupId + 'MainBtn');
+
+            if (spinner) {
+                spinner.classList.add('show');
+            }
+            if (mainBtn) {
+                mainBtn.disabled = true;
+            }
+        }
+
+        function hideGroupSpinner(groupId) {
+            const spinner = document.getElementById(groupId + 'Spinner');
+            const mainBtn = document.getElementById(groupId + 'MainBtn');
+
+            if (spinner) {
+                spinner.classList.remove('show');
+            }
+            if (mainBtn) {
+                mainBtn.disabled = false;
+            }
+        }
+
+        // Set up main button click handlers
+        document.getElementById('cameraMainBtn').addEventListener('click', () => {
+            toggleButtonGroup('camera');
+        });
+
+        document.getElementById('videoMainBtn').addEventListener('click', () => {
+            toggleButtonGroup('video');
+        });
+
+        // Hide expanded groups when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.control-group-expandable')) {
+                document.querySelectorAll('.expanded-buttons.show').forEach(group => {
+                    group.classList.remove('show');
+                });
+            }
+        });
+
+        function reinitDetectors() {
+            dartnet.initDetectors();
+            console.log("onDetectionCallbacks:",dartnet?.dartDetector?.onDetectionCallbacks)
+            if (!dartnet?.dartDetector?.onDetectionCallbacks.includes(onDartDetected))
+                dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
+            console.log("statusChangeCallbacks:", dartnet?.dartDetector?.statusChangeCallbacks)
+            if (!dartnet?.dartDetector?.statusChangeCallbacks.includes(updateDartDetectionStatus)) {
+                dartnet.dartDetector.addStatusChangeCallback(updateDartDetectionStatus);
+            }
+            //updateDartDetectionStatus(-1, 'Not Started');
+            dartnet?.dartDetector?.start();
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            toggleButtons["gpuToggle"].setDisabled(false);
+            toggleButtons["gpuToggle"].onChangeCallbacks.push((v, el) => {
+                console.log(el, "changed to ", v);
+                g_useGPU = v == "gpu";
+                reinitDetectors();
+            });
+            toggleButtons["dartDetectionToggle"].onChangeCallbacks.push((v, el) => {
+                console.log(el, "changed to ", v);
+                if(v == "off")
+                    dartnet?.dartDetector?.stop()
+                else
+                    dartnet?.dartDetector?.start()
+            });
+
+
+        });
+
         // Initialize GPU detector UI
         const gpuStatusDot = document.getElementById('gpuStatusDot');
         const gpuStatusText = document.getElementById('gpuStatusText');
@@ -329,17 +626,10 @@
                     break;
             }
 
-            if (status != 'checking' && !dartnet.dartDetector) {
-                dartnet.initDetectors();
-                dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
-                // Set up status change callback
-                dartnet.dartDetector.addStatusChangeCallback((newStatus, oldStatus) => {
-                    //console.log(`Dart detection status changed: ${oldStatus} → ${newStatus}`);
-                    updateDartDetectionStatus(newStatus);
-                });
-            }
+            const gpu = status == "webgpu" || status == "webgl";
+            toggleButtons["gpuToggle"].setValue(gpu ? "gpu" : "cpu");
+            toggleButtons["gpuToggle"].setDisabled(!gpu);
         });
-
 
         // Dart Detection Status Management
         const dartStatusDot = document.getElementById('dartStatusDot');
@@ -349,46 +639,72 @@
         function updateDartDetectionStatus(status, statusName) {
             // Remove all status classes
             dartStatusDot.className = 'status-dot';
-            const toggleBtn = document.getElementById('toggleDetectionBtn');
-            const icon = toggleBtn.querySelector('i');
-
+            let enabled = true;
             switch (status) {
                 case DartDetectorStatus.INITIALIZING:
                     dartStatusDot.classList.add('dart-initializing');
                     dartStatusText.textContent = '⚙️ Initializing...';
-                    toggleBtn.disabled = true;
+                    enabled =false;
                     break;
                 case DartDetectorStatus.DETECTING:
                     dartStatusDot.classList.add('dart-detecting');
                     dartStatusText.textContent = '🔍 Detecting';
-                    icon.className = 'fas fa-arrows-to-dot';
-                    toggleBtn.title = 'Stop Dart Detection';
-                    toggleBtn.disabled = false;
                     break;
                 case DartDetectorStatus.PAUSE:
                     dartStatusDot.classList.add('dart-paused');
                     dartStatusText.textContent = '⏸️ Paused';
-                    icon.className = 'fas fa-eye';
-                    toggleBtn.title = 'Start Dart Detection';
-                    toggleBtn.disabled = false;
                     break;
                 case DartDetectorStatus.DETECTED:
                     dartStatusDot.classList.add('dart-detected');
                     dartStatusText.textContent = '🎯 Impact Detected!';
-                    toggleBtn.disabled = false;
                     break;
                 default:
                     dartStatusDot.classList.add('dart-unknown');
                     dartStatusText.textContent = 'Not Started';
-                    icon.className = 'fas fa-eye';
-                    toggleBtn.title = 'Start Dart Detection';
-                    toggleBtn.disabled = false;
+                    enabled = false;
                     break;
+            }
+            let onPause = !enabled || (status == DartDetectorStatus.PAUSE);
+            console.trace(dartStatusText.textContent," enabled:",enabled,"onPause:", onPause, toggleButtons["dartDetectionToggle"]);
+            if(status != DartDetectorStatus.INITIALIZING) {
+                console.log("SETTING UI TO:", onPause)
+                toggleButtons["dartDetectionToggle"].setValue(onPause ? "off" : "on", true, false);
+            }
+            toggleButtons["dartDetectionToggle"].setDisabled(!enabled);
+        }
+
+        // MQTT Connection Status Management
+        const mqttStatusDot = document.getElementById('mqttStatusDot');
+        const mqttStatusText = document.getElementById('mqttStatusText');
+
+        function updateMqttStatus(status) {
+            // Remove all status classes
+            mqttStatusDot.className = 'status-dot';
+            
+            switch (status) {
+                case 'connected':
+                    mqttStatusDot.classList.add('mqtt-connected');
+                    //mqttStatusText.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    mqttStatusDot.classList.add('mqtt-disconnected');
+                    //mqttStatusText.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    mqttStatusDot.classList.add('mqtt-connecting');
+                    //mqttStatusText.textContent = 'Connecting...';
+                    break;
+                default:
+                    mqttStatusDot.classList.add('mqtt-disconnected');
+                    //mqttStatusText.textContent = 'Disconnected';
             }
         }
 
-        // Initialize with default status
-        updateDartDetectionStatus(-1, 'Not Started');
+        // Initialize with disconnected status
+        updateMqttStatus('disconnected');
+
+        dartnet.mqttStatusCallback = updateMqttStatus;
+        dartnet.initMqtt();        
 
         // Get DOM elements for camera manager
         const elements = {
@@ -428,8 +744,7 @@
 
         // Camera selection button handler
         document.getElementById('cameraSelectBtn').addEventListener('click', () => {
-            const btn = document.getElementById('cameraSelectBtn');
-            btn.disabled = true;
+            showGroupSpinner('camera');
             cameraModal.show();
         });
 
@@ -437,7 +752,9 @@
         options.onCamerasEnumerated = (cameras) => {
             const cameraList = document.getElementById('cameraList');
             cameraList.innerHTML = '';
-            
+
+            hideGroupSpinner('camera');
+
             if (cameras.length === 0) {
                 cameraList.innerHTML = '<div class="text-center">No cameras found</div>';
                 return;
@@ -446,8 +763,6 @@
             // Enable camera select button now that we have cameras
             const btn = document.getElementById('cameraSelectBtn');
             btn.disabled = false;
-            btn.classList.remove('btn-loading');
-            btn.innerHTML = '<i class="fas fa-camera"></i>';
 
             cameras.forEach((camera, index) => {
                 const cameraCard = document.createElement('div');
@@ -487,6 +802,9 @@
         // Set initial button states
         elements.webcamPlayBtn.disabled = true;
         elements.webcamStopBtn.disabled = true;
+
+        // Show group spinner and disable main button initially
+        showGroupSpinner('camera');
 
         // Update camera manager options to handle webcam state changes
         options.onWebcamReady = (videoElement, resolution) => {
@@ -529,6 +847,8 @@
         document.getElementById('videoFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                showGroupSpinner('video');
+
                 const videoElement = document.getElementById('videoElement');
                 const url = URL.createObjectURL(file);
                 videoElement.src = url;
@@ -540,6 +860,8 @@
                 videoFileStopBtn.disabled = false;
 
                 videoElement.addEventListener('loadedmetadata', () => {
+                    hideGroupSpinner('video');
+
                     videoElement.play().then(() => {
                         zoomableCanvas.setVideoSource(videoElement);
                         console.log('Video loaded and playing');
@@ -555,6 +877,7 @@
                         cameraManager.stopWebcam();
                     }).catch(err => {
                         console.error('Error playing video:', err);
+                        hideGroupSpinner('video');
                     });
                 }, { once: true });
 
@@ -580,6 +903,7 @@
                 //     videoFilePlayBtn.disabled = true;
                 //     videoFilePauseBtn.disabled = true;
                 //     videoFileStopBtn.disabled = true;
+                //     hideGroupSpinner('video');
                 // });
             }
         });
@@ -601,13 +925,13 @@
 
         videoFileStopBtn.addEventListener('click', () => {
             const videoElement = document.getElementById('videoElement');
-            
+
             // First clear the src to prevent further loading
             videoElement.src = '';
-            
+
             // Then pause the video
             videoElement.pause();
-            
+
             // Update UI controls
             videoFilePlayBtn.disabled = true;
             videoFilePauseBtn.disabled = true;
@@ -617,23 +941,25 @@
             elements.webcamPlayBtn.disabled = false;
         });
 
-
-        // Toggle detection button handler
-        const toggleDetectionBtn = document.getElementById('toggleDetectionBtn');
-        toggleDetectionBtn.addEventListener('click', () => {
-            if (!dartnet.dartDetector) return;
-            
-            const icon = toggleDetectionBtn.querySelector('i');
-            if (dartnet.dartDetector.currentStatus === DartDetectorStatus.DETECTING) {
-                dartnet.dartDetector.stop();
-                icon.className = 'fas fa-eye';
-                toggleDetectionBtn.title = 'Start Dart Detection';
-            } else {
-                dartnet.dartDetector.start();
-                icon.className = 'fas fa-arrows-to-dot';
-                toggleDetectionBtn.title = 'Stop Dart Detection';
-            }
-        });
+        // DEBUG zone
+        document.addEventListener(
+                "keyup",
+                (event) => {
+                    const keyName = event.key;
+                    console.log(keyName);
+                    if (keyName === "q") {
+                        const message = new Paho.MQTT.Message('{"mytest":"DB"}');
+                        message.destinationName = "dartnet/hit";
+                        dartnet.mqttClient?.send(message);
+                    }
+                    // As the user releases the Ctrl key, the key is no longer active,
+                    // so event.ctrlKey is false.
+                    if (keyName === "Control") {
+                        alert("Control key was released");
+                    }
+                },
+                false,
+            );
     </script>
 </body>
 

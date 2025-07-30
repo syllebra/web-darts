@@ -89,7 +89,7 @@ class DartNet {
     } else this.targetDetector.initializeModel();
 
     if (!this.dartDetector) {
-      this.dartDetector = new DeltaVideoOnlyDartDetector();
+      this.dartDetector = new DeltaVideoAccelImpactDetector(); //new DeltaVideoOnlyDartDetector();
       this.dartDetector.onDetectionCallbacks.push(this.onDetectedDartImpact);
     } else this.dartDetector.initializeModel();
   }

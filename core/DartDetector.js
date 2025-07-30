@@ -449,34 +449,7 @@ class AccelerometerDartImpactDetector extends DartDetector {
   // Override the updateStatus method to also update UI
   updateStatus(newStatus) {
     super.updateStatus(newStatus);
-    this.updateStatusDisplay(newStatus);
   }
-
-  //   updateStatusDisplay(status) {
-  //     const statusElement = document.getElementById("status");
-  //     if (!statusElement) return;
-
-  //     statusElement.className = "status";
-
-  //     switch (status) {
-  //       case DartDetectorStatus.INITIALIZING:
-  //         statusElement.classList.add("initializing");
-  //         statusElement.textContent = "⚙️ INITIALIZING";
-  //         break;
-  //       case DartDetectorStatus.DETECTING:
-  //         statusElement.classList.add("detecting");
-  //         statusElement.textContent = "🔍 DETECTING";
-  //         break;
-  //       case DartDetectorStatus.PAUSE:
-  //         statusElement.classList.add("paused");
-  //         statusElement.textContent = "⏸️ PAUSED";
-  //         break;
-  //       case DartDetectorStatus.DETECTED:
-  //         statusElement.classList.add("detected");
-  //         statusElement.textContent = "🎯 IMPACT DETECTED!";
-  //         break;
-  //     }
-  //   }
 }
 
 // Queue implementation for frame buffering
@@ -549,7 +522,14 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
       this.burst.get();
       if (this.currentStatus === DartDetectorStatus.DETECTED) {
         ret = this.computeDelta();
-        this.updateStatus(DartDetectorStatus.DETECTING);
+
+        this.infer({ delta: ret });
+        // Reset to detecting after a brief period
+        setTimeout(() => {
+          if (this.currentStatus === DartDetectorStatus.DETECTED) {
+            this.updateStatus(DartDetectorStatus.DETECTING);
+          }
+        }, 1000);
       }
     }
 
@@ -589,32 +569,13 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
   }
 
   computeImageDifference(img1, img2) {
-    const width = img1.width;
-    const height = img1.height;
-    const deltaCanvas = document.getElementById("deltaCanvas");
-    const deltaCtx = deltaCanvas.getContext("2d");
+    const gray1 = ImageProcessor.rgbToGrayscale(img1);
+    const gray2 = ImageProcessor.rgbToGrayscale(img2);
 
-    deltaCanvas.width = width;
-    deltaCanvas.height = height;
+    // Compute difference between current and last frame
+    const diff = ImageProcessor.absDiff(gray1, gray2);
 
-    const deltaImageData = deltaCtx.createImageData(width, height);
-    const data1 = img1.data;
-    const data2 = img2.data;
-    const deltaData = deltaImageData.data;
-
-    for (let i = 0; i < data1.length; i += 4) {
-      // Convert to grayscale and compute absolute difference
-      const gray1 = (data1[i] * 0.299 + data1[i + 1] * 0.587 + data1[i + 2] * 0.114) / 255.0;
-      const gray2 = (data2[i] * 0.299 + data2[i + 1] * 0.587 + data2[i + 2] * 0.114) / 255.0;
-      const diff = Math.abs(gray1 - gray2) * 255;
-
-      deltaData[i] = diff; // R
-      deltaData[i + 1] = diff; // G
-      deltaData[i + 2] = diff; // B
-      deltaData[i + 3] = 255; // A
-    }
-
-    return deltaImageData;
+    return diff;
   }
 }
 

@@ -133,7 +133,7 @@ class CameraManager {
     console.log(`Selected camera: ${cameraInfo.label} (${deviceId})`);
   }
 
-  async startWebcam() {
+  async startWebcam(cb = null) {
     try {
       if (!this.selectedCameraId) {
         throw new Error("Please select a camera first.");
@@ -163,6 +163,7 @@ class CameraManager {
       this.elements.videoElement.srcObject = this.currentWebcamStream;
 
       const onVideoReady = () => {
+        if (cb) cb();
         this.elements.videoElement
           .play()
           .then(() => {

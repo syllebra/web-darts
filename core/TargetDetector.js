@@ -57,7 +57,7 @@ class YoloTargetDetector {
     this.pts = pts;
     this.outerIds = outerIds;
     this.initCallback = initCallback;
-    this.initializeModel();
+    //this.initializeModel();
   }
 
   async initializeModel() {

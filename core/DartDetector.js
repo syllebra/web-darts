@@ -4,6 +4,7 @@ const DartDetectorStatus = {
   DETECTING: 1,
   PAUSE: 2,
   DETECTED: 3,
+  INFERING: 4,
 };
 
 /**
@@ -25,7 +26,7 @@ class DartDetector {
       if (g_useGPU)
         this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ["webgpu"] });
       else this.session = await ort.InferenceSession.create(this.modelPath);
-      console.log("Modèle ONNX chargé avec succès:", this.session);
+      console.log("Modèle ONNX chargé avec succès:", this.modelPath, this.session);
       if (this.initCallback) this.initCallback();
     } catch (error) {
       console.error("Erreur lors du chargement du modèle:", error);
@@ -41,6 +42,7 @@ class DartDetector {
     }
     var imageData = ImageProcessor.grayscaleToYOLOInput(obj.delta, this.modelSize, this.modelSize);
     try {
+      this.updateStatus(DartDetectorStatus.INFERING);
       //console.log(imageData);
       //const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
       const tensor = new ort.Tensor(Float32Array.from(imageData.data), [1, 3, this.modelSize, this.modelSize]);
@@ -53,6 +55,8 @@ class DartDetector {
     } catch (error) {
       console.error("Erreur lors de l'inférence:", error);
       return null;
+    } finally {
+      this.updateStatus(DartDetectorStatus.DETECTING);
     }
   }
 
@@ -120,7 +124,7 @@ class DartDetector {
     return statusNames[status] || "UNKNOWN";
   }
 
-  start() {
+  async start() {
     this.updateStatus(DartDetectorStatus.INITIALIZING);
     // Placeholder implementation
   }
@@ -132,6 +136,10 @@ class DartDetector {
   onNewFrame(canvas) {
     // Process a new video frame
     return null;
+  }
+
+  isReady() {
+    return this.session != null;
   }
 }
 
@@ -152,8 +160,8 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
     this.debug = false;
   }
 
-  start() {
-    super.start();
+  async start() {
+    await super.start();
     // Simulate initialization process
     setTimeout(() => {
       this.updateStatus(DartDetectorStatus.DETECTING);
@@ -223,12 +231,6 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
             this.lastDartTime = -1;
             this.detectionCount++;
             this.infer({ delta: delta, pct: pct });
-            // Reset to detecting after a brief period
-            setTimeout(() => {
-              if (this.currentStatus === DartDetectorStatus.DETECTED) {
-                this.updateStatus(DartDetectorStatus.DETECTING);
-              }
-            }, 1000);
           }
         }
 
@@ -265,6 +267,10 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
     this.maxMovementPct = maxMovement;
     this.threshold = threshold;
   }
+
+  isReady() {
+    return this.session != null;
+  }
 }
 
 // Accelerometer Dart Impact Detector
@@ -293,19 +299,22 @@ class AccelerometerDartImpactDetector extends DartDetector {
     this.mqttClient = null;
     this.lastImpact = null;
     this.isStarted = false;
+    this.ready = true;
   }
 
-  start() {
+  async start() {
     if (this.isStarted) return;
 
-    super.start(); // This sets status to INITIALIZING
+    await super.start(); // This sets status to INITIALIZING
 
     try {
+      this.ready = false;
       // Create MQTT client
       const clientId = "dartDetector_" + Math.random().toString(16).substr(2, 8);
       this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
 
       // Set callback handlers
+      console.log("Starting MQTT client...");
       this.mqttClient.onConnectionLost = this.onConnectionLost.bind(this);
       this.mqttClient.onMessageArrived = this.onMessage.bind(this);
 
@@ -315,12 +324,13 @@ class AccelerometerDartImpactDetector extends DartDetector {
         onFailure: this.onConnectFailure.bind(this),
       });
 
-      console.log("Starting MQTT client...");
-      document.getElementById("startBtn").disabled = true;
-      document.getElementById("stopBtn").disabled = false;
+      console.log("Trying to reach impact detector...");
+      await this.getConfig();
+      this.ready = true;
     } catch (error) {
       console.log("Error starting detector: " + error.message);
       this.updateStatus(DartDetectorStatus.PAUSE);
+      this.ready = false;
     }
   }
 
@@ -450,6 +460,10 @@ class AccelerometerDartImpactDetector extends DartDetector {
   updateStatus(newStatus) {
     super.updateStatus(newStatus);
   }
+
+  isReady() {
+    return this.session != null && this.ready;
+  }
 }
 
 // Queue implementation for frame buffering
@@ -495,8 +509,8 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
     this.countDownCpt = 0;
   }
 
-  start() {
-    super.start();
+  async start() {
+    await super.start();
     this.burst.clear();
   }
 
@@ -524,12 +538,6 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
         ret = this.computeDelta();
 
         this.infer({ delta: ret });
-        // Reset to detecting after a brief period
-        setTimeout(() => {
-          if (this.currentStatus === DartDetectorStatus.DETECTED) {
-            this.updateStatus(DartDetectorStatus.DETECTING);
-          }
-        }, 1000);
       }
     }
 
@@ -577,22 +585,6 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
 
     return diff;
   }
-}
-
-// Example usage of status callbacks
-function setupStatusCallbacks(detector) {
-  // Add a callback to log status changes
-  detector.addStatusChangeCallback((newStatus, oldStatus) => {
-    console.log(`Status changed from ${detector.getStatusName(oldStatus)} to ${detector.getStatusName(newStatus)}`);
-  });
-
-  // Add a callback to update UI elements based on status
-  detector.addStatusChangeCallback((newStatus, oldStatus) => {
-    const statusIndicator = document.getElementById("statusIndicator");
-    if (statusIndicator) {
-      statusIndicator.style.backgroundColor = getStatusColor(newStatus);
-    }
-  });
 }
 
 function getStatusColor(status) {

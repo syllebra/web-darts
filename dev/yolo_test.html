@@ -17,9 +17,29 @@
 
 <body>
     <input id="uploadInput" type="file" />
+    <div>
+        <label><input type="radio" name="executionProvider" value="cpu" checked> CPU</label>
+        <label><input type="radio" name="executionProvider" value="webgpu"> GPU</label>
+        <button id="rerunButton">Re-run Inference</button>
+    </div>
     <canvas></canvas>
     <script>eruda.init();</script>
     <script>
+        // Default image URL to load on startup
+        const DEFAULT_IMAGE_URL = '../dev/target_detector_test/03.jpg'; // Replace with your desired default image URL
+
+        // Load default image on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch(DEFAULT_IMAGE_URL);
+                const blob = await response.blob();
+                const [boxes, image] = await detect_objects_on_image(blob);
+                draw_image_and_boxes(blob, boxes, image);
+            } catch (error) {
+                console.error('Error loading default image:', error);
+            }
+        });
+
         async function checkGPU() {
             if (!navigator.gpu) {
                 throw Error("WebGPU not supported.");
@@ -40,10 +60,21 @@
          */
         let model = null;
         let inputImage = null;
+        let currentImage = null;
         const input = document.getElementById("uploadInput");
+        const rerunButton = document.getElementById("rerunButton");
+
+        rerunButton.addEventListener("click", async () => {
+            if (currentImage) {
+                model = null; // Force model reload with new provider
+                const [boxes, image] = await detect_objects_on_image(currentImage);
+                draw_image_and_boxes(currentImage, boxes, image);
+            }
+        });
         input.addEventListener("change", async (event) => {
-            const [boxes, image] = await detect_objects_on_image(event.target.files[0]);
-            draw_image_and_boxes(event.target.files[0], boxes, image);
+            currentImage = event.target.files[0];
+            const [boxes, image] = await detect_objects_on_image(currentImage);
+            draw_image_and_boxes(currentImage, boxes, image);
         })
 
         /**
@@ -57,22 +88,39 @@
             const img = new Image()
             img.src = URL.createObjectURL(file);
             img.onload = () => {
-                                const canvas = document.querySelector("canvas");
+                const canvas = document.querySelector("canvas");
                 canvas.width = img.width;
                 canvas.height = img.height;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(img, 0, 0);
-                //ctx.putImageData(image, 0,0);
-                ctx.strokeStyle = "#00FF00";
+                
+                // Color mapping for each label
+                const labelColors = {
+                    "tip": "#FF0000",    // Red
+                    "cal1": "#00FF00",    // Green
+                    "cal2": "#0000FF",    // Blue
+                    "cal3": "#FFFF00",    // Yellow
+                    "cal4": "#FF00FF",    // Magenta
+                    "dart": "#00FFFF",    // Cyan
+                    "cross": "#FFA500",   // Orange
+                    "D-Bull": "#800080",  // Purple
+                    "Bull": "#008000"     // Dark Green
+                };
+
                 ctx.lineWidth = 3;
                 ctx.font = "18px serif";
                 boxes.forEach(([x1, y1, x2, y2, label]) => {
+                    const labelName = yolo_classes[label];
+                    const color = labelColors[labelName] || "#FFFFFF"; // Default to white if unknown
+                    
+                    ctx.strokeStyle = color;
+                    ctx.fillStyle = color;
                     ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-                    ctx.fillStyle = "#00ff00";
-                    // const width = ctx.measureText(label).width;
-                    // ctx.fillRect(x1, y1, width + 10, 25);
-                    // ctx.fillStyle = "#000000";
-                    // ctx.fillText(label, x1, y1 + 18);
+                    
+                    const width = ctx.measureText(labelName).width;
+                    ctx.fillRect(x1, y1 - 18, width + 10, 20);
+                    ctx.fillStyle = "#000000";
+                    ctx.fillText(labelName, x1 + 5, y1 - 2);
                 });
             }
         }
@@ -129,8 +177,9 @@
          */
         async function run_model(input) {
             if(!model) {
-                // model = await ort.InferenceSession.create("../models/best_s_tip_boxes640_B.onnx",{ executionProviders: ['webgpu'] });
-                model = await ort.InferenceSession.create("../models/best_n_tip_boxes_cross_640_B.onnx", { executionProviders: ['webgpu'] });
+                const provider = document.querySelector('input[name="executionProvider"]:checked').value;
+                const options = provider === 'webgpu' ? { executionProviders: ['webgpu'] } : {};
+                model = await ort.InferenceSession.create("../models/best_n_tip_boxes_cross_640_B.onnx", options);
                 console.log(model)
             }
             inputImage = new ort.Tensor(Float32Array.from(input), [1, 3, 640, 640]);

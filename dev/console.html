@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Debug Console - Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .demo-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .demo-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .demo-button:hover {
+            background: #0056b3;
+        }
+
+        .demo-button.danger {
+            background: #dc3545;
+        }
+
+        .demo-button.danger:hover {
+            background: #c82333;
+        }
+
+        .demo-button.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .demo-button.warning:hover {
+            background: #e0a800;
+        }
+
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .usage-example {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="demo-container">
+        <h1>🐛 Mobile Debug Console</h1>
+
+        <div class="demo-section">
+            <h3>📱 Perfect for Mobile Debugging</h3>
+            <p>This tool captures all console output and displays it in an overlay on your webpage. Great for debugging
+                on mobile devices where you can't access the browser console!</p>
+
+            <p><strong>Look for the small debug button (🐛) in the bottom-right corner!</strong></p>
+        </div>
+
+        <div class="demo-section">
+            <h3>🧪 Test Console Output</h3>
+            <p>Click these buttons to generate different types of console output:</p>
+
+            <button class="demo-button" onclick="testLog()">📝 Log Message</button>
+            <button class="demo-button" onclick="testInfo()">ℹ️ Info Message</button>
+            <button class="demo-button warning" onclick="testWarn()">⚠️ Warning Message</button>
+            <button class="demo-button danger" onclick="testError()">❌ Error Message</button>
+            <button class="demo-button" onclick="testObject()">📦 Log Object</button>
+            <button class="demo-button" onclick="testArray()">📋 Log Array</button>
+            <button class="demo-button" onclick="testMultiple()">🔢 Multiple Args</button>
+            <button class="demo-button danger" onclick="throwError()">💥 Throw Error</button>
+            <button class="demo-button danger" onclick="testErrorWithStack()">📚 Error with Stack</button>
+            <button class="demo-button danger" onclick="testPromiseRejection()">🔄 Promise Rejection</button>
+            <button class="demo-button" onclick="testFromDifferentFunction()">📍 Test Source Location</button>
+            <button class="demo-button" onclick="testTrace()" style="background: #6f42c1;">🔍 Deep Trace</button>
+            <button class="demo-button" onclick="testTraceWithMessage()" style="background: #6f42c1;">📋 Simple
+                Trace</button>
+        </div>
+
+        <div class="demo-section">
+            <h3>🚀 How to Use</h3>
+            <p>Simply include the MobileDebugConsole class in your project:</p>
+
+            <div class="usage-example">// Initialize the debug console
+                const debugConsole = new MobileDebugConsole();
+
+                // That's it! All console output will now be captured
+                // and displayed in the mobile-friendly overlay</div>
+
+            <p>The debug console will automatically:</p>
+            <ul>
+                <li>✅ Capture all <code>console.log</code>, <code>console.info</code>, <code>console.warn</code>,
+                    <code>console.error</code>, <code>console.trace</code></li>
+                <li>✅ Show line numbers and source files when available</li>
+                <li>✅ Display objects and arrays in a readable format</li>
+                <li>✅ Add a toggle button to show/hide the console</li>
+                <li>✅ Work perfectly on mobile devices</li>
+                <li>✅ Show collapsible stack traces for errors</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h3>⚙️ Configuration Options</h3>
+            <div class="usage-example">// Initialize with custom options
+                const debugConsole = new MobileDebugConsole({
+                startVisible: false, // Start hidden
+                maxEntries: 200, // Keep more log entries
+                buttonPosition: 'top-left' // Change button position
+                });</div>
+        </div>
+    </div>
+
+    <script src="../utils/DebugConsole.js"></script>
+    <script>
+
+        // Demo functions with more variety for testing source location
+        function testLog() {
+            console.log('This is a regular log message! 📝');
+        }
+
+        function testInfo() {
+            console.info('This is an info message with useful information! ℹ️');
+        }
+
+        function testWarn() {
+            console.warn('This is a warning message - something might be wrong! ⚠️');
+        }
+
+        function testError() {
+            console.error('This is an error message - something went wrong! ❌');
+        }
+
+        function testObject() {
+            const testObj = {
+                name: 'John Doe',
+                age: 30,
+                city: 'New York',
+                hobbies: ['reading', 'coding', 'gaming'],
+                address: {
+                    street: '123 Main St',
+                    zip: '10001'
+                }
+            };
+            console.log('Here\'s a complex object:', testObj);
+        }
+
+        function testArray() {
+            const testArray = [1, 2, 'hello', true, null, undefined, { key: 'value' }];
+            console.log('Here\'s an array with mixed types:', testArray);
+        }
+
+        function testMultiple() {
+            console.log('Multiple arguments:', 42, 'hello', true, { test: 'object' }, [1, 2, 3]);
+        }
+
+        function throwError() {
+            setTimeout(() => {
+                throw new Error('This is a test error thrown intentionally!');
+            }, 100);
+        }
+
+        function testErrorWithStack() {
+            function deepFunction() {
+                function nestedFunction() {
+                    console.error(new Error('Error with detailed stack trace'));
+                }
+                nestedFunction();
+            }
+            deepFunction();
+        }
+
+        function testPromiseRejection() {
+            Promise.reject(new Error('Async error in promise chain'))
+                .catch(() => {
+                    return Promise.reject(new Error('Unhandled promise rejection example'));
+                });
+        }
+
+        function testFromDifferentFunction() {
+            console.log('This message comes from testFromDifferentFunction()');
+            console.info('Info from nested function call');
+            console.warn('Warning from a specific function');
+        }
+
+        function testTrace() {
+            function levelThree() {
+                console.trace('Call stack from deep nested function');
+            }
+
+            function levelTwo() {
+                levelThree();
+            }
+
+            function levelOne() {
+                levelTwo();
+            }
+
+            levelOne();
+        }
+
+        function testTraceWithMessage() {
+            console.trace('This is a trace with a custom message');
+        }
+
+        // Initial welcome message
+        console.log('🎉 Mobile Debug Console is ready!');
+        console.info('Try the demo buttons above to see different log types.');
+        console.log('The debug button (🐛) in the corner toggles the console visibility.');
+    </script>
+</body>
+
+</html>

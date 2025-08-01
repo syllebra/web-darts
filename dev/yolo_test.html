@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>YOLOv8 Object Detection</title>
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/eruda"></script> -->
     <script src="../ext/ort.min.js"></script>
     <style>
         canvas {
@@ -23,7 +23,7 @@
         <button id="rerunButton">Re-run Inference</button>
     </div>
     <canvas></canvas>
-    <script>eruda.init();</script>
+    <script src="../utils/DebugConsole.js"></script>
     <script>
         // Default image URL to load on startup
         const DEFAULT_IMAGE_URL = '../dev/target_detector_test/03.jpg'; // Replace with your desired default image URL

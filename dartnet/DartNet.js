@@ -84,7 +84,7 @@ class DartNet {
     if (!this.targetDetector) {
       this.targetDetector = new YoloTargetDetector(
         this.board,
-        "../../models/best_n_tip_boxes_cross_640_B.onnx",
+        "../models/best_n_tip_boxes_cross_640_B.onnx",
         640,
         false
       );

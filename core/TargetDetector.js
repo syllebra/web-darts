@@ -36,12 +36,7 @@ const classes_colors = [
 ];
 
 class YoloTargetDetector {
-  constructor(
-    board,
-    modelPath = "../../models/best_n_tip_boxes_cross_640_B.onnx",
-    modelSize = 640,
-    initCallback = null
-  ) {
+  constructor(board, modelPath = "../models/best_n_tip_boxes_cross_640_B.onnx", modelSize = 640, initCallback = null) {
     console.log("Chargement du modèle YoloTargetDetector...");
     this.modelPath = modelPath;
     this.modelSize = modelSize;
@@ -57,7 +52,7 @@ class YoloTargetDetector {
     this.pts = pts;
     this.outerIds = outerIds;
     this.initCallback = initCallback;
-    //this.initializeModel();
+    this.initializeModel();
   }
 
   async initializeModel() {
@@ -65,7 +60,7 @@ class YoloTargetDetector {
       if (g_useGPU)
         this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ["webgpu"] });
       else this.session = await ort.InferenceSession.create(this.modelPath);
-      console.log("Modèle ONNX chargé avec succès", this.session);
+      console.log("Modèle ONNX chargé avec succès", this.modelPath, this.session);
       if (this.initCallback) this.initCallback();
     } catch (error) {
       console.error("Erreur lors du chargement du modèle:", error);

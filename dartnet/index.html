@@ -619,7 +619,7 @@
         });
 
         const gpuDetector = new GPUDetector();
-        document.addEventListener("DOMContentLoaded", () =>gpuDetector.detectGPU().then(reinitDetectors()));
+        document.addEventListener("DOMContentLoaded", () =>gpuDetector.detectGPU());
 
 
         // Dart Detection Status Management

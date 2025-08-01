@@ -13,6 +13,8 @@ class DartNet {
     this.mqttPort = 8083;
     this.mqttClient = null;
     this.mqttStatusCallback = mqttStatusCallback;
+
+    this.initDetectors();
   }
 
   initMqtt() {
@@ -78,7 +80,7 @@ class DartNet {
     // }
   }
 
-  initDetectors() {
+  async initDetectors() {
     if (!this.targetDetector) {
       this.targetDetector = new YoloTargetDetector(
         this.board,
@@ -88,10 +90,25 @@ class DartNet {
       );
     } else this.targetDetector.initializeModel();
 
-    if (!this.dartDetector) {
-      this.dartDetector = new DeltaVideoOnlyDartDetector();
-      this.dartDetector.onDetectionCallbacks.push(this.onDetectedDartImpact);
-    } else this.dartDetector.initializeModel();
+    if (!this.dartDetectorVAI) {
+      this.dartDetectorVAI = new DeltaVideoAccelImpactDetector(); //new DeltaVideoOnlyDartDetector();
+      this.dartDetectorVAI.onDetectionCallbacks.push(this.onDetectedDartImpact);
+    } else this.dartDetectorVAI.initializeModel();
+
+    if (!this.dartDetectorVO) {
+      this.dartDetectorVO = new DeltaVideoOnlyDartDetector();
+      this.dartDetectorVO.onDetectionCallbacks.push(this.onDetectedDartImpact);
+    } else this.dartDetectorVO.initializeModel();
+
+    this.dartDetector = this.dartDetectorVO;
+    this.dartDetector.start();
+  }
+
+  switchDartDetector() {
+    if (this.dartDetector) this.dartDetector.stop();
+    this.dartDetector = this.dartDetector == this.dartDetectorVAI ? this.dartDetectorVO : this.dartDetectorVAI;
+    console.log("Starting " + (this.dartDetector == this.dartDetectorVAI ? "VAI" : "VO"));
+    this.dartDetector.start();
   }
 
   preprocessImageForModel(srcBox = null, modelSize = 640) {
@@ -136,15 +153,13 @@ class DartNet {
     this.Mi = PerspectiveUtils.getPerspectiveTransform(this.board.board_cal_pts, this.sourceCalibPts);
   }
 
-  async calibrate(onSuccess = null) {
+  async calibrate() {
     if (!this.targetDetector) {
-      console.log("❌ Target detector not ready", "error");
-      return;
+      throw Error("❌ Target detector not ready");
     }
 
     if (!this.videoSource.videoWidth) {
-      console.log("❌ Camera not ready", "error");
-      return;
+      throw Error("❌ Camera not ready");
     }
 
     //this.showLoading(true);
@@ -183,9 +198,10 @@ class DartNet {
       }
       this.sourceCalibPts = calibration.calibrationPoints.map((p) => this.cropppedToSource(p));
       this.updateCalibPoints(this.sourceCalibPts);
-      //console.log("Calibration results:", this.sourceCalibPts);
-      if (onSuccess) onSuccess(this.sourceCalibPts);
-    } else console.warn("Unable to find initial target to auto crop...");
+    } else {
+      console.warn("Unable to find initial target to auto crop...");
+      throw Error("Unable to find initial target to auto crop...");
+    }
     //zoomableCanvas.getOverlayContext();
 
     //     if (this.onnxSession) {

@@ -32,10 +32,8 @@ processFrame();
 
 const autoCalib = async () => {
   console.log("Auto-calib start");
-  dartnet.calibrate(onCalibrationSuccess);
+  return dartnet.calibrate();
 };
-
-autoCalibBtn.addEventListener("click", autoCalib);
 
 function recomputeUpTextPos() {
   const upText = PerspectiveUtils.transformPoints(
@@ -278,6 +276,21 @@ zoomableCanvas.addOverlayElement(
   (element, worldX, worldY) => false // Disable picking drag and drop
 );
 
+// Add "20" Element to help reorient in case it is needed
+zoomableCanvas.addOverlayElement(
+  "scoreViewer",
+  { x: 0, y: 0, color: "rgba(0, 255, 128, 0.75)", text: null },
+  // Draw callback
+  (ctx, element) => {
+    if (!element.text) return;
+    ctx.fillStyle = element.color;
+    ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
+    ctx.textAlign = "center";
+    ctx.fillText(element.text, element.x, element.y + 14 / zoomableCanvas.scale);
+  },
+  (element, worldX, worldY) => false // Disable picking drag and drop
+);
+
 // Add Dart tip debug viewer
 zoomableCanvas.addOverlayElement(
   "dartDebug",
@@ -298,31 +311,17 @@ zoomableCanvas.addOverlayElement(
   (element, worldX, worldY) => false // Disable picking drag and drop
 );
 
-// Add "20" Element to help reorient in case it is needed
-zoomableCanvas.addOverlayElement(
-  "scoreViewer",
-  { x: 0, y: 0, color: "rgba(0, 255, 128, 0.75)", text: null },
-  // Draw callback
-  (ctx, element) => {
-    if (!element.text) return;
-    ctx.fillStyle = element.color;
-    ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
-    ctx.textAlign = "center";
-    ctx.fillText(element.text, element.x, element.y + 14 / zoomableCanvas.scale);
-  },
-  (element, worldX, worldY) => false // Disable picking drag and drop
-);
-
-// Add "20" Element to help reorient in case it is needed
+// Add Debug Element to help detect problems of dazrt detection
 zoomableCanvas.addOverlayElement(
   "dartImpactDebug",
   {
-    img: null,
+    imgs: [null, null, null, null, null],
     width: 0,
     height: 0,
     net: dartnet,
     x: 0,
     y: 0,
+    current: 0,
     color: [255, 0, 0, 0.8],
     setDetected(grayImg, width, height) {
       const imageData = new ImageData(width, height);
@@ -330,22 +329,30 @@ zoomableCanvas.addOverlayElement(
 
       for (let i = 0; i < grayImg.data.length; i++) {
         const value = grayImg.data[i];
-        data[i * 4] = Math.floor((value * this.color[0]) / 255); // R
-        data[i * 4 + 1] = Math.floor((value * this.color[1]) / 255); // G
-        data[i * 4 + 2] = Math.floor((value * this.color[2]) / 255); // B
-        data[i * 4 + 3] = Math.floor((value < 20 ? 0 : 1) * this.color[3] * 255); // A
+        data[i * 4] = Math.floor(((255 - value) * this.color[0]) / 255); // R
+        data[i * 4 + 1] = Math.floor(((255 - value) * this.color[1]) / 255); // G
+        data[i * 4 + 2] = Math.floor(((255 - value) * this.color[2]) / 255); // B
+        data[i * 4 + 3] = 255; //Math.floor((value < 20 ? 0 : 1) * this.color[3] * 255); // A
       }
-      this.img = ImageProcessor.imageDataToImage(imageData);
-      this.width = width;
-      this.height = height;
+      this.imgs[this.current] = ImageProcessor.imageDataToImage(imageData);
+      this.current = (this.current + 1) % this.imgs.length;
     },
   },
   // Draw callback
   (ctx, element) => {
     const ca = element.net?.cropArea;
-    if (!ca || !element.img) return;
+    if (!ca) return;
 
-    ctx.drawImage(element.img, 0, 0, element.width, element.height, ca[0], ca[1], ca[2], ca[3]);
+    let x = 0;
+    let y = dartnet.videoSource.videoHeight + 10;
+    element.imgs.forEach((img) => {
+      if (img) {
+        //ctx.drawImage(element.img, 0, 0, element.width, element.height, ca[0], ca[1], ca[2], ca[3]);
+        //console.log(img, x, y);
+        ctx.drawImage(img, 0, 0, img.width, img.height, x, y, ca[2], ca[3]);
+        x += img.width + 10;
+      }
+    });
   }
 );
 
@@ -408,7 +415,7 @@ function onDartDetected(data) {
 
   zoomableCanvas
     .getOverlayElement("dartImpactDebug")
-    .setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
+    ?.setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
 
   const confidencesTips = data.boxes.map((b) => (b[4] == 0 ? b[5] : -1.0));
   if (dartnet.targetDetector && confidencesTips && confidencesTips.length) {

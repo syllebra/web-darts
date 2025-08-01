@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoomable Video Canvas</title>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/eruda"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
@@ -394,6 +394,19 @@
         </div>
 
         <div class="status-indicator" id="dartDetectionIndicator">
+            <span class="status-text" id="dartDetectorText">Detector Type</span>
+            <div id="dartDetectorToggle" class="toggle-btn-group" data-value="vo">
+                <button class="toggle-btn toggle-btn-small active" data-value="vo" disabled>
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="toggle-btn toggle-btn-small" data-value="vai" disabled>
+                    <i class="fas fa-wave-square"></i>
+                </button>
+            </div>
+            <span class="status-dot dart-unknown" id="dartDetectorDot"></span>
+        </div>
+
+        <div class="status-indicator" id="dartDetectionIndicator">
             <span class="status-text" id="dartStatusText">Not Started</span>
             <div id="dartDetectionToggle" class="toggle-btn-group" data-value="off">
                 <button class="toggle-btn toggle-btn-small active" data-value="off" disabled>
@@ -441,6 +454,9 @@
                 <button id="videoFileSelectBtn" class="btn" title="Select Video File">
                     <i class="fas fa-folder-open"></i>
                 </button>
+                <button id="testVideoFileSelectBtn" class="btn" title="Select Video File">
+                    <i class="fas fa-vial"></i>
+                </button>                
                 <button id="videoFilePlayBtn" class="btn" disabled title="Play Video File">
                     <i class="fas fa-play"></i>
                 </button>
@@ -457,9 +473,10 @@
 
         <!-- Auto Calibrate Control -->
         <div class="control-group">
-            <button id="autoCalibBtn" class="btn main-button" title="Auto-Calibrate">
+            <button id="autoCalibMainBtn" class="btn main-button" title="Auto-Calibrate" disabled>
                 <i class="fas fa-bullseye"></i> Auto-Calibrate
             </button>
+            <i id="autoCalibSpinner" class="fas fa-spinner group-spinner"></i>
         </div>
     </div>
 
@@ -508,7 +525,7 @@
     <script src="DartNet.js"></script>
     <script src="main.js"></script>
 
-    <!-- <script>eruda.init();</script> -->
+    <script>if (isMobile()) eruda.init();</script>
     <script>
         // Button group management functions
         function toggleButtonGroup(groupId) {
@@ -529,7 +546,6 @@
         function showGroupSpinner(groupId) {
             const spinner = document.getElementById(groupId + 'Spinner');
             const mainBtn = document.getElementById(groupId + 'MainBtn');
-
             if (spinner) {
                 spinner.classList.add('show');
             }
@@ -568,15 +584,11 @@
             }
         });
 
-        function reinitDetectors() {
+        async function reinitDetectors() {
             dartnet.initDetectors();
+            console.log("Ondetection callbacks:",dartnet?.dartDetector?.onDetectionCallbacks);
             if (!dartnet?.dartDetector?.onDetectionCallbacks.includes(onDartDetected))
                 dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
-            if (!dartnet?.dartDetector?.statusChangeCallbacks.includes(updateDartDetectionStatus)) {
-                dartnet.dartDetector.addStatusChangeCallback(updateDartDetectionStatus);
-            }
-            //updateDartDetectionStatus(-1, 'Not Started');
-            dartnet?.dartDetector?.start();
         }
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -585,6 +597,13 @@
                 g_useGPU = v == "gpu";
                 reinitDetectors();
             });
+            toggleButtons["dartDetectorToggle"].onChangeCallbacks.push((v, el) => {
+                if(dartnet) {
+                    const newDetector = v == "vo" ? dartnet.dartDetectorVO : dartnet.dartDetectorVAI
+                    if(dartnet.dartDetector != newDetector)
+                        dartnet.switchDartDetector();
+                }
+            });
             toggleButtons["dartDetectionToggle"].onChangeCallbacks.push((v, el) => {
                 if(v == "off")
                     dartnet?.dartDetector?.stop()
@@ -592,48 +611,19 @@
                     dartnet?.dartDetector?.start()
             });
 
-
         });
 
-        // Initialize GPU detector UI
-        const gpuStatusDot = document.getElementById('gpuStatusDot');
-        const gpuStatusText = document.getElementById('gpuStatusText');
+        const gpuDetector = new GPUDetector();
+        document.addEventListener("DOMContentLoaded", () =>gpuDetector.detectGPU());
 
-        // Handle GPU status updates
-        gpuDetector.onStatusUpdate((status, details) => {
-            switch (status) {
-                case 'checking':
-                    gpuStatusDot.className = 'status-dot gpu-unknown';
-                    gpuStatusText.textContent = 'Checking GPU...';
-                    break;
-                case 'webgpu':
-                    gpuStatusDot.className = 'status-dot gpu-available';
-                    gpuStatusText.textContent = 'WebGPU';
-                    gpuStatusDot.title = details;
-                    break;
-                case 'webgl':
-                    gpuStatusDot.className = 'status-dot gpu-available';
-                    gpuStatusText.textContent = 'WebGL';
-                    gpuStatusDot.title = details;
-                    break;
-                case 'none':
-                    gpuStatusDot.className = 'status-dot gpu-unavailable';
-                    gpuStatusText.textContent = 'No GPU';
-                    gpuStatusDot.title = details;
-                    break;
-            }
-
-            const gpu = status == "webgpu" || status == "webgl";
-            toggleButtons["gpuToggle"].setValue(gpu ? "gpu" : "cpu");
-            toggleButtons["gpuToggle"].setDisabled(!gpu);
-        });
 
         // Dart Detection Status Management
         const dartStatusDot = document.getElementById('dartStatusDot');
         const dartStatusText = document.getElementById('dartStatusText');
 
         // Dart detection status handler
-        function updateDartDetectionStatus(status, statusName) {
+        function updateDartDetectionStatus() {
+            const status = dartnet?.dartDetector?.isReady ? dartnet?.dartDetector?.currentStatus : "unknown"; 
             // Remove all status classes
             dartStatusDot.className = 'status-dot';
             let enabled = true;
@@ -663,9 +653,9 @@
             }
             let onPause = !enabled || (status == DartDetectorStatus.PAUSE);
             if(status != DartDetectorStatus.INITIALIZING) {
-                toggleButtons["dartDetectionToggle"].setValue(onPause ? "off" : "on", true, false);
+                toggleButtons["dartDetectionToggle"]?.setValue(onPause ? "off" : "on", true, false);
             }
-            toggleButtons["dartDetectionToggle"].setDisabled(!enabled);
+            toggleButtons["dartDetectionToggle"]?.setDisabled(!enabled);
         }
 
         // MQTT Connection Status Management
@@ -773,7 +763,7 @@
                 cameraCard.addEventListener('click', () => {
                     cameraManager.selectCamera(camera.deviceId);
                     cameraModal.hide();
-                    cameraManager.startWebcam();
+                    cameraManager.startWebcam(hideGroupSpinner("camera"));
                 });
                 cameraList.appendChild(cameraCard);
             });
@@ -801,12 +791,18 @@
         // Show group spinner and disable main button initially
         showGroupSpinner('camera');
 
+        function updateAutoCalibButtonState() {
+            if(autoCalibBtn)
+                autoCalibBtn.disabled = !(zoomableCanvas?.videoSource);//!(zoomableCanvas?.videoSource?.videoWidth);
+        }
+
         // Update camera manager options to handle webcam state changes
         options.onWebcamReady = (videoElement, resolution) => {
             console.log("Webcam ready with resolution:", resolution);
             if (zoomableCanvas) {
                 zoomableCanvas.setVideoSource(videoElement);
             }
+            updateAutoCalibButtonState();
             // Update button states
             elements.webcamPlayBtn.disabled = true;
             elements.webcamStopBtn.disabled = false;
@@ -818,6 +814,8 @@
             // Update webcam button states
             elements.webcamPlayBtn.disabled = false;
             elements.webcamStopBtn.disabled = true;
+            
+            updateAutoCalibButtonState();
         };
 
         // Reinitialize CameraManager with updated options
@@ -833,75 +831,87 @@
         const videoFilePauseBtn = document.getElementById('videoFilePauseBtn');
         const videoFileStopBtn = document.getElementById('videoFileStopBtn');
         const videoFileSelectBtn = document.getElementById('videoFileSelectBtn');
+        const testVideoFileSelectBtn = document.getElementById('testVideoFileSelectBtn');
 
         // Handle video file selection button click
         videoFileSelectBtn.addEventListener('click', () => {
             document.getElementById('videoFile').click();
         });
 
+        function loadVideoUrl(url) {
+            videoElement.src = url;
+            videoElement.loop = true;
+
+            // Enable controls immediately when file is selected
+            videoFilePlayBtn.disabled = false;
+            videoFilePauseBtn.disabled = true;
+            videoFileStopBtn.disabled = false;
+
+            videoElement.addEventListener('loadedmetadata', () => {
+                hideGroupSpinner('video');
+                updateAutoCalibButtonState();
+                videoElement.play().then(() => {
+                    zoomableCanvas.setVideoSource(videoElement);
+                    updateAutoCalibButtonState();
+                    console.log('Video loaded.');
+
+                    // Update video controls
+                    videoFilePlayBtn.disabled = true;
+                    videoFilePauseBtn.disabled = false;
+                    videoFileStopBtn.disabled = false;
+
+                    // Disable webcam controls
+                    elements.webcamPlayBtn.disabled = true;
+                    elements.webcamStopBtn.disabled = true;
+
+                    cameraManager.stopWebcam();
+                }).catch(err => {
+                    console.error('Error playing video:', err);
+                    hideGroupSpinner('video');
+                    updateAutoCalibButtonState();
+                });
+            }, { once: true });
+
+            videoElement.addEventListener('play', () => {
+                videoFilePlayBtn.disabled = true;
+                videoFilePauseBtn.disabled = false;
+            });
+
+            videoElement.addEventListener('pause', () => {
+                videoFilePlayBtn.disabled = false;
+                videoFilePauseBtn.disabled = true;
+            });
+
+            videoElement.addEventListener('ended', () => {
+                videoFilePlayBtn.disabled = false;
+                videoFilePauseBtn.disabled = true;
+            });
+
+            // videoElement.addEventListener('error', (e) => {
+            //     console.error('Video loading error:', e);
+            //     alert('Could not load video file');
+            //     // Reset controls on error
+            //     videoFilePlayBtn.disabled = true;
+            //     videoFilePauseBtn.disabled = true;
+            //     videoFileStopBtn.disabled = true;
+            //     hideGroupSpinner('video');
+            // });
+        }
         document.getElementById('videoFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 showGroupSpinner('video');
-
                 const videoElement = document.getElementById('videoElement');
                 const url = URL.createObjectURL(file);
-                videoElement.src = url;
-                videoElement.loop = true;
-
-                // Enable controls immediately when file is selected
-                videoFilePlayBtn.disabled = false;
-                videoFilePauseBtn.disabled = true;
-                videoFileStopBtn.disabled = false;
-
-                videoElement.addEventListener('loadedmetadata', () => {
-                    hideGroupSpinner('video');
-
-                    videoElement.play().then(() => {
-                        zoomableCanvas.setVideoSource(videoElement);
-                        console.log('Video loaded.');
-
-                        // Update video controls
-                        videoFilePlayBtn.disabled = true;
-                        videoFilePauseBtn.disabled = false;
-                        videoFileStopBtn.disabled = false;
-
-                        // Disable webcam controls
-                        elements.webcamPlayBtn.disabled = true;
-                        elements.webcamStopBtn.disabled = true;
-                        cameraManager.stopWebcam();
-                    }).catch(err => {
-                        console.error('Error playing video:', err);
-                        hideGroupSpinner('video');
-                    });
-                }, { once: true });
-
-                videoElement.addEventListener('play', () => {
-                    videoFilePlayBtn.disabled = true;
-                    videoFilePauseBtn.disabled = false;
-                });
-
-                videoElement.addEventListener('pause', () => {
-                    videoFilePlayBtn.disabled = false;
-                    videoFilePauseBtn.disabled = true;
-                });
-
-                videoElement.addEventListener('ended', () => {
-                    videoFilePlayBtn.disabled = false;
-                    videoFilePauseBtn.disabled = true;
-                });
-
-                // videoElement.addEventListener('error', (e) => {
-                //     console.error('Video loading error:', e);
-                //     alert('Could not load video file');
-                //     // Reset controls on error
-                //     videoFilePlayBtn.disabled = true;
-                //     videoFilePauseBtn.disabled = true;
-                //     videoFileStopBtn.disabled = true;
-                //     hideGroupSpinner('video');
-                // });
+                loadVideoUrl(url);
             }
         });
+
+        testVideoFileSelectBtn.addEventListener('click', (e) => {
+            showGroupSpinner('video');
+            loadVideoUrl("../dev/darts_detectors_test/home03.avi");
+        });
+
 
         // Video file control handlers
         videoFilePlayBtn.addEventListener('click', () => {
@@ -931,10 +941,81 @@
             videoFilePlayBtn.disabled = true;
             videoFilePauseBtn.disabled = true;
             videoFileStopBtn.disabled = true;
+            updateAutoCalibButtonState();
 
             // Re-enable webcam controls
             elements.webcamPlayBtn.disabled = false;
         });
+
+        // Auto calib
+        const autoCalibBtn = document.getElementById('autoCalibMainBtn');
+        autoCalibBtn.addEventListener("click", () => {
+            showGroupSpinner("autoCalib");
+            autoCalib().then(()=> {
+                onCalibrationSuccess(dartnet.sourceCalibPts);
+            }).catch((error) => {
+                console.trace(error)
+            }).finally(() => {
+                hideGroupSpinner("autoCalib");
+            });
+        }
+        );
+
+
+        async function periodicUpdateUI() {
+            // GPU ui state
+            const gpuStatusDot = document.getElementById('gpuStatusDot');
+            const gpuStatusText = document.getElementById('gpuStatusText');
+
+            if(gpuStatusDot && gpuStatusText) {
+                switch (gpuDetector?.status) {
+                    case 'checking':
+                        gpuStatusDot.className = 'status-dot gpu-unknown';
+                        gpuStatusText.textContent = 'Checking GPU...';
+                        break;
+                    case 'webgpu':
+                        gpuStatusDot.className = 'status-dot gpu-available';
+                        gpuStatusText.textContent = 'WebGPU';
+                        gpuStatusDot.title = gpuDetector?.details;
+                        break;
+                    case 'webgl':
+                        gpuStatusDot.className = 'status-dot gpu-available';
+                        gpuStatusText.textContent = 'WebGL';
+                        gpuStatusDot.title = gpuDetector?.details;
+                        break;
+                    case 'none':
+                        gpuStatusDot.className = 'status-dot gpu-unavailable';
+                        gpuStatusText.textContent = 'No GPU';
+                        gpuStatusDot.title = gpuDetector?.details;
+                        break;
+                }
+                // const gpu = status == "webgpu" || status == "webgl";
+                // toggleButtons["gpuToggle"].setValue(gpu ? "gpu" : "cpu");
+                toggleButtons["gpuToggle"]?.setValue(g_useGPU ? "gpu" : "cpu", true);
+                toggleButtons["gpuToggle"]?.setDisabled(gpuDetector?.status != 'webgpu' && gpuDetector?.status != 'webgl');
+            }
+
+            if(dartnet) {
+                const vo = dartnet.dartDetectorVO?.session;
+                const vai = dartnet.dartDetectorVAI?.session;
+
+                if(toggleButtons["dartDetectorToggle"]) {
+                    const newVal = dartnet.dartDetector == dartnet.dartDetectorVO ? "vo" : "vai";
+                    if(toggleButtons["dartDetectorToggle"].getValue() != newVal)
+                        toggleButtons["dartDetectorToggle"].setValue(newVal, true);
+                    toggleButtons["dartDetectorToggle"].setDisabled(!vo && !vai);
+
+                    const dartDetectorDot = document.getElementById('dartDetectorDot')
+                    dartDetectorDot.className = 'status-dot';
+                    dartDetectorDot.classList.add( !dartnet.dartDetector.isReady() ? 'mqtt-disconnected' : 'mqtt-connected');
+                }
+            }
+
+            updateDartDetectionStatus();
+            setTimeout(() => periodicUpdateUI(), 200);
+        }
+            periodicUpdateUI();
+
 
         // DEBUG zone
         document.addEventListener(
@@ -946,6 +1027,10 @@
                         const message = new Paho.MQTT.Message('{"mytest":"DB"}');
                         message.destinationName = "dartnet/hit";
                         dartnet.mqttClient?.send(message);
+                    }
+                    else if (keyName === "d") {
+                        console.log("Switching dart detector");
+                        dartnet.switchDartDetector();
                     }
                 },
                 false,

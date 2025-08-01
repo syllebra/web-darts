@@ -4,6 +4,8 @@ class MobileDebugConsole {
       startVisible: true,
       maxEntries: 100,
       buttonPosition: "bottom-right",
+      maxPreviewLength: 100, // Maximum characters to show in preview
+      maxPreviewLines: 2, // Maximum lines to show in preview
       ...options,
     };
 
@@ -72,7 +74,7 @@ class MobileDebugConsole {
                     }
                     
                     .debug-console-entry {
-                        margin: 8px 0;
+                        margin: 6px 0;
                         padding: 8px 10px;
                         border-radius: 6px;
                         border-left: 4px solid;
@@ -80,6 +82,7 @@ class MobileDebugConsole {
                         word-wrap: break-word;
                         font-size: 11px;
                         line-height: 1.4;
+                        position: relative;
                     }
                     
                     .debug-console-entry.log {
@@ -107,6 +110,55 @@ class MobileDebugConsole {
                         border-left-color: #6f42c1;
                         color: #d1c4e9;
                         background: rgba(111, 66, 193, 0.1);
+                    }
+                    
+                    .debug-entry-header {
+                        display: flex;
+                        align-items: center;
+                        cursor: pointer;
+                        user-select: none;
+                        min-height: 20px;
+                    }
+                    
+                    .debug-entry-expandable .debug-entry-header:hover {
+                        background: rgba(255, 255, 255, 0.05);
+                        border-radius: 4px;
+                        margin: -2px -4px;
+                        padding: 2px 4px;
+                    }
+                    
+                    .debug-entry-icon {
+                        margin-right: 6px;
+                        transition: transform 0.2s;
+                        font-size: 10px;
+                        color: rgba(255, 255, 255, 0.6);
+                        width: 12px;
+                        text-align: center;
+                    }
+                    
+                    .debug-entry-icon.expanded {
+                        transform: rotate(90deg);
+                    }
+                    
+                    .debug-entry-preview {
+                        flex: 1;
+                        overflow: hidden;
+                    }
+                    
+                    .debug-entry-full {
+                        margin-top: 8px;
+                        display: none;
+                        padding-top: 8px;
+                        border-top: 1px solid rgba(255, 255, 255, 0.1);
+                    }
+                    
+                    .debug-entry-full.expanded {
+                        display: block;
+                    }
+                    
+                    .debug-entry-truncated {
+                        opacity: 0.7;
+                        font-style: italic;
                     }
                     
                     .debug-stack-trace {
@@ -184,13 +236,15 @@ class MobileDebugConsole {
                         color: #6c757d;
                         font-size: 10px;
                         margin-right: 8px;
+                        white-space: nowrap;
                     }
                     
                     .debug-console-source {
                         color: #6c757d;
                         font-size: 10px;
-                        float: right;
+                        margin-left: 8px;
                         font-style: italic;
+                        white-space: nowrap;
                     }
                     
                     .debug-console-toggle {
@@ -459,11 +513,82 @@ class MobileDebugConsole {
     this.scrollToBottom();
   }
 
+  formatArgument(arg) {
+    if (arg === null) return '<span style="color: #6c757d;">null</span>';
+    if (arg === undefined) return '<span style="color: #6c757d;">undefined</span>';
+    if (typeof arg === "string") return arg;
+    if (typeof arg === "number") return `<span style="color: #28a745;">${arg}</span>`;
+    if (typeof arg === "boolean") return `<span style="color: #ffc107;">${arg}</span>`;
+    if (typeof arg === "function") return `<span style="color: #17a2b8;">[Function: ${arg.name || "anonymous"}]</span>`;
+
+    try {
+      return `<span style="color: #e83e8c;">${JSON.stringify(arg, null, 2)}</span>`;
+    } catch (e) {
+      return `<span style="color: #dc3545;">[Object: ${arg.constructor?.name || "unknown"}]</span>`;
+    }
+  }
+
+  createPreviewAndFull(formattedArgs) {
+    const plainText = formattedArgs.replace(/<[^>]*>/g, ""); // Strip HTML for length calculation
+    const lines = plainText.split("\n");
+
+    const isTruncated = plainText.length > this.options.maxPreviewLength || lines.length > this.options.maxPreviewLines;
+
+    if (!isTruncated) {
+      return {
+        preview: formattedArgs,
+        full: null,
+        needsExpansion: false,
+      };
+    }
+
+    // Create preview - truncate by character length and lines
+    let preview = formattedArgs;
+    const previewLines = lines.slice(0, this.options.maxPreviewLines);
+    let previewText = previewLines.join("\n");
+
+    if (previewText.length > this.options.maxPreviewLength) {
+      previewText = previewText.substring(0, this.options.maxPreviewLength);
+    }
+
+    // Try to preserve HTML structure in preview
+    if (formattedArgs.includes("<span")) {
+      // Simple approach: if we have HTML spans, try to keep them balanced
+      const truncatePoint = Math.min(previewText.length, formattedArgs.length);
+      preview = formattedArgs.substring(0, truncatePoint);
+
+      // Close any unclosed spans
+      const openSpans = (preview.match(/<span[^>]*>/g) || []).length;
+      const closedSpans = (preview.match(/<\/span>/g) || []).length;
+      const unclosedSpans = openSpans - closedSpans;
+
+      for (let i = 0; i < unclosedSpans; i++) {
+        preview += "</span>";
+      }
+    } else {
+      preview = previewText;
+    }
+
+    const lineInfo =
+      lines.length > this.options.maxPreviewLines ? ` (+${lines.length - this.options.maxPreviewLines} lines)` : "";
+    const charInfo =
+      plainText.length > this.options.maxPreviewLength
+        ? ` (+${plainText.length - this.options.maxPreviewLength} chars)`
+        : "";
+
+    return {
+      preview: preview + `<span class="debug-entry-truncated">...${charInfo}${lineInfo}</span>`,
+      full: formattedArgs,
+      needsExpansion: true,
+    };
+  }
+
   renderEntry(entry) {
     const entryElement = document.createElement("div");
     entryElement.className = `debug-console-entry ${entry.type}`;
 
     const formattedArgs = entry.args.map((arg) => this.formatArgument(arg)).join(" ");
+    const { preview, full, needsExpansion } = this.createPreviewAndFull(formattedArgs);
 
     // Enhanced source info display for all message types
     let sourceInfo = "";
@@ -501,28 +626,59 @@ class MobileDebugConsole {
       stackTraceHtml = this.createStackTrace(entry.stack, entry.type);
     }
 
+    const entryId = `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    if (needsExpansion) {
+      entryElement.classList.add("debug-entry-expandable");
+    }
+
     entryElement.innerHTML = `
-                    <span class="debug-console-timestamp">${entry.timestamp}</span>
-                    ${formattedArgs}
-                    ${sourceInfo}
-                    ${stackTraceHtml}
-                `;
+      <div class="debug-entry-header" ${
+        needsExpansion ? `onclick="window.mobileDebugConsole.toggleEntry('${entryId}')"` : ""
+      }>
+        ${
+          needsExpansion
+            ? `<span class="debug-entry-icon" id="icon-${entryId}">▶</span>`
+            : '<span class="debug-entry-icon"></span>'
+        }
+        <div class="debug-entry-preview">
+          <span class="debug-console-timestamp">${entry.timestamp}</span>
+          ${preview}
+          ${sourceInfo}
+        </div>
+      </div>
+      ${
+        needsExpansion
+          ? `
+        <div class="debug-entry-full" id="content-${entryId}">
+          <span class="debug-console-timestamp">${entry.timestamp}</span>
+          ${full}
+          ${sourceInfo}
+        </div>
+      `
+          : ""
+      }
+      ${stackTraceHtml}
+    `;
 
     this.contentElement.appendChild(entryElement);
   }
 
-  formatArgument(arg) {
-    if (arg === null) return '<span style="color: #6c757d;">null</span>';
-    if (arg === undefined) return '<span style="color: #6c757d;">undefined</span>';
-    if (typeof arg === "string") return arg;
-    if (typeof arg === "number") return `<span style="color: #28a745;">${arg}</span>`;
-    if (typeof arg === "boolean") return `<span style="color: #ffc107;">${arg}</span>`;
-    if (typeof arg === "function") return `<span style="color: #17a2b8;">[Function: ${arg.name || "anonymous"}]</span>`;
+  toggleEntry(entryId) {
+    const content = document.getElementById(`content-${entryId}`);
+    const icon = document.getElementById(`icon-${entryId}`);
 
-    try {
-      return `<span style="color: #e83e8c;">${JSON.stringify(arg, null, 2)}</span>`;
-    } catch (e) {
-      return `<span style="color: #dc3545;">[Object: ${arg.constructor?.name || "unknown"}]</span>`;
+    if (content && icon) {
+      const isExpanded = content.classList.contains("expanded");
+      content.classList.toggle("expanded", !isExpanded);
+      icon.classList.toggle("expanded", !isExpanded);
+      icon.textContent = isExpanded ? "▶" : "▼";
+
+      if (!isExpanded) {
+        setTimeout(() => {
+          content.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 200);
+      }
     }
   }
 
@@ -654,5 +810,9 @@ class MobileDebugConsole {
     window.mobileDebugConsole = this;
   }
 }
+
 // Initialize the debug console
-const debugConsole = new MobileDebugConsole();
+const debugConsole = new MobileDebugConsole({
+  maxPreviewLength: 150, // Customize preview length
+  maxPreviewLines: 3, // Customize preview lines
+});

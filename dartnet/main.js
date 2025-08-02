@@ -1,5 +1,5 @@
 // Init main class instance
-const dartnet = new DartNet(document.getElementById("videoElement"), location.hostname);
+const dartnet = new DartNet(document.getElementById("videoElement"));
 
 // Initialize the canvas with debug overlay
 const zoomableCanvas = new ZoomablePannableCanvas("videoCanvas", "canvasContainer", "overlayCanvas");

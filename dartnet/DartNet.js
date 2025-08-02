@@ -1,5 +1,5 @@
 class DartNet {
-  constructor(videoSource, mqttBroker = location.hostname, mqttStatusCallback = null) {
+  constructor(videoSource, mqttBroker = "192.168.10.25", mqttStatusCallback = null) {
     this.processingCanvas = null;
     this.videoSource = videoSource;
     this.board = new Board();
@@ -18,22 +18,25 @@ class DartNet {
   }
 
   initMqtt() {
-    // Create MQTT client
-    const clientId = "DARTNET_" + Math.random().toString(16).substr(2, 8);
-    this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
+    try {
+      console.log("Starting MQTT client...");
+      // Create MQTT client
+      const clientId = "DARTNET_" + Math.random().toString(16).substr(2, 8);
+      this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
 
-    // Set callback handlers
-    this.mqttClient.onConnectionLost = this.onMqttConnectionLost.bind(this);
-    this.mqttClient.onMessageArrived = this.onMqttMessage.bind(this);
+      // Set callback handlers
+      this.mqttClient.onConnectionLost = this.onMqttConnectionLost.bind(this);
+      this.mqttClient.onMessageArrived = this.onMqttMessage.bind(this);
 
-    this.updateMqttStatus("connecting");
-    // Connect to MQTT broker
-    this.mqttClient.connect({
-      onSuccess: this.onMqttConnect.bind(this),
-      onFailure: this.onMqttConnectFailure.bind(this),
-    });
-
-    console.log("Starting MQTT client...");
+      this.updateMqttStatus("connecting");
+      // Connect to MQTT broker
+      this.mqttClient.connect({
+        onSuccess: this.onMqttConnect.bind(this),
+        onFailure: this.onMqttConnectFailure.bind(this),
+      });
+    } catch (error) {
+      console.error("Unable to initialize mqtt:", this.mqttBroker, error);
+    }
   }
 
   updateMqttStatus(status) {

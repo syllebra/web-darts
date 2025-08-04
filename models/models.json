@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Calib+Intersections",
+    "file": "best_n_tip_boxes_cross_640_B.onnx",
+    "type": "Yolo-Nano",
+    "version": "v8",
+    "size": 640
+  },
+  {
+    "name": "Calib",
+    "file": "best_s_tip_boxes640_B.onnx",
+    "type": "Yolo-Small",
+    "version": "v8",
+    "size": 640
+  },
+  {
+    "name": "Temporal A",
+    "file": "best_temporal_A.onnx",
+    "type": "Yolo-Small",
+    "version": "v8",
+    "size": 640
+  },
+  {
+    "name": "Temporal B",
+    "file": "best_temporal_B_n_640.onnx",
+    "type": "Yolo-Nano",
+    "version": "v11",
+    "size": 640
+  },
+  {
+    "name": "Temporal B Fast",
+    "file": "best_temporal_B_n_320.onnx",
+    "type": "Yolo-Nano",
+    "version": "v11",
+    "size": 320
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Calib+Cross",
+    "type": "Yolo-Nano",
+    "version": "v8",
+    "file": "best_n_tip_boxes_cross_640_B.onnx",
+    "size": 640
+  },
+  {
+    "name": "Calib",
+    "type": "Yolo-Nano",
+    "version": "v8",
+    "file": "best_s_tip_boxes640_B.onnx",
+    "size": 640
+  },
+  {
+    "name": "Temporal",
+    "type": "Yolo-Small",
+    "version": "v8",
+    "file": "best_temporal_A.onnx",
+    "size": 640
+  },
+  {
+    "name": "Temporal",
+    "type": "Yolo-Nano",
+    "version": "v11",
+    "file": "best_temporal_B_n_640.onnx",
+    "size": 640
+  },
+  {
+    "name": "Temporal",
+    "type": "Yolo-Nano",
+    "version": "v11",
+    "file": "best_temporal_B_n_320.onnx",
+    "size": 320
+  }
+]

@@ -18,26 +18,33 @@
 <body>
     <input id="uploadInput" type="file" />
     <div>
+        <select id="modelSelect">
+            <option value="">Loading models...</option>
+        </select>
         <label><input type="radio" name="executionProvider" value="cpu"> CPU</label>
         <label><input type="radio" name="executionProvider" value="webgpu" checked> GPU</label>
         <button id="rerunButton">Re-run Inference</button>
+        <button id="benchmarkButton">Run Benchmark</button>
+        <div id="benchmarkResults"></div>
     </div>
     <canvas></canvas>
     <script src="../utils/DebugConsole.js"></script>
+    
     <script>
         // Default image URL to load on startup
         const DEFAULT_IMAGE_URL = '../dev/target_detector_test/03.jpg'; // Replace with your desired default image URL
 
         // Load default image on page load
         window.addEventListener('DOMContentLoaded', async () => {
-            try {
+            //try {
                 const response = await fetch(DEFAULT_IMAGE_URL);
                 const blob = await response.blob();
+                currentImage = blob;
                 const [boxes, image] = await detect_objects_on_image(blob);
                 draw_image_and_boxes(blob, boxes, image);
-            } catch (error) {
-                console.error('Error loading default image:', error);
-            }
+            // } catch (error) {
+            //     console.error('Error loading default image:', error);
+            // }
         });
 
         async function checkGPU() {
@@ -61,14 +68,216 @@
         let model = null;
         let inputImage = null;
         let currentImage = null;
+        let benchmarkResults = [];
+        let modelsData = [];
+        const benchmarkButton = document.getElementById("benchmarkButton");
+        const benchmarkResultsDiv = document.getElementById("benchmarkResults");
+        const modelSelect = document.getElementById("modelSelect");
+        
+        // Load models data
+        fetch('../models/models.json')
+            .then(response => response.json())
+            .then(data => {
+                modelsData = data;
+                modelSelect.innerHTML = '';
+                data.forEach((model, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${model.name} (${model.type} ${model.version}) - ${model.size}x${model.size}`;
+                    modelSelect.appendChild(option);
+                });
+                modelSelect.value = 0;
+            });
+
+        benchmarkButton.addEventListener("click", async () => {
+            if (modelsData.length === 0) {
+                alert("Models data not loaded yet");
+                return;
+            }
+
+            benchmarkResults = [];
+            benchmarkResultsDiv.innerHTML = "Running benchmark...";
+            
+            // Run benchmarks for all models
+            for (let i = 0; i < modelsData.length; i++) {
+                modelSelect.value = i;
+                benchmarkResultsDiv.innerHTML += `<h3>Testing ${modelsData[i].name} (${modelsData[i].type} ${modelsData[i].version})</h3>`;
+                
+                // Test GPU first
+                document.querySelector('input[value="webgpu"]').checked = true;
+                await runBenchmark("GPU");
+                
+                // Then test CPU
+                document.querySelector('input[value="cpu"]').checked = true;
+                await runBenchmark("CPU");
+            }
+            
+            displayBenchmarkResults();
+        });
+
+        async function runBenchmark(providerName) {
+            if (!currentImage) {
+                alert("Please load an image first");
+                return;
+            }
+
+            if (modelsData.length === 0) {
+                alert("Models data not loaded yet");
+                return;
+            }
+
+            // Get selected model
+            const selectedModelIndex = modelSelect.value;
+            const selectedModel = modelsData[selectedModelIndex];
+            const modelFile = selectedModel.file;
+            
+            // Preload model once
+            model = null;
+            const provider = document.querySelector('input[name="executionProvider"]:checked').value;
+            const options = provider === 'webgpu' ? { 
+                executionProviders: ['webgpu'],
+                graphOptimizationLevel: 'disabled'
+            } : {
+                executionProviders: ['wasm'],
+                graphOptimizationLevel: 'disabled'
+            };
+            
+            const model_path = `../models/${modelFile}`;
+            try {
+                model = await ort.InferenceSession.create(model_path, options);
+                console.log(`${providerName} model loaded: ${modelFile}`);
+            } catch (error) {
+                console.error(`Error loading model ${modelFile}:`, error);
+                benchmarkResultsDiv.innerHTML += `<p style="color:red">Failed to load model ${modelFile} for ${providerName}</p>`;
+                return;
+            }
+            
+            // Warmup
+            await detect_objects_on_image(currentImage);
+            
+            // Run 5 inferences and measure time
+            for (let i = 0; i < 5; i++) {
+                const startTotal = performance.now();
+                
+                // Measure input preparation
+                const startInput = performance.now();
+                const [input] = await prepare_input(currentImage);
+                const inputTime = performance.now() - startInput;
+                
+                // Measure model run
+                const startModel = performance.now();
+                await run_model(input);
+                const modelTime = performance.now() - startModel;
+                
+                const totalTime = performance.now() - startTotal;
+                
+                benchmarkResults.push({
+                    provider: providerName,
+                    iteration: i+1,
+                    inputTime: inputTime,
+                    modelTime: modelTime,
+                    totalTime: totalTime,
+                    modelIndex: modelSelect.value
+                });
+                console.log(`${providerName} iteration ${i+1} - Input: ${inputTime.toFixed(2)}ms, Model: ${modelTime.toFixed(2)}ms, Total: ${totalTime.toFixed(2)}ms`);
+            }
+        }
+
+        function displayBenchmarkResults() {
+            // Group results by model and provider
+            const resultsByModel = {};
+            benchmarkResults.forEach(result => {
+                if (!resultsByModel[result.modelIndex]) {
+                    resultsByModel[result.modelIndex] = {
+                        GPU: [],
+                        CPU: []
+                    };
+                }
+                resultsByModel[result.modelIndex][result.provider].push(result);
+            });
+
+            let html = `<h3>Benchmark Results</h3>`;
+            
+            // Generate results for each model
+            Object.keys(resultsByModel).forEach(modelIndex => {
+                const model = modelsData[modelIndex];
+                const gpuResults = resultsByModel[modelIndex].GPU;
+                const cpuResults = resultsByModel[modelIndex].CPU;
+                
+                if (gpuResults.length === 0 && cpuResults.length === 0) return;
+                
+                html += `<h4>${model.name} (${model.type} ${model.version}) - ${model.size}x${model.size}</h4>`;
+                
+                // Calculate averages
+                const calculateAverages = (results) => {
+                    if (results.length === 0) return null;
+                    return {
+                        input: results.reduce((sum, r) => sum + r.inputTime, 0) / results.length,
+                        model: results.reduce((sum, r) => sum + r.modelTime, 0) / results.length,
+                        total: results.reduce((sum, r) => sum + r.totalTime, 0) / results.length
+                    };
+                };
+                
+                const gpuAvg = calculateAverages(gpuResults);
+                const cpuAvg = calculateAverages(cpuResults);
+                
+                if (gpuAvg) {
+                    html += `<p>GPU Averages - Input: ${gpuAvg.input.toFixed(2)}ms, Model: ${gpuAvg.model.toFixed(2)}ms, Total: ${gpuAvg.total.toFixed(2)}ms</p>`;
+                }
+                if (cpuAvg) {
+                    html += `<p>CPU Averages - Input: ${cpuAvg.input.toFixed(2)}ms, Model: ${cpuAvg.model.toFixed(2)}ms, Total: ${cpuAvg.total.toFixed(2)}ms</p>`;
+                }
+                if (gpuAvg && cpuAvg) {
+                    html += `<p>Speed Ratio (Model Only): ${(cpuAvg.model/gpuAvg.model).toFixed(2)}x</p>`;
+                }
+                
+                html += `<table border="1">
+                    <tr><th>Provider</th><th>Iteration</th><th>Input (ms)</th><th>Model (ms)</th><th>Total (ms)</th></tr>`;
+                
+                // Add GPU results
+                gpuResults.forEach(result => {
+                    html += `<tr>
+                        <td>${result.provider}</td>
+                        <td>${result.iteration}</td>
+                        <td>${result.inputTime.toFixed(2)}</td>
+                        <td>${result.modelTime.toFixed(2)}</td>
+                        <td>${result.totalTime.toFixed(2)}</td>
+                    </tr>`;
+                });
+                
+                // Add CPU results
+                cpuResults.forEach(result => {
+                    html += `<tr>
+                        <td>${result.provider}</td>
+                        <td>${result.iteration}</td>
+                        <td>${result.inputTime.toFixed(2)}</td>
+                        <td>${result.modelTime.toFixed(2)}</td>
+                        <td>${result.totalTime.toFixed(2)}</td>
+                    </tr>`;
+                });
+                
+                html += `</table><br>`;
+            });
+            
+            benchmarkResultsDiv.innerHTML = html;
+        }
         const input = document.getElementById("uploadInput");
         const rerunButton = document.getElementById("rerunButton");
 
         rerunButton.addEventListener("click", async () => {
+            console.log("Re-run button clicked, currentImage:", currentImage);
             if (currentImage) {
+                console.log("Reloading model and running inference...");
                 model = null; // Force model reload with new provider
-                const [boxes, image] = await detect_objects_on_image(currentImage);
-                draw_image_and_boxes(currentImage, boxes, image);
+                try {
+                    const [boxes, image] = await detect_objects_on_image(currentImage);
+                    console.log("Inference completed, drawing boxes...");
+                    draw_image_and_boxes(currentImage, boxes, image);
+                } catch (error) {
+                    console.error("Error during re-run:", error);
+                }
+            } else {
+                console.log("No currentImage available to process");
             }
         });
         input.addEventListener("change", async (event) => {
@@ -150,12 +359,14 @@
                 img.src = URL.createObjectURL(buf);
                 img.onload = () => {
                     const [img_width, img_height] = [img.width, img.height]
+                    const selectedModelIndex = modelSelect.value;
+                    const modelSize = modelsData[selectedModelIndex].size;
                     const canvas = document.createElement("canvas");
-                    canvas.width = 640;
-                    canvas.height = 640;
+                    canvas.width = modelSize;
+                    canvas.height = modelSize;
                     const context = canvas.getContext("2d");
-                    context.drawImage(img, 0, 0, 640, 640);
-                    const imgData = context.getImageData(0, 0, 640, 640);
+                    context.drawImage(img, 0, 0, modelSize, modelSize);
+                    const imgData = context.getImageData(0, 0, modelSize, modelSize);
                     const pixels = imgData.data;
 
                     const red = [], green = [], blue = [];
@@ -178,9 +389,10 @@
         async function run_model(input) {
             if(!model) {
                 const provider = document.querySelector('input[name="executionProvider"]:checked').value;
-                const options = provider === 'webgpu' ? { executionProviders: ['webgpu'] } : {};
-                model = await ort.InferenceSession.create("../models/best_n_tip_boxes_cross_640_B.onnx", options);
-                console.log(model)
+                const options = provider === 'webgpu' ? { executionProviders: ['webgpu'], graphOptimizationLevel: 'disabled' } : {};
+                const model_path="../models/best_n_tip_boxes_cross_640_B_webgpu.onnx"
+                model = await ort.InferenceSession.create(model_path, options);
+                console.log(provider," => ONNX model loaded:", model)
             }
             inputImage = new ort.Tensor(Float32Array.from(input), [1, 3, 640, 640]);
             const outputs = await model.run({ images: inputImage });
@@ -247,6 +459,9 @@
             const num_classes = outputs["output0"]["dims"][1]-4;//yolo_classes.length;
             let boxes = [];
 
+            const selectedModelIndex = modelSelect.value;
+            const modelSize = modelsData[selectedModelIndex].size;
+
             // Iterate through all 8400 anchor boxes
             for (let index = 0; index < 8400; index++) {
                 // Get the class with highest confidence
@@ -272,10 +487,10 @@
                 const h = output[3 * 8400 + index];  // height
 
                 // Convert from center+width to xyxy format
-                const x1 = (xc - w / 2) * img_width / 640;
-                const y1 = (yc - h / 2) * img_height / 640;
-                const x2 = (xc + w / 2) * img_width / 640;
-                const y2 = (yc + h / 2) * img_height / 640;
+                const x1 = (xc - w / 2) * img_width / modelSize;
+                const y1 = (yc - h / 2) * img_height / modelSize;
+                const x2 = (xc + w / 2) * img_width / modelSize;
+                const y2 = (yc + h / 2) * img_height / modelSize;
                 const box = [x1, y1, x2, y2, max_class, max_confidence];
                 boxes.push(box);
             }

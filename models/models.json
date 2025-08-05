@@ -1,5 +1,26 @@
 [
   {
+    "name": "Temporal B",
+    "file": "best_temporal_B_n_640.onnx",
+    "type": "Yolo-Nano",
+    "version": "v11",
+    "size": 640
+  },
+  {
+    "name": "MobileNet",
+    "file": "ssdlite320_mobilenetv3.onnx",
+    "type": "SSD Lite",
+    "version": "v3",
+    "size": 320
+  },
+  {
+    "name": "Temporal B Fast",
+    "file": "best_temporal_B_n_320.onnx",
+    "type": "Yolo-Nano",
+    "version": "v11",
+    "size": 320
+  },
+  {
     "name": "Calib+Intersections",
     "file": "best_n_tip_boxes_cross_640_B.onnx",
     "type": "Yolo-Nano",
@@ -19,19 +40,5 @@
     "type": "Yolo-Small",
     "version": "v8",
     "size": 640
-  },
-  {
-    "name": "Temporal B",
-    "file": "best_temporal_B_n_640.onnx",
-    "type": "Yolo-Nano",
-    "version": "v11",
-    "size": 640
-  },
-  {
-    "name": "Temporal B Fast",
-    "file": "best_temporal_B_n_320.onnx",
-    "type": "Yolo-Nano",
-    "version": "v11",
-    "size": 320
   }
 ]

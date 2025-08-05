@@ -66,6 +66,7 @@
                                     <tr>
                                         <th>Model</th>
                                         <th>Type</th>
+                                        <th>Size</th>
                                         <th>WebGPU</th>
                                         <th>WASM</th>
                                         <th>Status</th>
@@ -152,6 +153,7 @@
                 tr.innerHTML = `
                     <td>${m.name}</td>
                     <td>${m.type} ${m.version}</td>
+                    <td>${m.size}x${m.size}</td>
                     <td id="wg-${m.name}">-</td>
                     <td id="wm-${m.name}">-</td>
                     <td id="st-${m.name}">-</td>`;

@@ -25,7 +25,10 @@
     "file": "best_n_tip_boxes_cross_640_B.onnx",
     "type": "Yolo-Nano",
     "version": "v8",
-
+    "size": 640
+  },
+  {
+    "name": "Calib",
     "file": "best_s_tip_boxes640_B.onnx",
     "type": "Yolo-Small",
     "version": "v8",

@@ -89,7 +89,7 @@ for (let i = 0; i < 4; i++) {
   );
 }
 
-// Add "20" Element to help reorient in case it is needed
+// Add Element to visualize crop area
 zoomableCanvas.addOverlayElement(
   "cropMask",
   {
@@ -276,21 +276,6 @@ zoomableCanvas.addOverlayElement(
   (element, worldX, worldY) => false // Disable picking drag and drop
 );
 
-// Add "20" Element to help reorient in case it is needed
-zoomableCanvas.addOverlayElement(
-  "scoreViewer",
-  { x: 0, y: 0, color: "rgba(0, 255, 128, 0.75)", text: null },
-  // Draw callback
-  (ctx, element) => {
-    if (!element.text) return;
-    ctx.fillStyle = element.color;
-    ctx.font = `bold ${20 / zoomableCanvas.scale}px Arial`;
-    ctx.textAlign = "center";
-    ctx.fillText(element.text, element.x, element.y + 14 / zoomableCanvas.scale);
-  },
-  (element, worldX, worldY) => false // Disable picking drag and drop
-);
-
 // Add Dart tip debug viewer
 zoomableCanvas.addOverlayElement(
   "dartDebug",
@@ -402,8 +387,8 @@ function onDartDetected(data) {
 
   const debugCanvas = document.getElementById("debugCanvas");
   if (debugCanvas) {
-    debugCanvas.width = 640;
-    debugCanvas.height = 640;
+    debugCanvas.width = dartnet.dartDetector.modelSize;
+    debugCanvas.height = dartnet.dartDetector.modelSize;
 
     const debugCtx = debugCanvas.getContext("2d");
     debugCtx.putImageData(ImageProcessor.grayscaleToImageData(data.delta), 0, 0);
@@ -417,12 +402,16 @@ function onDartDetected(data) {
     .getOverlayElement("dartImpactDebug")
     ?.setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);
 
-  const confidencesTips = data.boxes.map((b) => (b[4] == 0 ? b[5] : -1.0));
+  const tips = data.boxes.filter((b) => b[4] == 0);
+  const confidencesTips = tips.map((b) => (b[4] == 0 ? b[5] : -1.0));
   if (dartnet.targetDetector && confidencesTips && confidencesTips.length) {
     var indexMax = confidencesTips.indexOf(Math.max(...confidencesTips));
-    const b = data.boxes[indexMax];
-    const croppedP = [(b[0] + b[2]) * 0.5, (b[1] + b[3]) * 0.5];
-    const srcP = dartnet.cropppedToSource(croppedP);
+    const b = tips[indexMax];
+    const croppedP = [
+      ((b[0] + b[2]) * 0.5) / dartnet.dartDetector.modelSize,
+      ((b[1] + b[3]) * 0.5) / dartnet.dartDetector.modelSize,
+    ];
+    const srcP = dartnet.normalizedToSource(croppedP);
     const tipEl = zoomableCanvas.getOverlayElement("dartTip");
     if (tipEl) {
       tipEl.x = srcP[0];
@@ -443,8 +432,8 @@ function onDartDetected(data) {
 
   const dartDbg = zoomableCanvas.getOverlayElement("dartDebug");
   dartDbg.boxes = data.boxes.map((b) => {
-    let tl = dartnet.cropppedToSource([b[0], b[1]]);
-    let br = dartnet.cropppedToSource([b[2], b[3]]);
+    let tl = dartnet.normalizedToSource([b[0] / dartnet.dartDetector.modelSize, b[1] / dartnet.dartDetector.modelSize]);
+    let br = dartnet.normalizedToSource([b[2] / dartnet.dartDetector.modelSize, b[3] / dartnet.dartDetector.modelSize]);
     return [tl[0], tl[1], br[0], br[1], b[4], b[5]];
   });
 }

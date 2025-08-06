@@ -76,13 +76,13 @@ class YoloTargetDetector {
     }
 
     try {
-      const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
+      const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, this.modelSize, this.modelSize]);
       const results = await this.session.run({ images: tensor });
-
-      let boxes = YOLO.processYoloOnnxResults(results);
+      let boxes = YOLO.processYoloOnnxResults(results, 0.3, 0.85, this.modelSize);
       const cross = boxes.filter((b) => b[4] === 6).map((b) => [(b[2] + b[0]) * 0.5, (b[3] + b[1]) * 0.5]);
       let binner = boxes.filter((b) => b[4] === 7);
       let bouter = boxes.filter((b) => b[4] === 8);
+      let others = boxes.filter((b) => b[4] < 6);
       binner = binner.length >= 1 ? binner[0] : null;
       bouter = bouter.length >= 1 ? bouter[0] : null;
       console.log(binner);
@@ -91,6 +91,7 @@ class YoloTargetDetector {
         cross,
         bouter,
         binner,
+        others,
       };
     } catch (error) {
       console.error("Erreur lors de l'inférence:", error);
@@ -118,14 +119,21 @@ class YoloTargetDetector {
     // Step 1: Infer using trained model to find board intersections
     //  -------------
     const inferenceResults = await this.infer(input);
-    const { cross: corners, bouter, binner } = inferenceResults;
+    const { cross: corners, bouter, binner, others } = inferenceResults;
+
+    if (canvasContext) {
+      others.forEach((b) => {
+        if (b[4] > 0 && b[4] < 5) {
+          canvasContext.fillStyle = classes_colors[b[4]];
+          canvasContext.fillRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
+        }
+      });
+    }
 
     this.bouter = bouter;
     this.binner = binner;
 
     if (canvasContext) {
-      console.log(canvasContext);
-      //if (imgData) canvasContext.putImageData(imgData, 0, 0);
       canvasContext.strokeStyle = "#ffff00";
       corners.forEach((corner) => {
         canvasContext.beginPath();
@@ -210,7 +218,7 @@ class YoloTargetDetector {
     let icpInstance = new ICPAlgorithm();
     const result = icpInstance.icp(pts, filteredCorners, {
       maxIterations: 100,
-      distanceThreshold: 15,
+      distanceThreshold: 30,
       convergenceTranslationThreshold: 1e-3,
       convergenceRotationThreshold: 1e-4,
       pointPairsThreshold: 10,

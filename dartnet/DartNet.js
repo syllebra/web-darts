@@ -131,8 +131,8 @@ class DartNet {
       this.videoSource,
       inputBox[0],
       inputBox[1],
-      inputBox[2],
-      inputBox[3],
+      inputBox[2] - inputBox[0],
+      inputBox[3] - inputBox[1],
       0,
       0,
       modelSize,
@@ -143,11 +143,18 @@ class DartNet {
     return imgData;
   }
 
-  cropppedToSource(p) {
+  normalizedToSource(p) {
+    // Assumed that p is [0..1,0..1] normalized inside the cropped area
     return [
-      this.cropArea[0] + (p[0] * this.cropArea[2]) / this.targetDetector.modelSize,
-      this.cropArea[1] + (p[1] * this.cropArea[3]) / this.targetDetector.modelSize,
+      this.cropArea[0] + p[0] * (this.cropArea[2] - this.cropArea[0]),
+      this.cropArea[1] + p[1] * (this.cropArea[3] - this.cropArea[1]),
     ];
+  }
+
+  dartModelToSource(p) {
+    const ratio = this.targetDetector.modelSize / this.dartDetector.modelSize;
+    const cropped = [p[0] * ratio, p[1] * ratio];
+    return croppedToSource(cropped);
   }
 
   updateCalibPoints(newPts) {
@@ -175,9 +182,20 @@ class DartNet {
     // try {
     let imgData = this.preprocessImageForModel(null, this.targetDetector.modelSize);
     let input = ImageProcessor.normalizeToYOLOinput(imgData).data;
-    //const cropContext = zoomableCanvas.getOverlayContext();
-    const cropContext = this.processingCanvas.getContext("2d", { willReadFrequently: true });
-    let results = await this.targetDetector.detect(input, cropContext);
+
+    const debugCanvas = null; //document.getElementById("debugCanvas");
+    const debugCtx = debugCanvas?.getContext("2d");
+    if (debugCanvas) {
+      debugCanvas.width = imgData.width;
+      debugCanvas.height = imgData.height;
+      debugCanvas.style.width = "" + imgData.width + "px";
+      debugCanvas.style.height = "" + imgData.height + "px";
+      //console.log("Image size:", imageData.width, imageData.height);
+
+      debugCtx.putImageData(imgData, 0, 0);
+    }
+
+    let results = await this.targetDetector.detect(input, debugCtx);
     if (results?.calibrationPoints) {
       let sourceCalib = results.calibrationPoints.map((p) => [
         (p[0] * this.videoSource.videoWidth) / this.targetDetector.modelSize,
@@ -192,14 +210,29 @@ class DartNet {
       this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
       imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
       input = ImageProcessor.normalizeToYOLOinput(imgData).data;
-      let calibration = await this.targetDetector.detect(input, cropContext);
+
+      if (debugCanvas) {
+        debugCanvas.width = imgData.width;
+        debugCanvas.height = imgData.height;
+        debugCanvas.style.width = "" + imgData.width + "px";
+        debugCanvas.style.height = "" + imgData.height + "px";
+        //console.log("Image size:", imageData.width, imageData.height);
+
+        debugCtx.putImageData(imgData, 0, 0);
+      }
+
+      let calibration = await this.targetDetector.detect(input, debugCtx);
       console.log("Calibration:", calibration);
       if (!calibration) {
         console.warn("Unable to find target in croped area... Using previous (bad) one");
         this.cropArea = [0, 0, this.videoSource.videoWidth, this.videoSource.videoHeight];
         calibration = results;
       }
-      this.sourceCalibPts = calibration.calibrationPoints.map((p) => this.cropppedToSource(p));
+      console.log("CALIB POINTS:", calibration.calibrationPoints);
+      this.sourceCalibPts = calibration.calibrationPoints.map((p) =>
+        this.normalizedToSource([p[0] / this.targetDetector.modelSize, p[1] / this.targetDetector.modelSize])
+      );
+      console.log("SOURCE CALIB POINTS:", this.sourceCalibPts);
       this.updateCalibPoints(this.sourceCalibPts);
     } else {
       console.warn("Unable to find initial target to auto crop...");
@@ -221,11 +254,11 @@ class DartNet {
 
   async detectDartImpact() {
     if (!this.dartDetector) return;
-    const imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
+    const imgData = this.preprocessImageForModel(this.cropArea, this.dartDetector.modelSize);
     this.dartDetector.onNewFrame(imgData);
   }
 
   async onDetectedDartImpact(data) {
-    //console.log("DartImpact:", data);
+    console.log("DartImpact:", data);
   }
 }

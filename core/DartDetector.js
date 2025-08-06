@@ -11,13 +11,13 @@ const DartDetectorStatus = {
  * Base class for dart impact detection systems
  */
 class DartDetector {
-  constructor(modelPath = "../models/best_temporal_A.onnx", modelSize = 640) {
+  constructor(modelPath = "../models/best_temporal_B_n_320.onnx") {
     this.pauseDetection = false;
     this.currentStatus = DartDetectorStatus.INITIALIZING;
     this.statusChangeCallbacks = [];
     this.onDetectionCallbacks = [];
     this.modelPath = modelPath;
-    this.modelSize = modelSize;
+    this.modelSize = null;
     this.initializeModel();
   }
 
@@ -26,10 +26,12 @@ class DartDetector {
       if (g_useGPU)
         this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ["webgpu"] });
       else this.session = await ort.InferenceSession.create(this.modelPath);
-      console.log("Modèle ONNX chargé avec succès:", this.modelPath, this.session);
+      this.modelSize = this.session.handler.inputMetadata[0].shape[2];
+      console.log("ONNX model loading success:", this.modelPath, this.session);
+      console.log("ONNX model detected size:", this.modelSize);
       if (this.initCallback) this.initCallback();
     } catch (error) {
-      console.error("Erreur lors du chargement du modèle:", error);
+      console.error("Error while loading ONNX model:", error);
       // Utiliser un modèle de démo si le vrai modèle n'est pas disponible
       this.session = null;
       //if (this.initCallback) this.initCallback();
@@ -48,7 +50,7 @@ class DartDetector {
       const tensor = new ort.Tensor(Float32Array.from(imageData.data), [1, 3, this.modelSize, this.modelSize]);
       const results = await this.session.run({ images: tensor });
       //console.log("Results:", results);
-      const boxes = YOLO.processYoloOnnxResults(results);
+      const boxes = YOLO.processYoloOnnxResults(results, 0.25, 0.45, this.modelSize);
       obj.boxes = boxes;
       this.onDetectionCallbacks.forEach((cb) => cb(obj));
       //return this.processOnnxResults(results);
@@ -189,6 +191,17 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
       return false;
     }
 
+    // const debugCanvas = document.getElementById("debugCanvas");
+    // if (debugCanvas) {
+    //   debugCanvas.width = imageData.width;
+    //   debugCanvas.height = imageData.height;
+    //   debugCanvas.style.width = "" + imageData.width + "px";
+    //   debugCanvas.style.height = "" + imageData.height + "px";
+    //   //console.log("Image size:", imageData.width, imageData.height);
+
+    //   const debugCtx = debugCanvas.getContext("2d");
+    //   debugCtx.putImageData(imageData, 0, 0);
+    // }
     let detect = false;
 
     // Convert to grayscale

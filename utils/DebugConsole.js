@@ -812,7 +812,9 @@ class MobileDebugConsole {
 }
 
 // Initialize the debug console
-const debugConsole = new MobileDebugConsole({
-  maxPreviewLength: 150, // Customize preview length
-  maxPreviewLines: 3, // Customize preview lines
-});
+if (isMobile()) {
+  const debugConsole = new MobileDebugConsole({
+    maxPreviewLength: 150, // Customize preview length
+    maxPreviewLines: 3, // Customize preview lines
+  });
+}

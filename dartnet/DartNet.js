@@ -1,5 +1,5 @@
 class DartNet {
-  constructor(videoSource, mqttBroker = "192.168.10.25", mqttStatusCallback = null) {
+  constructor(videoSource, mqttBroker = "192.168.31.120", mqttStatusCallback = null) {
     this.processingCanvas = null;
     this.videoSource = videoSource;
     this.board = new Board();
@@ -104,11 +104,12 @@ class DartNet {
     } else this.dartDetectorVO.initializeModel();
 
     this.dartDetector = this.dartDetectorVO;
-    this.dartDetector.start();
+    //this.dartDetector.start();
   }
 
   switchDartDetector() {
-    if (this.dartDetector) this.dartDetector.stop();
+    this.dartDetectorVO?.stop();
+    this.dartDetectorVAI?.stop();
     this.dartDetector = this.dartDetector == this.dartDetectorVAI ? this.dartDetectorVO : this.dartDetectorVAI;
     console.log("Starting " + (this.dartDetector == this.dartDetectorVAI ? "VAI" : "VO"));
     this.dartDetector.start();

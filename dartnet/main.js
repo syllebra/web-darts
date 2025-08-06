@@ -308,6 +308,7 @@ zoomableCanvas.addOverlayElement(
     y: 0,
     current: 0,
     color: [255, 0, 0, 0.8],
+    bb: null,
     setDetected(grayImg, width, height) {
       const imageData = new ImageData(width, height);
       const data = imageData.data;
@@ -321,6 +322,15 @@ zoomableCanvas.addOverlayElement(
       }
       this.imgs[this.current] = ImageProcessor.imageDataToImage(imageData);
       this.current = (this.current + 1) % this.imgs.length;
+
+      const bb = ImageProcessor.computeGrayscaleThresholdBox(grayImg.data, width, height, 40);
+      this.bb = [
+        bb[0] / dartnet.dartDetector.modelSize,
+        bb[1] / dartnet.dartDetector.modelSize,
+        bb[2] / dartnet.dartDetector.modelSize,
+        bb[3] / dartnet.dartDetector.modelSize,
+      ];
+      console.log("THRESHOLD BOUNDING BOX:", this.bb);
     },
   },
   // Draw callback
@@ -335,6 +345,17 @@ zoomableCanvas.addOverlayElement(
         //ctx.drawImage(element.img, 0, 0, element.width, element.height, ca[0], ca[1], ca[2], ca[3]);
         //console.log(img, x, y);
         ctx.drawImage(img, 0, 0, img.width, img.height, x, y, ca[2], ca[3]);
+
+        if (img.bb) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+          ctx.strokeRect(
+            x + img.bb[0] * ca[2],
+            y + img.bb[1] * ca[3],
+            (img.bb[2] - img.bb[0]) * ca[2],
+            (img.bb[3] - img.bb[1]) * ca[3]
+          );
+        }
+
         x += img.width + 10;
       }
     });
@@ -396,6 +417,15 @@ function onDartDetected(data) {
     data.boxes.forEach((b) => {
       debugCtx.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
     });
+
+    const b = ImageProcessor.computeGrayscaleThresholdBox(
+      data.delta,
+      dartnet.dartDetector.modelSize,
+      dartnet.dartDetector.modelSize,
+      40
+    );
+    debugCtx.strokeStyle = "rgba(0, 255, 255, 1.0)";
+    debugCtx.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
   }
 
   zoomableCanvas

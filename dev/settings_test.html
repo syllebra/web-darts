@@ -6,233 +6,12 @@
     <title>Advanced Settings Panel</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="../dartnet/settings.css" rel="stylesheet">
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        /* Settings Panel Styles */
-        .settings_floating-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 1000;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            user-select: none;
-        }
-
-        .settings_floating-button:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
-        }
-
-        .settings_floating-button i {
-            color: white;
-            font-size: 20px;
-        }
-
-        .settings_modal .modal-content {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
-        }
-
-        .settings_modal .modal-header {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 20px 20px 0 0;
-        }
-
-        .settings_modal .modal-title {
-            color: white;
-            font-weight: 600;
-        }
-
-        .settings_modal .btn-close {
-            filter: invert(1);
-            opacity: 0.8;
-        }
-
-        .settings_nav-tabs {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .settings_nav-tabs .nav-link {
-            color: rgba(255, 255, 255, 0.7);
-            border: none;
-            padding: 12px 20px;
-            transition: all 0.3s ease;
-        }
-
-        .settings_nav-tabs .nav-link:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .settings_nav-tabs .nav-link.active {
-            color: white;
-            background: rgba(255, 255, 255, 0.15);
-            border-bottom: 2px solid #4CAF50;
-        }
-
-        .settings_tab-content {
-            background: rgba(255, 255, 255, 0.05);
-            min-height: 400px;
-            padding: 20px;
-        }
-
-        .settings_form-label {
-            color: white;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .settings_form-control, .settings_form-select {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            backdrop-filter: blur(5px);
-        }
-
-        .settings_form-control:focus, .settings_form-select:focus {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: #4CAF50;
-            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
-            color: white;
-        }
-
-        /* Dropdown options styling */
-        .settings_form-select option {
-            background: rgba(20, 25, 45, 0.95);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-        }
-
-        .settings_form-select option:hover,
-        .settings_form-select option:focus,
-        .settings_form-select option:checked {
-            background: rgba(76, 175, 80, 0.8);
-            color: white;
-        }
-
-        .settings_form-control::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .settings_slider-container {
-            margin: 15px 0;
-        }
-
-        .settings_slider {
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: rgba(255, 255, 255, 0.2);
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        .settings_slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #4CAF50;
-            cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-        }
-
-        .settings_slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #4CAF50;
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-        }
-
-        .settings_slider-value {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            margin-left: 10px;
-            min-width: 50px;
-            text-align: center;
-        }
-
-        .settings_btn-glass {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-
-        .settings_btn-glass:hover {
-            background: rgba(255, 255, 255, 0.3);
-            color: white;
-            transform: translateY(-1px);
-        }
-
-        .settings_btn-success {
-            background: rgba(76, 175, 80, 0.8);
-            border: 1px solid rgba(76, 175, 80, 0.6);
-            color: white;
-        }
-
-        .settings_btn-success:hover {
-            background: rgba(76, 175, 80, 1);
-            color: white;
-        }
-
-        .settings_btn-danger {
-            background: rgba(244, 67, 54, 0.8);
-            border: 1px solid rgba(244, 67, 54, 0.6);
-            color: white;
-        }
-
-        .settings_btn-danger:hover {
-            background: rgba(244, 67, 54, 1);
-            color: white;
-        }
-
-        .settings_action-buttons {
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px 20px;
-            border-radius: 0 0 20px 20px;
-        }
-
-        @media (max-width: 768px) {
-            .settings_modal .modal-dialog {
-                margin: 10px;
-                max-width: none;
-            }
-            
-            .settings_nav-tabs .nav-link {
-                padding: 8px 12px;
-                font-size: 14px;
-            }
         }
     </style>
 </head>
@@ -488,18 +267,18 @@
                 <div class="settings_action-buttons">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <button type="button" class="btn settings_btn-success me-2" onclick="saveSettings()">
+                            <button type="button" class="btn settings_btn-success me-2" onclick="settingsManager.saveSettings()">
                                 <i class="fas fa-save me-1"></i>Save Settings
                             </button>
-                            <button type="button" class="btn settings_btn-glass me-2" onclick="loadSettings()">
+                            <button type="button" class="btn settings_btn-glass me-2" onclick="settingsManager.loadSettings()">
                                 <i class="fas fa-upload me-1"></i>Load Settings
                             </button>
                         </div>
                         <div>
-                            <button type="button" class="btn settings_btn-glass me-2" onclick="resetSettings()">
+                            <button type="button" class="btn settings_btn-glass me-2" onclick="settingsManager.resetSettings()">
                                 <i class="fas fa-undo me-1"></i>Reset to Default
                             </button>
-                            <button type="button" class="btn settings_btn-danger" onclick="exportSettings()">
+                            <button type="button" class="btn settings_btn-danger" onclick="settingsManager.exportSettings()">
                                 <i class="fas fa-download me-1"></i>Export
                             </button>
                         </div>
@@ -524,174 +303,13 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../ui/global.js"></script>
+    <script src="../dartnet/settings.js"></script>
     <script>
-        // Debug logging function
-        function debugLog(message) {
-            console.debug(message);
-        }
-
-        // Simple global functions first - no classes yet
         function openSettingsModal() {
             console.log('Opening settings modal...');
             const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
             modal.show();
-        }
-
-        function saveSettings() {
-            console.log('Save settings clicked');
-            try {
-                const settings = getAllSettings();
-                localStorage.setItem('dartnetSettings', JSON.stringify(settings));
-                showNotification('Settings saved to browser storage!', 'success');
-                settingsManager.triggerCallback('save', settings);
-            } catch (error) {
-                console.error('Error saving settings:', error);
-                showNotification('Error saving settings: ' + error.message, 'error');
-            }
-        }
-
-        function loadSettings() {
-            console.log('Load settings clicked');
-            try {
-                const savedSettings = localStorage.getItem('dartnetSettings');
-                const settings = savedSettings ? JSON.parse(savedSettings) : getDefaultSettings();
-                populateSettings(settings);
-                showNotification(savedSettings ? 'Settings loaded!' : 'Default settings loaded (no saved settings found)', 'success');
-                settingsManager.triggerCallback('load', settings);
-            } catch (error) {
-                console.error('Error loading settings:', error);
-                showNotification('Error loading settings: ' + error.message, 'error');
-            }
-        }
-
-        function resetSettings() {
-            console.log('Reset settings clicked');
-            if (confirm('Reset all settings to default?')) {
-                const defaultSettings = getDefaultSettings();
-                populateSettings(defaultSettings);
-                showNotification('Settings reset!', 'info');
-                settingsManager.triggerCallback('reset', defaultSettings);
-            }
-        }
-
-        function exportSettings() {
-            console.log('Export settings clicked');
-            const settings = getAllSettings();
-            const blob = new Blob([JSON.stringify(settings, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'settings.json';
-            a.click();
-            showNotification('Settings exported!', 'success');
-            settingsManager.triggerCallback('export', settings);
-        }
-
-        function getDefaultSettings() {
-            return {
-                mqtt: { brokerIP: '192.168.1.100', port: 1883, username: '', password: '' },
-                dartvo: { model: 'yolo', source: 'camera0', confidence: 75, nms: 45 },
-                dartvai: { modelType: 'transformer', mode: 'realtime', learningRate: 30, batchSize: 16 },
-                calibration: { type: 'automatic', points: 9, accuracy: 7, tolerance: 5 },
-                general: { language: 'en', theme: 'dark', updateInterval: 100, logLevel: 3 }
-            };
-        }
-
-        function getAllSettings() {
-            return {
-                mqtt: {
-                    brokerIP: document.getElementById('mqttBrokerIP').value,
-                    port: parseInt(document.getElementById('mqttPort').value) || 1883,
-                    username: document.getElementById('mqttUsername').value,
-                    password: document.getElementById('mqttPassword').value
-                },
-                dartvo: {
-                    model: document.getElementById('dartvoModel').value,
-                    source: document.getElementById('dartvoSource').value,
-                    confidence: parseInt(document.getElementById('dartvoConfidence').value),
-                    nms: parseInt(document.getElementById('dartvoNMS').value)
-                },
-                dartvai: {
-                    modelType: document.getElementById('dartvaiModelType').value,
-                    mode: document.getElementById('dartvaiMode').value,
-                    learningRate: parseInt(document.getElementById('dartvaiLearningRate').value),
-                    batchSize: parseInt(document.getElementById('dartvaiBatchSize').value)
-                },
-                calibration: {
-                    type: document.getElementById('calibrationType').value,
-                    points: parseInt(document.getElementById('calibrationPoints').value),
-                    accuracy: parseInt(document.getElementById('calibrationAccuracy').value),
-                    tolerance: parseInt(document.getElementById('calibrationTolerance').value)
-                },
-                general: {
-                    language: document.getElementById('generalLanguage').value,
-                    theme: document.getElementById('generalTheme').value,
-                    updateInterval: parseInt(document.getElementById('generalUpdateInterval').value),
-                    logLevel: parseInt(document.getElementById('generalLogLevel').value)
-                }
-            };
-        }
-
-        function populateSettings(settings) {
-            // MQTT
-            document.getElementById('mqttBrokerIP').value = settings.mqtt.brokerIP;
-            document.getElementById('mqttPort').value = settings.mqtt.port;
-            document.getElementById('mqttUsername').value = settings.mqtt.username;
-            document.getElementById('mqttPassword').value = settings.mqtt.password;
-            
-            // DartVO
-            document.getElementById('dartvoModel').value = settings.dartvo.model;
-            document.getElementById('dartvoSource').value = settings.dartvo.source;
-            document.getElementById('dartvoConfidence').value = settings.dartvo.confidence;
-            document.getElementById('dartvoNMS').value = settings.dartvo.nms;
-            
-            // DartVAI
-            document.getElementById('dartvaiModelType').value = settings.dartvai.modelType;
-            document.getElementById('dartvaiMode').value = settings.dartvai.mode;
-            document.getElementById('dartvaiLearningRate').value = settings.dartvai.learningRate;
-            document.getElementById('dartvaiBatchSize').value = settings.dartvai.batchSize;
-            
-            // Calibration
-            document.getElementById('calibrationType').value = settings.calibration.type;
-            document.getElementById('calibrationPoints').value = settings.calibration.points;
-            document.getElementById('calibrationAccuracy').value = settings.calibration.accuracy;
-            document.getElementById('calibrationTolerance').value = settings.calibration.tolerance;
-            
-            // General
-            document.getElementById('generalLanguage').value = settings.general.language;
-            document.getElementById('generalTheme').value = settings.general.theme;
-            document.getElementById('generalUpdateInterval').value = settings.general.updateInterval;
-            document.getElementById('generalLogLevel').value = settings.general.logLevel;
-            
-            // Update sliders
-            updateSliderValues();
-        }
-
-        function updateSliderValues() {
-            const sliders = [
-                {id: 'dartvoConfidence', suffix: '%'},
-                {id: 'dartvoNMS', suffix: '%'},
-                {id: 'dartvaiLearningRate', transform: v => (v/10000).toFixed(4)},
-                {id: 'dartvaiBatchSize', suffix: ''},
-                {id: 'calibrationAccuracy', suffix: ''},
-                {id: 'calibrationTolerance', suffix: 'px'},
-                {id: 'generalUpdateInterval', suffix: 'ms'},
-                {id: 'generalLogLevel', transform: v => ['','Error','Warn','Info','Debug','Trace'][v]}
-            ];
-            
-            sliders.forEach(slider => {
-                const element = document.getElementById(slider.id);
-                const valueElement = document.getElementById(slider.id + 'Value');
-                if (element && valueElement) {
-                    let displayValue = element.value;
-                    if (slider.transform) {
-                        displayValue = slider.transform(element.value);
-                    } else if (slider.suffix) {
-                        displayValue += slider.suffix;
-                    }
-                    valueElement.textContent = displayValue;
-                }
-            });
         }
 
         function showNotification(message, type = 'info') {
@@ -726,299 +344,23 @@
             }, 3000);
         }
 
-        // SettingsManager Class - Enhanced with proper event handling
-        class SettingsManager {
-            constructor() {
-                this.settings = this.getDefaultSettings();
-                this.callbacks = {};
-                this.setupEventListeners();
-            }
-
-            getDefaultSettings() {
-                return getDefaultSettings();
-            }
-
-            // Setup event listeners for all form elements
-            setupEventListeners() {
-                // Get all setting elements
-                const settingElements = document.querySelectorAll(
-                    '.settings_form-control, .settings_form-select, .settings_slider'
-                );
-
-                settingElements.forEach(element => {
-                    const eventType = element.type === 'range' ? 'input' : 'change';
-                    element.addEventListener(eventType, (e) => {
-                        this.handleSettingChange(e);
-                    });
-                });
-
-                debugLog('Event listeners setup complete');
-            }
-
-            // Handle individual setting changes
-            handleSettingChange(event) {
-                const element = event.target;
-                const elementId = element.id;
-                
-                // Parse category and key from element ID
-                const { category, key } = this.parseElementId(elementId);
-                
-                if (category && key) {
-                    let value = element.value;
-                    
-                    // Convert numeric values
-                    if (element.type === 'number' || element.type === 'range') {
-                        value = parseInt(value) || 0;
-                    }
-                    
-                    debugLog(`Setting changed: ${category}.${key} = ${value}`);
-                    
-                    // Trigger change callback
-                    this.triggerCallback('change', { 
-                        category, 
-                        key, 
-                        value, 
-                        elementId,
-                        element 
-                    });
-                    
-                    // Update slider values if it's a range input
-                    if (element.type === 'range') {
-                        updateSliderValues();
-                    }
-                }
-            }
-
-            // Parse element ID to get category and key
-            parseElementId(elementId) {
-                const categoryMap = {
-                    'mqtt': 'mqtt',
-                    'dartvo': 'dartvo', 
-                    'dartvai': 'dartvai',
-                    'calibration': 'calibration',
-                    'general': 'general'
-                };
-
-                for (const [prefix, category] of Object.entries(categoryMap)) {
-                    if (elementId.startsWith(prefix)) {
-                        const key = elementId.replace(prefix, '');
-                        // Convert first letter to lowercase
-                        const normalizedKey = key.charAt(0).toLowerCase() + key.slice(1);
-                        return { category, key: normalizedKey };
-                    }
-                }
-                
-                return { category: null, key: null };
-            }
-
-            // Get current settings
-            getSettings() {
-                return getAllSettings();
-            }
-
-            // Get specific setting
-            getSetting(category, key) {
-                const settings = this.getSettings();
-                return settings[category] ? settings[category][key] : undefined;
-            }
-
-            // Set specific setting programmatically
-            setSetting(category, key, value) {
-                const elementId = category + key.charAt(0).toUpperCase() + key.slice(1);
-                const element = document.getElementById(elementId);
-                if (element) {
-                    element.value = value;
-                    if (element.type === 'range') {
-                        updateSliderValues();
-                    }
-                    
-                    // Trigger change event programmatically
-                    element.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-
-            // Save settings
-            saveSettings() {
-                try {
-                    const settings = getAllSettings();
-                    // Note: localStorage not available in Claude artifacts
-                    debugLog('Settings saved: ' + JSON.stringify(settings, null, 2));
-                    showNotification('Settings saved!', 'success');
-                    this.triggerCallback('save', settings);
-                } catch (error) {
-                    console.error('Error saving settings:', error);
-                    showNotification('Error saving settings: ' + error.message, 'error');
-                }
-            }
-
-            // Load settings
-            loadSettings() {
-                try {
-                    const settings = getDefaultSettings();
-                    populateSettings(settings);
-                    debugLog('Settings loaded');
-                    showNotification('Settings loaded!', 'success');
-                    this.triggerCallback('load', settings);
-                } catch (error) {
-                    console.error('Error loading settings:', error);
-                    showNotification('Error loading settings: ' + error.message, 'error');
-                }
-            }
-
-            // Reset settings
-            resetSettings() {
-                if (confirm('Are you sure you want to reset all settings to default values?')) {
-                    const defaultSettings = this.getDefaultSettings();
-                    populateSettings(defaultSettings);
-                    debugLog('Settings reset to defaults');
-                    showNotification('Settings reset to default values!', 'info');
-                    this.triggerCallback('reset', defaultSettings);
-                }
-            }
-
-            // Export settings
-            exportSettings() {
-                const settings = getAllSettings();
-                const blob = new Blob([JSON.stringify(settings, null, 2)], {type: 'application/json'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'app-settings.json';
-                a.click();
-                URL.revokeObjectURL(url);
-                debugLog('Settings exported');
-                showNotification('Settings exported successfully!', 'success');
-                this.triggerCallback('export', settings);
-            }
-
-            // Register callbacks
-            onSettingsChange(callback) { this.registerCallback('change', callback); }
-            onSettingsSave(callback) { this.registerCallback('save', callback); }
-            onSettingsLoad(callback) { this.registerCallback('load', callback); }
-            onSettingsReset(callback) { this.registerCallback('reset', callback); }
-            onSettingsExport(callback) { this.registerCallback('export', callback); }
-
-            registerCallback(event, callback) {
-                if (!this.callbacks[event]) this.callbacks[event] = [];
-                this.callbacks[event].push(callback);
-                debugLog(`Callback registered for '${event}' event`);
-            }
-
-            triggerCallback(event, data) {
-                if (this.callbacks[event]) {
-                    this.callbacks[event].forEach(callback => {
-                        try {
-                            callback(data);
-                        } catch (error) {
-                            console.error(`Error in ${event} callback:`, error);
-                        }
-                    });
-                }
-            }
-
-            // Utility method to get all registered callbacks
-            getCallbacks() {
-                return Object.keys(this.callbacks).map(event => ({
-                    event,
-                    count: this.callbacks[event].length
-                }));
-            }
-        }
-
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Page loaded, initializing...');
             
-            // Setup slider listeners for visual updates
-            const sliders = document.querySelectorAll('.settings_slider');
-            sliders.forEach(slider => {
-                slider.addEventListener('input', updateSliderValues);
-            });
+            // // Setup slider listeners for visual updates
+            // const sliders = document.querySelectorAll('.settings_slider');
+            // sliders.forEach(slider => {
+            //     slider.addEventListener('input', settingsManager.updateSliderValues());
+            // });
             
             // Make button draggable
-            makeDraggable();
+            makeDraggable('settingsButton', openSettingsModal);
             
             console.log('Initialization complete!');
         });
 
-        function makeDraggable() {
-            const button = document.getElementById('settingsButton');
-            let isDragging = false;
-            let hasMoved = false;
-            let startX, startY;
-
-            button.addEventListener('mousedown', function(e) {
-                isDragging = true;
-                hasMoved = false;
-                startX = e.clientX;
-                startY = e.clientY;
-                button.style.cursor = 'grabbing';
-            });
-
-            document.addEventListener('mousemove', function(e) {
-                if (!isDragging) return;
-                
-                const deltaX = Math.abs(e.clientX - startX);
-                const deltaY = Math.abs(e.clientY - startY);
-                
-                if (deltaX > 5 || deltaY > 5) {
-                    hasMoved = true;
-                    button.style.left = (e.clientX - 25) + 'px';
-                    button.style.top = (e.clientY - 25) + 'px';
-                    button.style.right = 'auto';
-                }
-            });
-
-            document.addEventListener('mouseup', function() {
-                if (isDragging) {
-                    isDragging = false;
-                    button.style.cursor = 'pointer';
-                    
-                    // Override onclick if we dragged
-                    if (hasMoved) {
-                        button.onclick = null;
-                        setTimeout(() => {
-                            button.onclick = openSettingsModal;
-                        }, 100);
-                    }
-                }
-            });
-
-            // Touch events
-            button.addEventListener('touchstart', function(e) {
-                isDragging = true;
-                hasMoved = false;
-                const touch = e.touches[0];
-                startX = touch.clientX;
-                startY = touch.clientY;
-            });
-
-            button.addEventListener('touchmove', function(e) {
-                if (!isDragging) return;
-                
-                const touch = e.touches[0];
-                const deltaX = Math.abs(touch.clientX - startX);
-                const deltaY = Math.abs(touch.clientY - startY);
-                
-                if (deltaX > 5 || deltaY > 5) {
-                    hasMoved = true;
-                    button.style.left = (touch.clientX - 25) + 'px';
-                    button.style.top = (touch.clientY - 25) + 'px';
-                    button.style.right = 'auto';
-                    e.preventDefault();
-                }
-            });
-
-            button.addEventListener('touchend', function() {
-                if (isDragging) {
-                    isDragging = false;
-                    
-                    if (!hasMoved) {
-                        openSettingsModal();
-                    }
-                }
-            });
-        }
+       
 
         // Create global instance for easy access - initialized after DOM loads
         let settingsManager;
@@ -1031,36 +373,36 @@
 
                 // Example usage - register callbacks
                 settingsManager.onSettingsChange((data) => {
-                    debugLog(`🔄 Change: ${data.category}.${data.key} = ${data.value}`);
+                    console.log(`🔄 Change: ${data.category}.${data.key} = ${data.value}`);
                 });
 
                 settingsManager.onSettingsSave((data) => {
-                    debugLog('💾 Settings saved');
+                    console.log('💾 Settings saved');
                 });
 
                 settingsManager.onSettingsLoad((data) => {
-                    debugLog('📁 Settings loaded');
+                    console.log('📁 Settings loaded');
                 });
 
                 settingsManager.onSettingsReset((data) => {
-                    debugLog('🔄 Settings reset');
+                    console.log('🔄 Settings reset');
                 });
 
                 settingsManager.onSettingsExport((data) => {
-                    debugLog('📤 Settings exported');
+                    console.log('📤 Settings exported');
                 });
 
-                debugLog('SettingsManager initialized with callbacks');
+                console.log('SettingsManager initialized with callbacks');
                 console.log('Settings panel ready with working callbacks!');
                 
                 // Load saved settings or defaults
-                loadSettings();
+                settingsManager.loadSettings();
                 console.log('Settings loaded');
 
 
                 // Test the callbacks by programmatically changing a setting
                 setTimeout(() => {
-                    debugLog('Testing callback by changing MQTT port...');
+                    console.log('Testing callback by changing MQTT port...');
                     settingsManager.setSetting('mqtt', 'port', 1884);
                 }, 2000);
             }, 100);

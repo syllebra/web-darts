@@ -94,7 +94,13 @@ class DartNet {
     } else this.targetDetector.initializeModel();
 
     if (!this.dartDetectorVAI) {
-      this.dartDetectorVAI = new DeltaVideoAccelImpactDetector(); //new DeltaVideoOnlyDartDetector();
+      this.dartDetectorVAI = new DeltaVideoAccelImpactDetector(
+        settingsManager.getSetting("dartvai", "url"),
+        settingsManager.getSetting("mqtt", "brokerIP"),
+        settingsManager.getSetting("mqtt", "port"),
+        settingsManager.getSetting("dartvai", "burstLength"),
+        settingsManager.getSetting("dartvai", "extraWaitFrames")
+      ); //new DeltaVideoOnlyDartDetector();
       this.dartDetectorVAI.onDetectionCallbacks.push(this.onDetectedDartImpact);
     } else this.dartDetectorVAI.initializeModel();
 

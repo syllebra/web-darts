@@ -1,12 +1,3 @@
-function initializeMainVariables() {
-  // Detector
-  gpuDetector = new GPUDetector();
-
-  // Init main class instance
-  dartnet = new DartNet(document.getElementById("videoElement"));
-}
-initializeMainVariables();
-
 async function reinitDetectorsCallbacks() {
   //dartnet.initDetectors();
   if (!dartnet?.dartDetectorVO?.onDetectionCallbacks.includes(onDartDetected))
@@ -24,20 +15,20 @@ let animationId = null;
 async function processFrame() {
   let wait = false;
   if (
-    dartnet.dartDetector &&
-    dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTING &&
-    dartnet.dartDetector.currentStatus != DartDetectorStatus.DETECTED
+    dartnet?.dartDetector &&
+    dartnet?.dartDetector.currentStatus != DartDetectorStatus.DETECTING &&
+    dartnet?.dartDetector.currentStatus != DartDetectorStatus.DETECTED
   )
     wait = true;
   if (
-    !dartnet.videoSource ||
-    dartnet.dartDetector?.pauseDetection ||
+    !dartnet?.videoSource ||
+    dartnet?.dartDetector?.pauseDetection ||
     dartnet.videoSource.readyState !== dartnet.videoSource.HAVE_ENOUGH_DATA
   )
     wait = true;
   if (!wait) {
     try {
-      dartnet.detectDartImpact();
+      dartnet?.detectDartImpact();
     } catch (err) {
       console.error("Error processing frame:", err);
     }

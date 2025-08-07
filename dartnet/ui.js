@@ -1,3 +1,52 @@
+function initializeSettingsUI() {
+  // Make button draggable
+  makeDraggable("settingsButton", openSettingsModal);
+
+  settingsManager = new SettingsManager();
+
+  // Example usage - register callbacks
+  settingsManager.onSettingsChange((data) => {
+    console.log(`🔄 Change: ${data.category}.${data.key} = ${data.value}`);
+  });
+
+  settingsManager.onSettingsSave((data) => {
+    console.log("💾 Settings saved");
+  });
+
+  settingsManager.onSettingsLoad((data) => {
+    console.log("📁 Settings loaded");
+  });
+
+  settingsManager.onSettingsReset((data) => {
+    console.log("🔄 Settings reset");
+  });
+
+  settingsManager.onSettingsExport((data) => {
+    console.log("📤 Settings exported");
+  });
+
+  console.log("SettingsManager initialized with callbacks");
+  console.log("Settings panel ready with working callbacks!");
+
+  // Load saved settings or defaults
+  settingsManager.loadSettings();
+  console.log("Settings loaded");
+}
+
+function openSettingsModal() {
+  console.log("Opening settings modal...");
+  const modal = new bootstrap.Modal(document.getElementById("settingsModal"));
+  modal.show();
+}
+
+function initializeMainVariables() {
+  // Detector
+  gpuDetector = new GPUDetector();
+
+  // Init main class instance
+  dartnet = new DartNet(document.getElementById("videoElement"));
+}
+
 function initializeToggleButtonGroups() {
   // Set up main button click handlers
   document.getElementById("cameraMainBtn").addEventListener("click", () => {
@@ -323,7 +372,7 @@ function initializeHardwareUI() {
 function initializeMqttUI() {
   // MQTT Connection Status Management
   const mqttStatusDot = document.getElementById("mqttStatusDot");
-  const mqttStatusText = document.getElementById("mqttStatusText");
+  //const mqttStatusText = document.getElementById("mqttStatusText");
 
   function updateMqttStatus(status) {
     // Remove all status classes
@@ -352,10 +401,15 @@ function initializeMqttUI() {
   updateMqttStatus("disconnected");
 
   dartnet.mqttStatusCallback = updateMqttStatus;
+
+  dartnet.mqttBroker = settingsManager.getSetting("mqtt", "brokerIP");
+  dartnet.mqttPort = settingsManager.getSetting("mqtt", "port");
+
   dartnet.initMqtt();
 }
 
 function initializeDartDetectionUI() {
+  //dartnet.dartDetectorVAI.mqttBroker = settingsManager.get
   toggleButtons["dartDetectorToggle"].onChangeCallbacks.push((v, el) => {
     if (dartnet) {
       const newDetector = v == "vo" ? dartnet.dartDetectorVO : dartnet.dartDetectorVAI;
@@ -805,6 +859,9 @@ function initZoomableCanvasUI() {
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("Initializing UI...");
+
+  initializeSettingsUI();
+  initializeMainVariables();
 
   initializeToggleButtons();
   initializeToggleButtonGroups();

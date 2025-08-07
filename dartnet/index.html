@@ -530,13 +530,8 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="dartvo-tab" data-bs-toggle="tab" data-bs-target="#dartvo" type="button" role="tab">
-                            <i class="fas fa-eye me-1"></i>DartDetectorVO
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="dartvai-tab" data-bs-toggle="tab" data-bs-target="#dartvai" type="button" role="tab">
-                            <i class="fas fa-wave-square me-1"></i>DartDetectorVAI
+                        <button class="nav-link" id="dart-tab" data-bs-toggle="tab" data-bs-target="#dart" type="button" role="tab">
+                            <i class="fas fa-eye me-1"></i>Dart Detector
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -583,31 +578,48 @@
                         </div>
                     </div>
 
-                    <!-- DartDetectorVO Tab -->
-                    <div class="tab-pane fade" id="dartvo" role="tabpanel">
+                    <!-- DartDetector Tab -->
+                    <div class="tab-pane fade" id="dart" role="tabpanel">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label settings_form-label-disabled">Detection Model</label>
-                                    <select class="form-select settings_form-select" id="dartvoModel" disabled>
-                                        <option value="yolo">YOLO</option>
-                                        <option value="ssd">SSD</option>
-                                        <option value="rcnn">R-CNN</option>
+                                    <label class="form-label settings_form-label">AI Model Type</label>
+                                    <select class="form-select settings_form-select" id="dartType">
+                                        <option value="vo"><i class="fas fa-eye"></i>Video Only</option>
+                                        <option value="vai"><i class="fas fa-wave-square"></i>Video + Accelerometer Impact Detector</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label settings_form-label">Input Source</label>
-                                    <input type="text" class="form-control settings_form-control" id="dartvoSource" placeholder="camera0">
+                                    <label class="form-label settings_form-label">URL</label>
+                                    <input type="text" class="form-control settings_form-control" id="dartvaiURL" placeholder="http://192.168.1.100:80">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Burst Length</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartvaiBurstLength" min="1" max="100" value="20">
+                                        <span class="settings_slider-value" id="dartvaiBurstLengthValue">20</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Extra Wait Frames</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartvaiExtraWaitFrames" min="1" max="100" value="10">
+                                        <span class="settings_slider-value" id="dartvaiExtraWaitFramesValue">10</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="settings_slider-container">
                                     <label class="form-label settings_form-label">Confidence Threshold</label>
                                     <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="dartvoConfidence" min="0" max="100" value="75">
-                                        <span class="settings_slider-value" id="dartvoConfidenceValue">75%</span>
+                                        <input type="range" class="settings_slider" id="dartConfidence" min="0" max="100" value="75">
+                                        <span class="settings_slider-value" id="dartConfidenceValue">75%</span>
                                     </div>
                                 </div>
                             </div>
@@ -615,59 +627,20 @@
                                 <div class="settings_slider-container">
                                     <label class="form-label settings_form-label">NMS Threshold</label>
                                     <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="dartvoNMS" min="0" max="100" value="45">
-                                        <span class="settings_slider-value" id="dartvoNMSValue">45%</span>
+                                        <input type="range" class="settings_slider" id="dartNMS" min="0" max="100" value="45">
+                                        <span class="settings_slider-value" id="dartNMSValue">45%</span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label-disabled">Detection Model</label>
+                                    <select class="form-select settings_form-select" id="dartModel" disabled>
+                                        <option value="yolo">YOLO</option>
+                                    </select>
+                                </div>
+                            </div>
 
-                    <!-- DartDetectorVAI Tab -->
-                    <div class="tab-pane fade" id="dartvai" role="tabpanel">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label settings_form-label">URL</label>
-                                    <input type="text" class="form-control settings_form-control" id="dartvaiURL" placeholder="http://192.168.1.100:80">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label settings_form-label-disabled">AI Model Type</label>
-                                    <select class="form-select settings_form-select" id="dartvaiModelType" disabled>
-                                        <option value="temporal">Temporal</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label settings_form-label">Processing Mode</label>
-                                    <select class="form-select settings_form-select" id="dartvaiMode">
-                                        <option value="realtime">Real-time</option>
-                                        <option value="batch">Batch</option>
-                                        <option value="hybrid">Hybrid</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="settings_slider-container">
-                                    <label class="form-label settings_form-label">Learning Rate</label>
-                                    <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="dartvaiLearningRate" min="1" max="100" value="30">
-                                        <span class="settings_slider-value" id="dartvaiLearningRateValue">0.003</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="settings_slider-container">
-                                    <label class="form-label settings_form-label">Batch Size</label>
-                                    <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="dartvaiBatchSize" min="1" max="64" value="16">
-                                        <span class="settings_slider-value" id="dartvaiBatchSizeValue">16</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 

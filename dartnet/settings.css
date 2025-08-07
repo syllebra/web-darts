@@ -114,6 +114,8 @@
 .settings_form-control:disabled,
 .settings_form-select:disabled {
     background: rgba(0, 0, 0, 0.205);
+    color: rgba(129, 129, 129, 0.76);
+    font-style: italic;    
 }
 
 /* Dropdown options styling */

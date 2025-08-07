@@ -4,6 +4,7 @@ class SettingsManager {
     this.settings = this.getDefaultSettings();
     this.callbacks = {};
     this.setupEventListeners();
+    this.needRestart = false;
   }
 
   // Setup event listeners for all form elements
@@ -39,7 +40,16 @@ class SettingsManager {
         value = parseInt(value) || 0;
       }
 
-      console.log(`Setting changed: ${category}.${key} = ${value}`);
+      const arns = this.getAllRestartNeedSettings();
+      let nr = false;
+      console.log("arns[category]:", arns[category], typeof arns[category]);
+      if (arns[category]) {
+        if (typeof arns[category] == "boolean") nr = arns[category];
+        else nr = arns[category][key];
+      }
+
+      console.log(`Setting changed: ${category}.${key} = ${value} ${nr ? " (Need Restart)" : "(No restart need)"}`);
+      this.needRestart |= nr;
 
       // Trigger change callback
       this.triggerCallback("change", {
@@ -61,8 +71,7 @@ class SettingsManager {
   parseElementId(elementId) {
     const categoryMap = {
       mqtt: "mqtt",
-      dartvo: "dartvo",
-      dartvai: "dartvai",
+      dart: "dart",
       calibration: "calibration",
       general: "general",
     };
@@ -82,16 +91,34 @@ class SettingsManager {
   getDefaultSettings() {
     return {
       mqtt: { brokerIP: "192.168.1.100", port: 1883, username: "", password: "" },
-      dartvo: { model: "yolo", source: "camera0", confidence: 75, nms: 45 },
-      dartvai: {
-        url: "http://192.168.1.100:80",
-        modelType: "transformer",
-        mode: "realtime",
-        learningRate: 30,
-        batchSize: 16,
+      dart: {
+        type: "vo",
+        vaiURL: "http://192.168.1.100:80",
+        vaiBurstLength: 20,
+        vaiExtraWaitFrames: 10,
+        confidence: 75,
+        nms: 45,
+        model: "yolo",
       },
       calibration: { type: "automatic", points: 9, accuracy: 7, tolerance: 5 },
       general: { language: "en", theme: "dark", updateInterval: 100, logLevel: 3 },
+    };
+  }
+
+  getAllRestartNeedSettings() {
+    return {
+      mqtt: true,
+      dart: {
+        type: true,
+        vaiURL: true,
+        vaiBurstLength: true, // TODO false,
+        vaiExtraWaitFrames: true, // TODO false,
+        confidence: false,
+        nms: false,
+        model: true,
+      },
+      // calibration: { type: "automatic", points: 9, accuracy: 7, tolerance: 5 },
+      // general: { language: "en", theme: "dark", updateInterval: 100, logLevel: 3 },
     };
   }
 
@@ -103,18 +130,14 @@ class SettingsManager {
         username: document.getElementById("mqttUsername").value,
         password: document.getElementById("mqttPassword").value,
       },
-      dartvo: {
-        model: document.getElementById("dartvoModel").value,
-        source: document.getElementById("dartvoSource").value,
-        confidence: parseInt(document.getElementById("dartvoConfidence").value),
-        nms: parseInt(document.getElementById("dartvoNMS").value),
-      },
-      dartvai: {
-        url: document.getElementById("dartvaiURL").value,
-        modelType: document.getElementById("dartvaiModelType").value,
-        mode: document.getElementById("dartvaiMode").value,
-        learningRate: parseInt(document.getElementById("dartvaiLearningRate").value),
-        batchSize: parseInt(document.getElementById("dartvaiBatchSize").value),
+      dart: {
+        type: document.getElementById("dartType").value,
+        vaiURL: document.getElementById("dartvaiURL").value,
+        vaiBurstLength: parseInt(document.getElementById("dartvaiBurstLength").value),
+        vaiExtraWaitFrames: parseInt(document.getElementById("dartvaiExtraWaitFrames").value),
+        confidence: parseInt(document.getElementById("dartConfidence").value),
+        nms: parseInt(document.getElementById("dartNMS").value),
+        model: document.getElementById("dartModel").value,
       },
       calibration: {
         type: document.getElementById("calibrationType").value,
@@ -138,18 +161,15 @@ class SettingsManager {
     document.getElementById("mqttUsername").value = settings.mqtt.username;
     document.getElementById("mqttPassword").value = settings.mqtt.password;
 
-    // DartVO
-    document.getElementById("dartvoModel").value = settings.dartvo.model;
-    document.getElementById("dartvoSource").value = settings.dartvo.source;
-    document.getElementById("dartvoConfidence").value = settings.dartvo.confidence;
-    document.getElementById("dartvoNMS").value = settings.dartvo.nms;
+    // Dart detector
 
-    // DartVAI
-    document.getElementById("dartvaiURL").value = settings.dartvai.url;
-    document.getElementById("dartvaiModelType").value = settings.dartvai.modelType;
-    document.getElementById("dartvaiMode").value = settings.dartvai.mode;
-    document.getElementById("dartvaiLearningRate").value = settings.dartvai.learningRate;
-    document.getElementById("dartvaiBatchSize").value = settings.dartvai.batchSize;
+    document.getElementById("dartType").value = settings.dart.type;
+    document.getElementById("dartvaiURL").value = settings.dart.vaiURL;
+    document.getElementById("dartvaiBurstLength").value = settings.dart.vaiBurstLength;
+    document.getElementById("dartvaiExtraWaitFrames").value = settings.dart.vaiExtraWaitFrames;
+    document.getElementById("dartConfidence").value = settings.dart.confidence;
+    document.getElementById("dartNMS").value = settings.dart.nms;
+    document.getElementById("dartModel").value = settings.dart.model;
 
     // Calibration
     document.getElementById("calibrationType").value = settings.calibration.type;
@@ -169,10 +189,10 @@ class SettingsManager {
 
   updateSliderValues() {
     const sliders = [
-      { id: "dartvoConfidence", suffix: "%" },
-      { id: "dartvoNMS", suffix: "%" },
-      { id: "dartvaiLearningRate", transform: (v) => (v / 10000).toFixed(4) },
-      { id: "dartvaiBatchSize", suffix: "" },
+      { id: "dartConfidence", suffix: "%" },
+      { id: "dartNMS", suffix: "%" },
+      { id: "dartvaiBurstLength", suffix: "" },
+      { id: "dartvaiExtraWaitFrames", suffix: "" },
       { id: "calibrationAccuracy", suffix: "" },
       { id: "calibrationTolerance", suffix: "px" },
       { id: "generalUpdateInterval", suffix: "ms" },
@@ -222,6 +242,7 @@ class SettingsManager {
       localStorage.setItem("dartnetSettings", JSON.stringify(settings));
       showNotification("Settings saved to browser storage!", "success");
       settingsManager.triggerCallback("save", settings);
+      if (this.needRestart) showNotification("Reload to apply", "warning");
     } catch (error) {
       console.error("Error saving settings:", error);
       showNotification("Error saving settings: " + error.message, "error");

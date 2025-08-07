@@ -19,6 +19,8 @@ class DartDetector {
     this.modelPath = modelPath;
     this.modelSize = null;
     this.initializeModel();
+    this.minConfidence = 0.25;
+    this.iouThreshold = 0.45;
   }
 
   async initializeModel() {
@@ -50,7 +52,7 @@ class DartDetector {
       const tensor = new ort.Tensor(Float32Array.from(imageData.data), [1, 3, this.modelSize, this.modelSize]);
       const results = await this.session.run({ images: tensor });
       //console.log("Results:", results);
-      const boxes = YOLO.processYoloOnnxResults(results, 0.25, 0.45, this.modelSize);
+      const boxes = YOLO.processYoloOnnxResults(results, this.minConfidence, this.iouThreshold, this.modelSize);
       obj.boxes = boxes;
       this.onDetectionCallbacks.forEach((cb) => cb(obj));
       //return this.processOnnxResults(results);

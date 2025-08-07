@@ -249,8 +249,10 @@
         </div>
     </div>
 
+    <script src="../../core/global.js"></script>
+    <script src="../../ext/ort.min.js"></script>
     <script src="../../core/utils/image.js"></script>
-    <script src="../../core/DartDetectors.js" ></script>
+    <script src="../../core/DartDetector.js" ></script>
     <script>
         // Initialize detector
         let detector = new DeltaVideoAccelImpactDetector();
@@ -287,9 +289,9 @@
                     processFrame();
                 };
 
-                detector.log("Video demo started");
+                console.log("Video demo started");
             } catch (error) {
-                detector.log("Failed to start video: " + error.message);
+                console.error("Failed to start video: " + error.message);
             }
         }
 
@@ -313,7 +315,7 @@
         });
 
         // Initial log message
-        detector.log("Dart Impact Detector initialized");
+        console.log("Dart Impact Detector initialized");
     </script>
 </body>
 

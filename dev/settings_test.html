@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Settings Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Settings Panel Styles */
+        .settings_floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            user-select: none;
+        }
+
+        .settings_floating-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .settings_floating-button i {
+            color: white;
+            font-size: 20px;
+        }
+
+        .settings_modal .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+        }
+
+        .settings_modal .modal-header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .settings_modal .modal-title {
+            color: white;
+            font-weight: 600;
+        }
+
+        .settings_modal .btn-close {
+            filter: invert(1);
+            opacity: 0.8;
+        }
+
+        .settings_nav-tabs {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .settings_nav-tabs .nav-link {
+            color: rgba(255, 255, 255, 0.7);
+            border: none;
+            padding: 12px 20px;
+            transition: all 0.3s ease;
+        }
+
+        .settings_nav-tabs .nav-link:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .settings_nav-tabs .nav-link.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.15);
+            border-bottom: 2px solid #4CAF50;
+        }
+
+        .settings_tab-content {
+            background: rgba(255, 255, 255, 0.05);
+            min-height: 400px;
+            padding: 20px;
+        }
+
+        .settings_form-label {
+            color: white;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .settings_form-control, .settings_form-select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+
+        .settings_form-control:focus, .settings_form-select:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+            color: white;
+        }
+
+        /* Dropdown options styling */
+        .settings_form-select option {
+            background: rgba(20, 25, 45, 0.95);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+        }
+
+        .settings_form-select option:hover,
+        .settings_form-select option:focus,
+        .settings_form-select option:checked {
+            background: rgba(76, 175, 80, 0.8);
+            color: white;
+        }
+
+        .settings_form-control::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .settings_slider-container {
+            margin: 15px 0;
+        }
+
+        .settings_slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .settings_slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .settings_slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .settings_slider-value {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .settings_btn-glass {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .settings_btn-glass:hover {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .settings_btn-success {
+            background: rgba(76, 175, 80, 0.8);
+            border: 1px solid rgba(76, 175, 80, 0.6);
+            color: white;
+        }
+
+        .settings_btn-success:hover {
+            background: rgba(76, 175, 80, 1);
+            color: white;
+        }
+
+        .settings_btn-danger {
+            background: rgba(244, 67, 54, 0.8);
+            border: 1px solid rgba(244, 67, 54, 0.6);
+            color: white;
+        }
+
+        .settings_btn-danger:hover {
+            background: rgba(244, 67, 54, 1);
+            color: white;
+        }
+
+        .settings_action-buttons {
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 20px;
+            border-radius: 0 0 20px 20px;
+        }
+
+        @media (max-width: 768px) {
+            .settings_modal .modal-dialog {
+                margin: 10px;
+                max-width: none;
+            }
+            
+            .settings_nav-tabs .nav-link {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Settings Button -->
+    <div id="settingsButton" class="settings_floating-button" onclick="openSettingsModal()">
+        <i class="fas fa-cog"></i>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal fade settings_modal" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title settings_modal-title" id="settingsModalLabel">
+                        <i class="fas fa-cog me-2"></i>Advanced Settings
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs settings_nav-tabs" id="settingsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="mqtt-tab" data-bs-toggle="tab" data-bs-target="#mqtt" type="button" role="tab">
+                            <i class="fas fa-wifi me-1"></i>MQTT
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="dartvo-tab" data-bs-toggle="tab" data-bs-target="#dartvo" type="button" role="tab">
+                            <i class="fas fa-eye me-1"></i>DartDetectorVO
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="dartvai-tab" data-bs-toggle="tab" data-bs-target="#dartvai" type="button" role="tab">
+                            <i class="fas fa-wave-square me-1"></i>DartDetectorVAI
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="calibration-tab" data-bs-toggle="tab" data-bs-target="#calibration" type="button" role="tab">
+                            <i class="fas fa-crosshairs me-1"></i>Calibration
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+                            <i class="fas fa-sliders-h me-1"></i>General
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content settings_tab-content" id="settingsTabContent">
+                    <!-- MQTT Tab -->
+                    <div class="tab-pane fade show active" id="mqtt" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Broker IP Address</label>
+                                    <input type="text" class="form-control settings_form-control" id="mqttBrokerIP" placeholder="192.168.1.100">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Port</label>
+                                    <input type="number" class="form-control settings_form-control" id="mqttPort" placeholder="1883" min="1" max="65535">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Username (Optional)</label>
+                                    <input type="text" class="form-control settings_form-control" id="mqttUsername" placeholder="username">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Password (Optional)</label>
+                                    <input type="password" class="form-control settings_form-control" id="mqttPassword" placeholder="password">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DartDetectorVO Tab -->
+                    <div class="tab-pane fade" id="dartvo" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Detection Model</label>
+                                    <select class="form-select settings_form-select" id="dartvoModel">
+                                        <option value="yolo">YOLO</option>
+                                        <option value="ssd">SSD</option>
+                                        <option value="rcnn">R-CNN</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Input Source</label>
+                                    <input type="text" class="form-control settings_form-control" id="dartvoSource" placeholder="camera0">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Confidence Threshold</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartvoConfidence" min="0" max="100" value="75">
+                                        <span class="settings_slider-value" id="dartvoConfidenceValue">75%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">NMS Threshold</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartvoNMS" min="0" max="100" value="45">
+                                        <span class="settings_slider-value" id="dartvoNMSValue">45%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DartDetectorVAI Tab -->
+                    <div class="tab-pane fade" id="dartvai" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">AI Model Type</label>
+                                    <select class="form-select settings_form-select" id="dartvaiModelType">
+                                        <option value="transformer">Transformer</option>
+                                        <option value="cnn">CNN</option>
+                                        <option value="hybrid">Hybrid</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Processing Mode</label>
+                                    <select class="form-select settings_form-select" id="dartvaiMode">
+                                        <option value="realtime">Real-time</option>
+                                        <option value="batch">Batch</option>
+                                        <option value="hybrid">Hybrid</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Learning Rate</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartvaiLearningRate" min="1" max="100" value="30">
+                                        <span class="settings_slider-value" id="dartvaiLearningRateValue">0.003</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Batch Size</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartvaiBatchSize" min="1" max="64" value="16">
+                                        <span class="settings_slider-value" id="dartvaiBatchSizeValue">16</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calibration Tab -->
+                    <div class="tab-pane fade" id="calibration" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Calibration Type</label>
+                                    <select class="form-select settings_form-select" id="calibrationType">
+                                        <option value="automatic">Automatic</option>
+                                        <option value="manual">Manual</option>
+                                        <option value="semi-auto">Semi-Automatic</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Reference Points</label>
+                                    <input type="number" class="form-control settings_form-control" id="calibrationPoints" min="3" max="20" value="9">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Accuracy Level</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="calibrationAccuracy" min="1" max="10" value="7">
+                                        <span class="settings_slider-value" id="calibrationAccuracyValue">7</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Tolerance (px)</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="calibrationTolerance" min="1" max="20" value="5">
+                                        <span class="settings_slider-value" id="calibrationToleranceValue">5px</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- General Tab -->
+                    <div class="tab-pane fade" id="general" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Language</label>
+                                    <select class="form-select settings_form-select" id="generalLanguage">
+                                        <option value="en">English</option>
+                                        <option value="fr">Français</option>
+                                        <option value="de">Deutsch</option>
+                                        <option value="es">Español</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Theme</label>
+                                    <select class="form-select settings_form-select" id="generalTheme">
+                                        <option value="dark">Dark</option>
+                                        <option value="light">Light</option>
+                                        <option value="auto">Auto</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Update Interval (ms)</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="generalUpdateInterval" min="50" max="1000" value="100">
+                                        <span class="settings_slider-value" id="generalUpdateIntervalValue">100ms</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Log Level</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="generalLogLevel" min="1" max="5" value="3">
+                                        <span class="settings_slider-value" id="generalLogLevelValue">Info</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="settings_action-buttons">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="button" class="btn settings_btn-success me-2" onclick="saveSettings()">
+                                <i class="fas fa-save me-1"></i>Save Settings
+                            </button>
+                            <button type="button" class="btn settings_btn-glass me-2" onclick="loadSettings()">
+                                <i class="fas fa-upload me-1"></i>Load Settings
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn settings_btn-glass me-2" onclick="resetSettings()">
+                                <i class="fas fa-undo me-1"></i>Reset to Default
+                            </button>
+                            <button type="button" class="btn settings_btn-danger" onclick="exportSettings()">
+                                <i class="fas fa-download me-1"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo content -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="text-center text-white">
+                    <h1><i class="fas fa-bullseye me-3"></i>Dart Detection System</h1>
+                    <p class="lead">Advanced dart detection system with AI-powered analysis</p>
+                    <p>Click the settings button in the top-right corner to configure the system</p>
+                    <p><small>Open browser console to see callback events in action!</small></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Debug logging function
+        function debugLog(message) {
+            console.debug(message);
+        }
+
+        // Simple global functions first - no classes yet
+        function openSettingsModal() {
+            console.log('Opening settings modal...');
+            const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+            modal.show();
+        }
+
+        function saveSettings() {
+            console.log('Save settings clicked');
+            try {
+                const settings = getAllSettings();
+                localStorage.setItem('dartnetSettings', JSON.stringify(settings));
+                showNotification('Settings saved to browser storage!', 'success');
+                settingsManager.triggerCallback('save', settings);
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                showNotification('Error saving settings: ' + error.message, 'error');
+            }
+        }
+
+        function loadSettings() {
+            console.log('Load settings clicked');
+            try {
+                const savedSettings = localStorage.getItem('dartnetSettings');
+                const settings = savedSettings ? JSON.parse(savedSettings) : getDefaultSettings();
+                populateSettings(settings);
+                showNotification(savedSettings ? 'Settings loaded!' : 'Default settings loaded (no saved settings found)', 'success');
+                settingsManager.triggerCallback('load', settings);
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                showNotification('Error loading settings: ' + error.message, 'error');
+            }
+        }
+
+        function resetSettings() {
+            console.log('Reset settings clicked');
+            if (confirm('Reset all settings to default?')) {
+                const defaultSettings = getDefaultSettings();
+                populateSettings(defaultSettings);
+                showNotification('Settings reset!', 'info');
+                settingsManager.triggerCallback('reset', defaultSettings);
+            }
+        }
+
+        function exportSettings() {
+            console.log('Export settings clicked');
+            const settings = getAllSettings();
+            const blob = new Blob([JSON.stringify(settings, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'settings.json';
+            a.click();
+            showNotification('Settings exported!', 'success');
+            settingsManager.triggerCallback('export', settings);
+        }
+
+        function getDefaultSettings() {
+            return {
+                mqtt: { brokerIP: '192.168.1.100', port: 1883, username: '', password: '' },
+                dartvo: { model: 'yolo', source: 'camera0', confidence: 75, nms: 45 },
+                dartvai: { modelType: 'transformer', mode: 'realtime', learningRate: 30, batchSize: 16 },
+                calibration: { type: 'automatic', points: 9, accuracy: 7, tolerance: 5 },
+                general: { language: 'en', theme: 'dark', updateInterval: 100, logLevel: 3 }
+            };
+        }
+
+        function getAllSettings() {
+            return {
+                mqtt: {
+                    brokerIP: document.getElementById('mqttBrokerIP').value,
+                    port: parseInt(document.getElementById('mqttPort').value) || 1883,
+                    username: document.getElementById('mqttUsername').value,
+                    password: document.getElementById('mqttPassword').value
+                },
+                dartvo: {
+                    model: document.getElementById('dartvoModel').value,
+                    source: document.getElementById('dartvoSource').value,
+                    confidence: parseInt(document.getElementById('dartvoConfidence').value),
+                    nms: parseInt(document.getElementById('dartvoNMS').value)
+                },
+                dartvai: {
+                    modelType: document.getElementById('dartvaiModelType').value,
+                    mode: document.getElementById('dartvaiMode').value,
+                    learningRate: parseInt(document.getElementById('dartvaiLearningRate').value),
+                    batchSize: parseInt(document.getElementById('dartvaiBatchSize').value)
+                },
+                calibration: {
+                    type: document.getElementById('calibrationType').value,
+                    points: parseInt(document.getElementById('calibrationPoints').value),
+                    accuracy: parseInt(document.getElementById('calibrationAccuracy').value),
+                    tolerance: parseInt(document.getElementById('calibrationTolerance').value)
+                },
+                general: {
+                    language: document.getElementById('generalLanguage').value,
+                    theme: document.getElementById('generalTheme').value,
+                    updateInterval: parseInt(document.getElementById('generalUpdateInterval').value),
+                    logLevel: parseInt(document.getElementById('generalLogLevel').value)
+                }
+            };
+        }
+
+        function populateSettings(settings) {
+            // MQTT
+            document.getElementById('mqttBrokerIP').value = settings.mqtt.brokerIP;
+            document.getElementById('mqttPort').value = settings.mqtt.port;
+            document.getElementById('mqttUsername').value = settings.mqtt.username;
+            document.getElementById('mqttPassword').value = settings.mqtt.password;
+            
+            // DartVO
+            document.getElementById('dartvoModel').value = settings.dartvo.model;
+            document.getElementById('dartvoSource').value = settings.dartvo.source;
+            document.getElementById('dartvoConfidence').value = settings.dartvo.confidence;
+            document.getElementById('dartvoNMS').value = settings.dartvo.nms;
+            
+            // DartVAI
+            document.getElementById('dartvaiModelType').value = settings.dartvai.modelType;
+            document.getElementById('dartvaiMode').value = settings.dartvai.mode;
+            document.getElementById('dartvaiLearningRate').value = settings.dartvai.learningRate;
+            document.getElementById('dartvaiBatchSize').value = settings.dartvai.batchSize;
+            
+            // Calibration
+            document.getElementById('calibrationType').value = settings.calibration.type;
+            document.getElementById('calibrationPoints').value = settings.calibration.points;
+            document.getElementById('calibrationAccuracy').value = settings.calibration.accuracy;
+            document.getElementById('calibrationTolerance').value = settings.calibration.tolerance;
+            
+            // General
+            document.getElementById('generalLanguage').value = settings.general.language;
+            document.getElementById('generalTheme').value = settings.general.theme;
+            document.getElementById('generalUpdateInterval').value = settings.general.updateInterval;
+            document.getElementById('generalLogLevel').value = settings.general.logLevel;
+            
+            // Update sliders
+            updateSliderValues();
+        }
+
+        function updateSliderValues() {
+            const sliders = [
+                {id: 'dartvoConfidence', suffix: '%'},
+                {id: 'dartvoNMS', suffix: '%'},
+                {id: 'dartvaiLearningRate', transform: v => (v/10000).toFixed(4)},
+                {id: 'dartvaiBatchSize', suffix: ''},
+                {id: 'calibrationAccuracy', suffix: ''},
+                {id: 'calibrationTolerance', suffix: 'px'},
+                {id: 'generalUpdateInterval', suffix: 'ms'},
+                {id: 'generalLogLevel', transform: v => ['','Error','Warn','Info','Debug','Trace'][v]}
+            ];
+            
+            sliders.forEach(slider => {
+                const element = document.getElementById(slider.id);
+                const valueElement = document.getElementById(slider.id + 'Value');
+                if (element && valueElement) {
+                    let displayValue = element.value;
+                    if (slider.transform) {
+                        displayValue = slider.transform(element.value);
+                    } else if (slider.suffix) {
+                        displayValue += slider.suffix;
+                    }
+                    valueElement.textContent = displayValue;
+                }
+            });
+        }
+
+        function showNotification(message, type = 'info') {
+            const colors = {
+                success: '#4CAF50',
+                error: '#F44336',
+                warning: '#FF9800',
+                info: '#2196F3'
+            };
+            
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; top: 80px; right: 20px; z-index: 1001;
+                background: rgba(255,255,255,0.15); backdrop-filter: blur(20px);
+                border: 1px solid rgba(255,255,255,0.2); border-radius: 10px;
+                padding: 15px 20px; color: white; font-size: 14px;
+                border-left: 4px solid ${colors[type]}; max-width: 300px;
+                opacity: 0; transform: translateX(100%); transition: all 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // SettingsManager Class - Enhanced with proper event handling
+        class SettingsManager {
+            constructor() {
+                this.settings = this.getDefaultSettings();
+                this.callbacks = {};
+                this.setupEventListeners();
+            }
+
+            getDefaultSettings() {
+                return getDefaultSettings();
+            }
+
+            // Setup event listeners for all form elements
+            setupEventListeners() {
+                // Get all setting elements
+                const settingElements = document.querySelectorAll(
+                    '.settings_form-control, .settings_form-select, .settings_slider'
+                );
+
+                settingElements.forEach(element => {
+                    const eventType = element.type === 'range' ? 'input' : 'change';
+                    element.addEventListener(eventType, (e) => {
+                        this.handleSettingChange(e);
+                    });
+                });
+
+                debugLog('Event listeners setup complete');
+            }
+
+            // Handle individual setting changes
+            handleSettingChange(event) {
+                const element = event.target;
+                const elementId = element.id;
+                
+                // Parse category and key from element ID
+                const { category, key } = this.parseElementId(elementId);
+                
+                if (category && key) {
+                    let value = element.value;
+                    
+                    // Convert numeric values
+                    if (element.type === 'number' || element.type === 'range') {
+                        value = parseInt(value) || 0;
+                    }
+                    
+                    debugLog(`Setting changed: ${category}.${key} = ${value}`);
+                    
+                    // Trigger change callback
+                    this.triggerCallback('change', { 
+                        category, 
+                        key, 
+                        value, 
+                        elementId,
+                        element 
+                    });
+                    
+                    // Update slider values if it's a range input
+                    if (element.type === 'range') {
+                        updateSliderValues();
+                    }
+                }
+            }
+
+            // Parse element ID to get category and key
+            parseElementId(elementId) {
+                const categoryMap = {
+                    'mqtt': 'mqtt',
+                    'dartvo': 'dartvo', 
+                    'dartvai': 'dartvai',
+                    'calibration': 'calibration',
+                    'general': 'general'
+                };
+
+                for (const [prefix, category] of Object.entries(categoryMap)) {
+                    if (elementId.startsWith(prefix)) {
+                        const key = elementId.replace(prefix, '');
+                        // Convert first letter to lowercase
+                        const normalizedKey = key.charAt(0).toLowerCase() + key.slice(1);
+                        return { category, key: normalizedKey };
+                    }
+                }
+                
+                return { category: null, key: null };
+            }
+
+            // Get current settings
+            getSettings() {
+                return getAllSettings();
+            }
+
+            // Get specific setting
+            getSetting(category, key) {
+                const settings = this.getSettings();
+                return settings[category] ? settings[category][key] : undefined;
+            }
+
+            // Set specific setting programmatically
+            setSetting(category, key, value) {
+                const elementId = category + key.charAt(0).toUpperCase() + key.slice(1);
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.value = value;
+                    if (element.type === 'range') {
+                        updateSliderValues();
+                    }
+                    
+                    // Trigger change event programmatically
+                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // Save settings
+            saveSettings() {
+                try {
+                    const settings = getAllSettings();
+                    // Note: localStorage not available in Claude artifacts
+                    debugLog('Settings saved: ' + JSON.stringify(settings, null, 2));
+                    showNotification('Settings saved!', 'success');
+                    this.triggerCallback('save', settings);
+                } catch (error) {
+                    console.error('Error saving settings:', error);
+                    showNotification('Error saving settings: ' + error.message, 'error');
+                }
+            }
+
+            // Load settings
+            loadSettings() {
+                try {
+                    const settings = getDefaultSettings();
+                    populateSettings(settings);
+                    debugLog('Settings loaded');
+                    showNotification('Settings loaded!', 'success');
+                    this.triggerCallback('load', settings);
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                    showNotification('Error loading settings: ' + error.message, 'error');
+                }
+            }
+
+            // Reset settings
+            resetSettings() {
+                if (confirm('Are you sure you want to reset all settings to default values?')) {
+                    const defaultSettings = this.getDefaultSettings();
+                    populateSettings(defaultSettings);
+                    debugLog('Settings reset to defaults');
+                    showNotification('Settings reset to default values!', 'info');
+                    this.triggerCallback('reset', defaultSettings);
+                }
+            }
+
+            // Export settings
+            exportSettings() {
+                const settings = getAllSettings();
+                const blob = new Blob([JSON.stringify(settings, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'app-settings.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                debugLog('Settings exported');
+                showNotification('Settings exported successfully!', 'success');
+                this.triggerCallback('export', settings);
+            }
+
+            // Register callbacks
+            onSettingsChange(callback) { this.registerCallback('change', callback); }
+            onSettingsSave(callback) { this.registerCallback('save', callback); }
+            onSettingsLoad(callback) { this.registerCallback('load', callback); }
+            onSettingsReset(callback) { this.registerCallback('reset', callback); }
+            onSettingsExport(callback) { this.registerCallback('export', callback); }
+
+            registerCallback(event, callback) {
+                if (!this.callbacks[event]) this.callbacks[event] = [];
+                this.callbacks[event].push(callback);
+                debugLog(`Callback registered for '${event}' event`);
+            }
+
+            triggerCallback(event, data) {
+                if (this.callbacks[event]) {
+                    this.callbacks[event].forEach(callback => {
+                        try {
+                            callback(data);
+                        } catch (error) {
+                            console.error(`Error in ${event} callback:`, error);
+                        }
+                    });
+                }
+            }
+
+            // Utility method to get all registered callbacks
+            getCallbacks() {
+                return Object.keys(this.callbacks).map(event => ({
+                    event,
+                    count: this.callbacks[event].length
+                }));
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing...');
+            
+            // Setup slider listeners for visual updates
+            const sliders = document.querySelectorAll('.settings_slider');
+            sliders.forEach(slider => {
+                slider.addEventListener('input', updateSliderValues);
+            });
+            
+            // Make button draggable
+            makeDraggable();
+            
+            console.log('Initialization complete!');
+        });
+
+        function makeDraggable() {
+            const button = document.getElementById('settingsButton');
+            let isDragging = false;
+            let hasMoved = false;
+            let startX, startY;
+
+            button.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                hasMoved = false;
+                startX = e.clientX;
+                startY = e.clientY;
+                button.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                
+                const deltaX = Math.abs(e.clientX - startX);
+                const deltaY = Math.abs(e.clientY - startY);
+                
+                if (deltaX > 5 || deltaY > 5) {
+                    hasMoved = true;
+                    button.style.left = (e.clientX - 25) + 'px';
+                    button.style.top = (e.clientY - 25) + 'px';
+                    button.style.right = 'auto';
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    button.style.cursor = 'pointer';
+                    
+                    // Override onclick if we dragged
+                    if (hasMoved) {
+                        button.onclick = null;
+                        setTimeout(() => {
+                            button.onclick = openSettingsModal;
+                        }, 100);
+                    }
+                }
+            });
+
+            // Touch events
+            button.addEventListener('touchstart', function(e) {
+                isDragging = true;
+                hasMoved = false;
+                const touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+            });
+
+            button.addEventListener('touchmove', function(e) {
+                if (!isDragging) return;
+                
+                const touch = e.touches[0];
+                const deltaX = Math.abs(touch.clientX - startX);
+                const deltaY = Math.abs(touch.clientY - startY);
+                
+                if (deltaX > 5 || deltaY > 5) {
+                    hasMoved = true;
+                    button.style.left = (touch.clientX - 25) + 'px';
+                    button.style.top = (touch.clientY - 25) + 'px';
+                    button.style.right = 'auto';
+                    e.preventDefault();
+                }
+            });
+
+            button.addEventListener('touchend', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    
+                    if (!hasMoved) {
+                        openSettingsModal();
+                    }
+                }
+            });
+        }
+
+        // Create global instance for easy access - initialized after DOM loads
+        let settingsManager;
+
+        // Initialize settings manager after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait a bit to ensure all elements are ready
+            setTimeout(() => {
+                settingsManager = new SettingsManager();
+
+                // Example usage - register callbacks
+                settingsManager.onSettingsChange((data) => {
+                    debugLog(`🔄 Change: ${data.category}.${data.key} = ${data.value}`);
+                });
+
+                settingsManager.onSettingsSave((data) => {
+                    debugLog('💾 Settings saved');
+                });
+
+                settingsManager.onSettingsLoad((data) => {
+                    debugLog('📁 Settings loaded');
+                });
+
+                settingsManager.onSettingsReset((data) => {
+                    debugLog('🔄 Settings reset');
+                });
+
+                settingsManager.onSettingsExport((data) => {
+                    debugLog('📤 Settings exported');
+                });
+
+                debugLog('SettingsManager initialized with callbacks');
+                console.log('Settings panel ready with working callbacks!');
+                
+                // Load saved settings or defaults
+                loadSettings();
+                console.log('Settings loaded');
+
+
+                // Test the callbacks by programmatically changing a setting
+                setTimeout(() => {
+                    debugLog('Testing callback by changing MQTT port...');
+                    settingsManager.setSetting('mqtt', 'port', 1884);
+                }, 2000);
+            }, 100);
+        });
+    </script>
+</body>
+</html>

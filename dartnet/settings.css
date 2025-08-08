@@ -73,7 +73,7 @@
 .settings_nav-tabs .nav-link.active {
     color: white;
     background: rgba(255, 255, 255, 0.15);
-    border-bottom: 2px solid #4CAF50;
+    border-bottom: 2px solid #4285F4;
 }
 
 .settings_tab-content {
@@ -106,8 +106,8 @@
 .settings_form-control:focus,
 .settings_form-select:focus {
     background: rgba(255, 255, 255, 0.15);
-    border-color: #4CAF50;
-    box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+    border-color: #4285F4;
+    box-shadow: 0 0 0 0.2rem rgba(66, 133, 244, 0.25);
     color: white;
 }
 
@@ -129,12 +129,13 @@
 .settings_form-select option:hover,
 .settings_form-select option:focus,
 .settings_form-select option:checked {
-    background: rgba(76, 175, 80, 0.8);
+    background: rgba(66, 133, 244, 0.8);
     color: white;
 }
 
 .settings_form-control::placeholder {
     color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
 }
 
 .settings_slider-container {
@@ -155,7 +156,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #4CAF50;
+    background: #4285F4;
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
@@ -164,7 +165,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #4CAF50;
+    background: #4285F4;
     cursor: pointer;
     border: none;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
@@ -196,13 +197,13 @@
 }
 
 .settings_btn-success {
-    background: rgba(76, 175, 80, 0.8);
-    border: 1px solid rgba(76, 175, 80, 0.6);
+    background: rgba(66, 133, 244, 0.8);
+    border: 1px solid rgba(66, 133, 244, 0.6);
     color: white;
 }
 
 .settings_btn-success:hover {
-    background: rgba(76, 175, 80, 1);
+    background: rgba(66, 133, 244, 1);
     color: white;
 }
 
@@ -234,4 +235,11 @@
         padding: 8px 12px;
         font-size: 14px;
     }
+}
+
+.settings_sub-item {
+    margin-top: -15px;
+    scale: 0.9;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
 }

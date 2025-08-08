@@ -102,15 +102,15 @@ class DartNet {
         settingsManager.getSetting("dart", "vaiExtraWaitFrames")
       ); //new DeltaVideoOnlyDartDetector();
       this.dartDetectorVAI.onDetectionCallbacks.push(this.onDetectedDartImpact);
-      this.dartDetectorVAI.minConfidence = settingsManager.getSetting("dart", "confidence");
-      this.dartDetectorVAI.iouThreshold = settingsManager.getSetting("dart", "nms");
+      this.dartDetectorVAI.minConfidence = settingsManager.getSetting("dart", "confidence") * 0.01;
+      this.dartDetectorVAI.iouThreshold = settingsManager.getSetting("dart", "nms") * 0.01;
     } else this.dartDetectorVAI.initializeModel();
 
     if (!this.dartDetectorVO) {
       this.dartDetectorVO = new DeltaVideoOnlyDartDetector();
       this.dartDetectorVO.onDetectionCallbacks.push(this.onDetectedDartImpact);
-      this.dartDetectorVO.minConfidence = settingsManager.getSetting("dart", "confidence");
-      this.dartDetectorVO.iouThreshold = settingsManager.getSetting("dart", "nms");
+      this.dartDetectorVO.minConfidence = settingsManager.getSetting("dart", "confidence") * 0.01;
+      this.dartDetectorVO.iouThreshold = settingsManager.getSetting("dart", "nms") * 0.01;
     } else this.dartDetectorVO.initializeModel();
 
     this.dartDetector = this.dartDetectorVO;

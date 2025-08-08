@@ -130,6 +130,8 @@ class DartDetector {
 
   async start() {
     this.updateStatus(DartDetectorStatus.INITIALIZING);
+
+    console.log("Starting detector with minConfidence ", this.minConfidence, " iouThreshold:", this.iouThreshold);
     // Placeholder implementation
   }
 

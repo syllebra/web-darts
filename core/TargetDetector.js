@@ -85,8 +85,8 @@ class YoloTargetDetector {
       let others = boxes.filter((b) => b[4] < 6);
       binner = binner.length >= 1 ? binner[0] : null;
       bouter = bouter.length >= 1 ? bouter[0] : null;
-      console.log(binner);
-      console.log(bouter);
+      console.debug(binner);
+      console.debug(bouter);
       return {
         cross,
         bouter,
@@ -141,7 +141,7 @@ class YoloTargetDetector {
         canvasContext.stroke();
       });
     }
-    console.log("CORNERS:", corners);
+    console.debug("CORNERS:", corners);
 
     // Step 2: Coarse initialisation using rough center/scale
     // -------------
@@ -224,7 +224,7 @@ class YoloTargetDetector {
       pointPairsThreshold: 10,
       verbose: true,
     });
-    console.log(result);
+    console.debug(result);
 
     const alignedPoints = result.alignedPoints;
     const pointPairs = result.closestPointPairsId;
@@ -264,12 +264,12 @@ class YoloTargetDetector {
     // -------------
     const projected = PerspectiveUtils.transformPoints(this.pts, M.model);
     const nn = ICPAlgorithm.findNearestNeighbors(corners, projected);
-    console.log(nn);
+    console.debug(nn);
     let validPairs = [];
     for (let i = 0; i < nn.length; i++)
       if (nn[i].distance < 10 && this.outerIds.includes(i)) validPairs.push([nn[i].index, i]);
 
-    console.log("Valid Pairs:", validPairs);
+    console.debug("Valid Pairs:", validPairs);
 
     if (canvasContext) {
       // projected.forEach( (p,i) => {
@@ -278,7 +278,7 @@ class YoloTargetDetector {
       // })
 
       validPairs.forEach((pair) => {
-        //console.log(pair)
+        //console.debug(pair)
         canvasContext.strokeStyle = this.outerIds.includes(pair[0]) ? "#FFFFFF" : "#FF88FF";
         // const corner = corners[pair[1]];
         // const orig = projected[pair[0]]
@@ -313,16 +313,16 @@ class YoloTargetDetector {
     //     return None, None, 0
 
     this.coarseCenter = center;
-    console.log(this.coarseCenter);
+    console.debug(this.coarseCenter);
     // Étapes 5-8: Algorithmes de correspondance et RANSAC
     // Implémentation simplifiée - dans un vrai projet, il faudrait implémenter ICP, RANSAC, etc.
 
-    console.log("Perspective Matrix:", M.model);
+    console.debug("Perspective Matrix:", M.model);
     this.ptsCal = PerspectiveUtils.transformPoints(this.board.board_cal_pts, M.model);
 
     this.coarseCenter = PerspectiveUtils.transformPoints([[0, 0]], M.model)[0];
     //this.ptsCal = this.board.transformCals(M.model);
-    console.log("Points cal:", this.ptsCal);
+    console.debug("Points cal:", this.ptsCal);
 
     if (canvasContext) {
       this.drawBoard(canvasContext);
@@ -378,7 +378,7 @@ class YoloTargetDetector {
     if (this.ptsCal) {
       for (let i = 0; i < this.ptsCal.length; i++) {
         let p = this.ptsCal[i];
-        //console.log(pair)
+        //console.debug(pair)
         classes_colors;
         canvasContext.strokeStyle = classes_colors[i + 1];
 

@@ -5,7 +5,27 @@ async function reinitDetectorsCallbacks() {
   console.log("Ondetection callbacks:", dartnet?.dartDetector?.onDetectionCallbacks);
 }
 
-window.addEventListener("DOMContentLoaded", () => reinitDetectorsCallbacks());
+window.addEventListener("DOMContentLoaded", () => {
+  reinitDetectorsCallbacks();
+
+  // Fake calibration Init (basic)
+  // const initCalibPts = [
+  //   [640, 320],
+  //   [320, 640],
+  //   [0, 320],
+  //   [320, 0],
+  // ];
+
+  const alpha = -Math.PI / 20;
+  const initCalibPts = [0, 0.5, 1, 1.5].map((a) => [
+    Math.cos(a * Math.PI + alpha) * 320 + 320,
+    Math.sin(a * Math.PI + alpha) * 320 + 320,
+  ]);
+
+  dartnet.cropArea = [-150, -150, 800, 800];
+  dartnet.updateCalibPoints(initCalibPts);
+  onCalibrationSuccess(initCalibPts, false, true);
+});
 
 let animationId = null;
 async function processFrame() {

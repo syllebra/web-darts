@@ -565,7 +565,7 @@ function initZoomableCanvasUI() {
     // Draw callback
     (ctx, element) => {
       const ca = element.net?.cropArea;
-      if (!ca) return;
+      if (!zoomableCanvas.videoElement || !ca) return;
       ctx.fillStyle = element.color;
       //ctx.lineWidth = 2 / zoomableCanvas.scale;
       ctx.fillRect(0, 0, zoomableCanvas.videoElement.videoWidth, ca[1]);
@@ -839,6 +839,7 @@ function initZoomableCanvasUI() {
       if (dartnet.sourceCalibPts) {
         dartnet.sourceCalibPts[element.num] = [element.x, element.y];
         dartnet.updateCalibPoints(dartnet.sourceCalibPts);
+        recomputeUpTextPos();
       }
     } else if (id == "20") {
       const possible = element.compute_possible();

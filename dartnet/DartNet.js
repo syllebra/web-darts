@@ -211,7 +211,7 @@ class DartNet {
       //   console.log(results.calibrationPoints);
       //   console.log(sourceCalib);
       let crop = autoCrop(sourceCalib, this.videoSource.videoWidth, this.videoSource.videoHeight);
-      console.log("Auto Crop:", crop);
+      console.debug("Auto Crop:", crop);
       this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
       imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
       input = ImageProcessor.normalizeToYOLOinput(imgData).data;
@@ -233,11 +233,11 @@ class DartNet {
         this.cropArea = [0, 0, this.videoSource.videoWidth, this.videoSource.videoHeight];
         calibration = results;
       }
-      console.log("CALIB POINTS:", calibration.calibrationPoints);
+      console.debug("CALIB POINTS:", calibration.calibrationPoints);
       this.sourceCalibPts = calibration.calibrationPoints.map((p) =>
         this.normalizedToSource([p[0] / this.targetDetector.modelSize, p[1] / this.targetDetector.modelSize])
       );
-      console.log("SOURCE CALIB POINTS:", this.sourceCalibPts);
+      console.debug("SOURCE CALIB POINTS:", this.sourceCalibPts);
       this.updateCalibPoints(this.sourceCalibPts);
     } else {
       console.warn("Unable to find initial target to auto crop...");

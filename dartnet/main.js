@@ -33,11 +33,6 @@ async function processFrame() {
 }
 processFrame();
 
-const autoCalib = async () => {
-  console.log("Auto-calib start");
-  return dartnet.calibrate();
-};
-
 function recomputeUpTextPos() {
   const upText = PerspectiveUtils.transformPoints(
     [

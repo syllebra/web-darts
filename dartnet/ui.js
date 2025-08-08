@@ -218,16 +218,19 @@ function intializeAutoCalibUI() {
   const autoCalibBtn = document.getElementById("autoCalibMainBtn");
   autoCalibBtn.addEventListener("click", () => {
     showGroupSpinner("autoCalib");
-    autoCalib()
-      .then(() => {
-        onCalibrationSuccess(dartnet.sourceCalibPts);
-      })
-      .catch((error) => {
-        console.trace(error);
-      })
-      .finally(() => {
-        hideGroupSpinner("autoCalib");
-      });
+    setTimeout(() => {
+      dartnet
+        ?.calibrate()
+        .then(() => {
+          onCalibrationSuccess(dartnet.sourceCalibPts);
+        })
+        .catch((error) => {
+          console.trace(error);
+        })
+        .finally(() => {
+          hideGroupSpinner("autoCalib");
+        });
+    }, 300);
   });
 }
 

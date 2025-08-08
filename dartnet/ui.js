@@ -788,12 +788,7 @@ function initZoomableCanvasUI() {
         this.current = (this.current + 1) % this.imgs.length;
 
         const bb = ImageProcessor.computeGrayscaleThresholdBox(grayImg.data, width, height, 40);
-        this.bb = [
-          bb[0] / dartnet.dartDetector.modelSize,
-          bb[1] / dartnet.dartDetector.modelSize,
-          bb[2] / dartnet.dartDetector.modelSize,
-          bb[3] / dartnet.dartDetector.modelSize,
-        ];
+        this.bb = [bb[0] / width, bb[1] / height, bb[2] / width, bb[3] / height];
         console.log("THRESHOLD BOUNDING BOX:", this.bb);
       },
     },

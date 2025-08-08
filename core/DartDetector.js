@@ -44,6 +44,15 @@ class DartDetector {
     if (!this.session) {
       return null;
     }
+
+    // // Compute closer view of the dart(s)
+    // const cd = ImageProcessor.computeGrayscaleThresholdBox(
+    //   obj.delta.data,
+    //   dartnet.dartDetector.modelSize,
+    //   dartnet.dartDetector.modelSize,
+    //   40
+    // );
+
     var imageData = ImageProcessor.grayscaleToYOLOInput(obj.delta, this.modelSize, this.modelSize);
     try {
       this.updateStatus(DartDetectorStatus.INFERING);

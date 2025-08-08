@@ -151,9 +151,11 @@ class ImageProcessor {
     let b = 0;
     let x = 0;
     let y = 0;
+    let foundAny = false;
+
     for (let index = 0; index < grayImg.length; index++) {
-      let thres = grayImg[index] >= threshold;
-      if (thres) {
+      if (grayImg[index] >= threshold) {
+        foundAny = true;
         if (x < l) l = x;
         if (x > r) r = x;
         if (y < t) t = y;
@@ -165,7 +167,7 @@ class ImageProcessor {
         y++;
       }
     }
-    if (r < l || t > b) return [0, 0, width, height];
-    return [l, t, r, b];
+
+    return foundAny ? [l, t, r, b] : [0, 0, width, height];
   }
 }

@@ -94,28 +94,6 @@ document.getElementById("videoCanvas").addEventListener("mousemove", (event) => 
 function onDartDetected(data) {
   console.log("DartImpact main:", data);
 
-  const debugCanvas = document.getElementById("debugCanvas");
-  if (debugCanvas) {
-    debugCanvas.width = dartnet.dartDetector.modelSize;
-    debugCanvas.height = dartnet.dartDetector.modelSize;
-
-    const debugCtx = debugCanvas.getContext("2d");
-    debugCtx.putImageData(ImageProcessor.grayscaleToImageData(data.delta), 0, 0);
-    debugCtx.strokeStyle = "rgba(255, 255, 0, 1.0)";
-    data.boxes.forEach((b) => {
-      debugCtx.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
-    });
-
-    const b = ImageProcessor.computeGrayscaleThresholdBox(
-      data.delta,
-      dartnet.dartDetector.modelSize,
-      dartnet.dartDetector.modelSize,
-      40
-    );
-    debugCtx.strokeStyle = "rgba(0, 255, 255, 1.0)";
-    debugCtx.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
-  }
-
   zoomableCanvas
     .getOverlayElement("dartImpactDebug")
     ?.setDetected(data.delta, dartnet.dartDetector.modelSize, dartnet.dartDetector.modelSize);

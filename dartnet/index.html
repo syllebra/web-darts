@@ -364,6 +364,7 @@
             min-width: 0;
             min-height: 0;
             margin: 0;
+            border-radius: 6px;
         }
 
         #debugCanvas {
@@ -396,13 +397,8 @@
 
         <div class="status-indicator" id="dartDetectionIndicator">
             <span class="status-text" id="dartDetectorText">Detector Type</span>
-            <div id="dartDetectorToggle" class="toggle-btn-group" data-value="vo">
-                <button class="toggle-btn toggle-btn-small active" data-value="vo" disabled>
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="toggle-btn toggle-btn-small" data-value="vai" disabled>
-                    <i class="fas fa-wave-square"></i>
-                </button>
+            <div id="dartDetectorIconButton" class="toggle-btn toggle-btn-small">
+                    <i class="fas" id="dartDetectorIcon"></i>
             </div>
             <span class="status-dot dart-unknown" id="dartDetectorDot"></span>
         </div>
@@ -590,7 +586,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="settings_sub-item">
+                            <div class="settings_sub-item" id="vaiSpecificSettings">
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label settings_form-label">URL</label>
@@ -787,23 +783,23 @@
    
 <script>
     // DEBUG zone
-    document.addEventListener(
-            "keyup",
-            (event) => {
-                const keyName = event.key;
-                console.log(keyName);
-                if (keyName === "q") {
-                    const message = new Paho.MQTT.Message('{"mytest":"DB"}');
-                    message.destinationName = "dartnet/hit";
-                    dartnet.mqttClient?.send(message);
-                }
-                else if (keyName === "d") {
-                    console.log("Switching dart detector");
-                    dartnet.switchDartDetector();
-                }
-            },
-            false,
-        );
+    // document.addEventListener(
+    //         "keyup",
+    //         (event) => {
+    //             const keyName = event.key;
+    //             console.log(keyName);
+    //             if (keyName === "q") {
+    //                 const message = new Paho.MQTT.Message('{"mytest":"DB"}');
+    //                 message.destinationName = "dartnet/hit";
+    //                 dartnet.mqttClient?.send(message);
+    //             }
+    //             else if (keyName === "d") {
+    //                 console.log("Switching dart detector");
+    //                 dartnet.switchDartDetector();
+    //             }
+    //         },
+    //         false,
+    //     );
     </script>
 </body>
 

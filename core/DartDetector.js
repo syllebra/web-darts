@@ -170,7 +170,7 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
     await super.start();
     // Simulate initialization process
     setTimeout(() => {
-      this.updateStatus(DartDetectorStatus.DETECTING);
+      this.updateStatus(DartDetectorStatus.PAUSE);
     }, 500);
   }
 

@@ -1,15 +1,11 @@
 async function reinitDetectorsCallbacks() {
   //dartnet.initDetectors();
-  if (!dartnet?.dartDetectorVO?.onDetectionCallbacks.includes(onDartDetected))
-    dartnet.dartDetectorVO.onDetectionCallbacks.push(onDartDetected);
-  if (!dartnet?.dartDetectorVAI?.onDetectionCallbacks.includes(onDartDetected))
-    dartnet.dartDetectorVAI.onDetectionCallbacks.push(onDartDetected);
-  console.log(
-    "Ondetection callbacks:",
-    dartnet?.dartDetectorVO?.onDetectionCallbacks,
-    dartnet?.dartDetectorVAI?.onDetectionCallbacks
-  );
+  if (!dartnet?.dartDetector?.onDetectionCallbacks.includes(onDartDetected))
+    dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
+  console.log("Ondetection callbacks:", dartnet?.dartDetector?.onDetectionCallbacks);
 }
+
+window.addEventListener("DOMContentLoaded", () => reinitDetectorsCallbacks());
 
 let animationId = null;
 async function processFrame() {

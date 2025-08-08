@@ -4,9 +4,16 @@ function initializeSettingsUI() {
 
   settingsManager = new SettingsManager();
 
+  function updatepSecificDartDetectorSettings() {
+    const vaiVisible = settingsManager.getSetting("dart", "type") == "vai";
+    const vaiSpecificSettings = document.getElementById("vaiSpecificSettings");
+    if (vaiSpecificSettings) vaiSpecificSettings.style.display = vaiVisible ? "block" : "none";
+  }
+
   // Example usage - register callbacks
   settingsManager.onSettingsChange((data) => {
     console.log(`🔄 Change: ${data.category}.${data.key} = ${data.value}`);
+    if (data.category == "dart" && data.key == "type") updatepSecificDartDetectorSettings();
   });
 
   settingsManager.onSettingsSave((data) => {
@@ -15,6 +22,7 @@ function initializeSettingsUI() {
 
   settingsManager.onSettingsLoad((data) => {
     console.log("📁 Settings loaded");
+    updatepSecificDartDetectorSettings();
   });
 
   settingsManager.onSettingsReset((data) => {
@@ -409,17 +417,16 @@ function initializeMqttUI() {
 }
 
 function initializeDartDetectionUI() {
-  //dartnet.dartDetectorVAI.mqttBroker = settingsManager.get
-  toggleButtons["dartDetectorToggle"].onChangeCallbacks.push((v, el) => {
-    if (dartnet) {
-      const newDetector = v == "vo" ? dartnet.dartDetectorVO : dartnet.dartDetectorVAI;
-      if (dartnet.dartDetector != newDetector) dartnet.switchDartDetector();
-      reinitDetectorsCallbacks();
-    }
-  });
+  const dartDetectorIcon = document.getElementById("dartDetectorIcon");
+  if (dartDetectorIcon) {
+    if (dartnet?.dartDetector instanceof DeltaVideoOnlyDartDetector) dartDetectorIcon.className = "fas fa-eye";
+    else if (dartnet?.dartDetector instanceof DeltaVideoAccelImpactDetector)
+      dartDetectorIcon.className = "fas fa-wave-square";
+    else ddartDetectorIcon.className = "fas fa-eye-slash";
+  }
   toggleButtons["dartDetectionToggle"].onChangeCallbacks.push((v, el) => {
-    if (v == "off") dartnet?.dartDetector?.stop();
-    else dartnet?.dartDetector?.start();
+    if (v == "off") dartnet?.dartDetector?.onPause();
+    else dartnet?.dartDetector?.resume();
   });
 }
 
@@ -498,19 +505,9 @@ async function periodicUpdateUI() {
   }
 
   if (dartnet) {
-    const vo = dartnet.dartDetectorVO?.session;
-    const vai = dartnet.dartDetectorVAI?.session;
-
-    if (toggleButtons["dartDetectorToggle"]) {
-      const newVal = dartnet.dartDetector == dartnet.dartDetectorVO ? "vo" : "vai";
-      if (toggleButtons["dartDetectorToggle"].getValue() != newVal)
-        toggleButtons["dartDetectorToggle"].setValue(newVal, true);
-      toggleButtons["dartDetectorToggle"].setDisabled(!vo && !vai);
-
-      const dartDetectorDot = document.getElementById("dartDetectorDot");
-      dartDetectorDot.className = "status-dot";
-      dartDetectorDot.classList.add(!dartnet.dartDetector.isReady() ? "mqtt-disconnected" : "mqtt-connected");
-    }
+    const dartDetectorDot = document.getElementById("dartDetectorDot");
+    dartDetectorDot.className = "status-dot";
+    dartDetectorDot.classList.add(!dartnet.dartDetector.isReady() ? "mqtt-disconnected" : "mqtt-connected");
   }
 
   updateDartDetectionStatus();

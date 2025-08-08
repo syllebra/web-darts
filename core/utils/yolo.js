@@ -124,7 +124,7 @@ class YOLO {
 
     var outputs = process_output(results, model_size, model_size, null);
     var boxes = outputs[0];
-    //console.log( "DETECTED BOXES:", boxes.map((b) => b[4]));
+    //console.debug( "DETECTED BOXES:", boxes.map((b) => b[4]));
     return boxes;
   }
 }

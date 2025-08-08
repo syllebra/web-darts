@@ -48,8 +48,8 @@ function recomputeUpTextPos() {
   el.y = upText[1];
 }
 
-function onCalibrationSuccess(calibPts) {
-  console.log("Calibration succeed:", calibPts);
+function onCalibrationSuccess(calibPts, log = true, autozoom = true) {
+  if (log) console.log("Calibration succeed:", calibPts);
   for (let i = 0; i < calibPts.length; i++) {
     const p = calibPts[i];
     let el = zoomableCanvas.getOverlayElement(`calib${i}`);
@@ -57,7 +57,7 @@ function onCalibrationSuccess(calibPts) {
     el.y = p[1];
   }
   recomputeUpTextPos();
-  zoomableCanvas.autoZoomVideo(20, true, dartnet.cropArea);
+  if (autozoom) zoomableCanvas.autoZoomVideo(20, true, dartnet.cropArea);
 }
 
 document.getElementById("videoCanvas").addEventListener("mousemove", (event) => {

@@ -36,7 +36,7 @@ class MobileDebugConsole {
                         max-width: 500px;
                         height: 60%;
                         max-height: 600px;
-                        background: rgba(40, 40, 40, 0.98);
+                        background: rgba(40, 40, 40, 0.8);
                         border: 2px solid #555;
                         border-radius: 12px;
                         font-family: 'Courier New', Monaco, monospace;
@@ -53,7 +53,7 @@ class MobileDebugConsole {
                     }
                     
                     .debug-console-header {
-                        background: linear-gradient(135deg, #667eea, #764ba2);
+                        background: linear-gradient(135deg, #667eea63, #764ba233);
                         color: white;
                         padding: 12px 15px;
                         border-radius: 10px 10px 0 0;
@@ -249,11 +249,11 @@ class MobileDebugConsole {
                     
                     .debug-console-toggle {
                         position: fixed !important;
-                        bottom: 20px !important;
+                        bottom: 80px !important;
                         right: 20px !important;
                         width: 50px;
                         height: 50px;
-                        background: linear-gradient(135deg, #667eea, #764ba2);
+                        background: linear-gradient(135deg, #667eea48, #764ba238);
                         border: none;
                         border-radius: 50%;
                         color: white;
@@ -318,7 +318,7 @@ class MobileDebugConsole {
 
     this.consoleElement.innerHTML = `
                     <div class="debug-console-header">
-                        <span>🐛 Debug Console</span>
+                        <span>🐞 Debug Console</span>
                         <button class="debug-clear-btn" onclick="window.mobileDebugConsole.clear()">Clear</button>
                     </div>
                     <div class="debug-console-content"></div>
@@ -333,7 +333,7 @@ class MobileDebugConsole {
   createToggleButton() {
     this.toggleButton = document.createElement("button");
     this.toggleButton.className = "debug-console-toggle";
-    this.toggleButton.innerHTML = "🐛";
+    this.toggleButton.innerHTML = "🐞";
     this.toggleButton.title = "Toggle Debug Console";
     this.toggleButton.onclick = () => this.toggle();
 

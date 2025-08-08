@@ -573,7 +573,7 @@ class ZoomablePannableCanvas {
     const [x, y, w, h] = srcCrop
       ? [srcCrop[0], srcCrop[1], srcCrop[2] - srcCrop[0], srcCrop[3] - srcCrop[1]]
       : [0, 0, videoWidth, videoHeight];
-    console.log("AUTO-ZOOM:", [x, y, w, h]);
+    console.debug("AUTO-ZOOM:", [x, y, w, h]);
     // Calculate available canvas space (minus padding)
     const availableWidth = this.canvas.width - padding * 2;
     const availableHeight = this.canvas.height - padding * 2;

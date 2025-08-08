@@ -181,7 +181,7 @@ class EllipseModel extends Model {
 
     // return points.map(point => {
     //     const result = this.pointToEllipseDistance(point, this.ellipse);
-    //     console.log(result.distance)
+    //     console.debug(result.distance)
     //     return result.distance * result.distance;
     // });
   }
@@ -844,22 +844,22 @@ const points = [
 
 // Fit the ellipse
 if (ellipseModel.build(points)) {
-    console.log('Ellipse fitted successfully:', ellipseModel.getEllipse());
+    console.debug('Ellipse fitted successfully:', ellipseModel.getEllipse());
     
     // Calculate errors for all points
     const errors = ellipseModel.calcErrors(points);
-    console.log('Errors:', errors);
+    console.debug('Errors:', errors);
     
     // Test a specific point
     const testPoint = [150, 60];
     const result = ellipseModel.getClosestPoint(testPoint);
-    console.log('Closest point result:', result);
+    console.debug('Closest point result:', result);
     
     // Check if point is inside
     const isInside = ellipseModel.isPointInside(testPoint);
-    console.log('Point inside ellipse:', isInside);
+    console.debug('Point inside ellipse:', isInside);
 } else {
-    console.log('Failed to fit ellipse');
+    console.debug('Failed to fit ellipse');
 }
 */
 // Fixed Center Circle Model Implementation
@@ -1060,11 +1060,11 @@ function ransacFit(
   const maxIters = Math.round(
     MathUtils.log(1 - successProbability) / MathUtils.log(1 - MathUtils.pow(1 - outlierRatio, model.N))
   );
-  console.log(maxIters);
+  console.debug(maxIters);
 
   // RANSAC iterations
   for (let iter = 0; iter < maxIters; iter++) {
-    //console.log("Ransac iteration: ", iter, "/", maxIters);
+    //console.debug("Ransac iteration: ", iter, "/", maxIters);
     // Select N points at random
     const pntsId = [];
     for (let i = 0; i < model.N; i++) {
@@ -1091,7 +1091,7 @@ function ransacFit(
       }
     }
 
-    //console.log("Iteration ", iter, ": Inliers:", inliers.length, "/", errors.length);
+    //console.debug("Iteration ", iter, ": Inliers:", inliers.length, "/", errors.length);
     const nInliers = inliers.length;
 
     // Protect fitting from too few points
@@ -1112,9 +1112,9 @@ function ransacFit(
       }
     }
   }
-  console.log("bestModelPtsIds:", bestModelPtsIds);
-  console.log("bestNInliers:", bestNInliers);
-  console.log("bestInliersError:", bestInliersError);
+  console.debug("bestModelPtsIds:", bestModelPtsIds);
+  console.debug("bestNInliers:", bestNInliers);
+  console.debug("bestInliersError:", bestInliersError);
   if (bestModelPtsIds) {
     const bestPoints = bestModelPtsIds.map((id) => points[id]);
     return {

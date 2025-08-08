@@ -828,14 +828,14 @@ function initZoomableCanvasUI() {
 
   // Set up event callbacks
   zoomableCanvas.setOnElementSelected((id, element) => {
-    console.log(`Selected element: ${id}`, element);
+    console.debug(`Selected element: ${id}`, element);
   });
 
   zoomableCanvas.setOnElementDrag((id, element, worldCoords) => {
-    console.log(`Dragging ${id} to:`, element.x, element.y);
+    console.debug(`Dragging ${id} to:`, element.x, element.y);
 
     if (id.includes("calib")) {
-      console.log(`Moving calibration point ${element.num}`);
+      console.debug(`Moving calibration point ${element.num}`);
       if (dartnet.sourceCalibPts) {
         dartnet.sourceCalibPts[element.num] = [element.x, element.y];
         dartnet.updateCalibPoints(dartnet.sourceCalibPts);
@@ -848,12 +848,12 @@ function initZoomableCanvasUI() {
       var boardRotated = MathUtils.rotatePoints(dartnet.board.board_cal_pts, rotMatrix);
       var newCalib = PerspectiveUtils.transformPoints(boardRotated, dartnet.Mi);
       dartnet.updateCalibPoints(newCalib);
-      onCalibrationSuccess(newCalib);
+      onCalibrationSuccess(newCalib, false, false);
     }
   });
 
   zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
-    console.log(`Finished dragging ${id}`);
+    console.debug(`Finished dragging ${id}`);
   });
 }
 

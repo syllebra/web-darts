@@ -115,7 +115,7 @@ class ICPAlgorithm {
 
     for (let iterNum = 0; iterNum < maxIterations; iterNum++) {
       if (this.verbose) {
-        console.log(`------ iteration ${iterNum} ------`);
+        console.debug(`------ iteration ${iterNum} ------`);
       }
 
       // Find nearest neighbors
@@ -133,13 +133,13 @@ class ICPAlgorithm {
       }
 
       if (this.verbose) {
-        console.log(`number of pairs found: ${closestPointPairs.length}`);
+        console.debug(`number of pairs found: ${closestPointPairs.length}`);
       }
 
       // Check if we have enough point pairs
       if (closestPointPairs.length < pointPairsThreshold) {
         if (this.verbose) {
-          console.log("No better solution can be found (very few point pairs)!");
+          console.debug("No better solution can be found (very few point pairs)!");
         }
         break;
       }
@@ -148,13 +148,13 @@ class ICPAlgorithm {
       const { rotAngle, translationX, translationY } = ICPAlgorithm.pointBasedMatching(closestPointPairs);
 
       if (this.verbose && rotAngle !== null) {
-        console.log(`Rotation: ${ICPAlgorithm.radiansToDegrees(rotAngle)} degrees`);
-        console.log(`Translation: ${translationX} ${translationY}`);
+        console.debug(`Rotation: ${ICPAlgorithm.radiansToDegrees(rotAngle)} degrees`);
+        console.debug(`Translation: ${translationX} ${translationY}`);
       }
 
       if (rotAngle === null || translationX === null || translationY === null) {
         if (this.verbose) {
-          console.log("No better solution can be found!");
+          console.debug("No better solution can be found!");
         }
         break;
       }
@@ -180,7 +180,7 @@ class ICPAlgorithm {
         Math.abs(translationY) < convergenceTranslationThreshold
       ) {
         if (this.verbose) {
-          console.log("Converged!");
+          console.debug("Converged!");
         }
         break;
       }
@@ -236,7 +236,7 @@ const result = icp.icp(referencePoints, points, {
   verbose: true
 });
 
-console.log('Transformation history:', result.transformationHistory);
-console.log('Aligned points:', result.alignedPoints);
-console.log('Point pairs IDs:', result.closestPointPairsId);
+console.debug('Transformation history:', result.transformationHistory);
+console.debug('Aligned points:', result.alignedPoints);
+console.debug('Point pairs IDs:', result.closestPointPairsId);
 */

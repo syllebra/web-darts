@@ -10,10 +10,15 @@ function initializeSettingsUI() {
     if (vaiSpecificSettings) vaiSpecificSettings.style.display = vaiVisible ? "block" : "none";
   }
 
+  function updateCalibrationSettings() {
+    if (dartnet) dartnet.calibrationPairFactor = settingsManager.getSetting("calibration", "tolerance") * 0.1;
+  }
+
   // Example usage - register callbacks
   settingsManager.onSettingsChange((data) => {
     console.log(`🔄 Change: ${data.category}.${data.key} = ${data.value}`);
     if (data.category == "dart" && data.key == "type") updatepSecificDartDetectorSettings();
+    if (data.category == "calibration" && data.key == "tolerance") updateCalibrationSettings();
   });
 
   settingsManager.onSettingsSave((data) => {
@@ -23,6 +28,7 @@ function initializeSettingsUI() {
   settingsManager.onSettingsLoad((data) => {
     console.log("📁 Settings loaded");
     updatepSecificDartDetectorSettings();
+    updateCalibrationSettings();
   });
 
   settingsManager.onSettingsReset((data) => {
@@ -214,6 +220,7 @@ function initializeCameraManagementUI() {
 }
 
 function intializeAutoCalibUI() {
+  if (dartnet) dartnet.calibrationPairFactor = settingsManager.getSetting("calibration", "tolerance") * 0.1;
   // Auto calib
   const autoCalibBtn = document.getElementById("autoCalibMainBtn");
   autoCalibBtn.addEventListener("click", () => {

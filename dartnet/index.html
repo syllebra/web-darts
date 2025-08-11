@@ -652,8 +652,8 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label settings_form-label">Calibration Type</label>
-                                    <select class="form-select settings_form-select" id="calibrationType">
+                                    <label class="form-label settings_form-label" disabled>Calibration Type</label>
+                                    <select class="form-select settings_form-select" id="calibrationType" disabled>
                                         <option value="automatic">Automatic</option>
                                         <option value="manual">Manual</option>
                                         <option value="semi-auto">Semi-Automatic</option>
@@ -663,24 +663,24 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label settings_form-label">Reference Points</label>
-                                    <input type="number" class="form-control settings_form-control" id="calibrationPoints" min="3" max="20" value="9">
+                                    <input type="number" class="form-control settings_form-control" id="calibrationPoints" min="3" max="20" value="4" disabled>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="settings_slider-container">
-                                    <label class="form-label settings_form-label">Accuracy Level</label>
+                                    <label class="form-label settings_form-label" disabled>Accuracy Level</label>
                                     <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="calibrationAccuracy" min="1" max="10" value="7">
+                                        <input type="range" class="settings_slider" id="calibrationAccuracy" min="1" max="10" value="7"  disabled>
                                         <span class="settings_slider-value" id="calibrationAccuracyValue">7</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="settings_slider-container">
-                                    <label class="form-label settings_form-label">Tolerance (px)</label>
+                                    <label class="form-label settings_form-label">Pair Matching Tolerance Factor</label>
                                     <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="calibrationTolerance" min="1" max="20" value="5">
-                                        <span class="settings_slider-value" id="calibrationToleranceValue">5px</span>
+                                        <input type="range" class="settings_slider" id="calibrationTolerance" min="1" max="40" value="10">
+                                        <span class="settings_slider-value" id="calibrationToleranceValue">1.0</span>
                                     </div>
                                 </div>
                             </div>
@@ -692,8 +692,8 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label settings_form-label">Language</label>
-                                    <select class="form-select settings_form-select" id="generalLanguage">
+                                    <label class="form-label settings_form-label" disabled>Language</label>
+                                    <select class="form-select settings_form-select" id="generalLanguage"  disabled>
                                         <option value="en">English</option>
                                         <option value="fr">Français</option>
                                         <option value="de">Deutsch</option>
@@ -703,8 +703,8 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label settings_form-label">Theme</label>
-                                    <select class="form-select settings_form-select" id="generalTheme">
+                                    <label class="form-label settings_form-label"  disabled>Theme</label>
+                                    <select class="form-select settings_form-select" id="generalTheme"  disabled>
                                         <option value="dark">Dark</option>
                                         <option value="light">Light</option>
                                         <option value="auto">Auto</option>
@@ -713,19 +713,19 @@
                             </div>
                             <div class="col-12">
                                 <div class="settings_slider-container">
-                                    <label class="form-label settings_form-label">Update Interval (ms)</label>
+                                    <label class="form-label settings_form-label" disabled>Update Interval (ms)</label>
                                     <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="generalUpdateInterval" min="50" max="1000" value="100">
-                                        <span class="settings_slider-value" id="generalUpdateIntervalValue">100ms</span>
+                                        <input type="range" class="settings_slider" id="generalUpdateInterval" min="50" max="1000" value="100"  disabled>
+                                        <span class="settings_slider-value" id="generalUpdateIntervalValue"  disabled>100ms</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="settings_slider-container">
-                                    <label class="form-label settings_form-label">Log Level</label>
+                                    <label class="form-label settings_form-label"  disabled>Log Level</label>
                                     <div class="d-flex align-items-center">
-                                        <input type="range" class="settings_slider" id="generalLogLevel" min="1" max="5" value="3">
-                                        <span class="settings_slider-value" id="generalLogLevelValue">Info</span>
+                                        <input type="range" class="settings_slider" id="generalLogLevel" min="1" max="5" value="3"  disabled>
+                                        <span class="settings_slider-value" id="generalLogLevelValue" disabled>Info</span>
                                     </div>
                                 </div>
                             </div>

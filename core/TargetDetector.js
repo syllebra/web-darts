@@ -111,7 +111,7 @@ class YoloTargetDetector {
   }
 
   // RGB float (0..1)
-  async detect(input, canvasContext = null, imgData = null) {
+  async detect(input, canvasContext = null, pairMatchingDistanceThreshold = 30) {
     this.bouter = null;
     this.binner = null;
     this.ptsCal = null;
@@ -215,13 +215,14 @@ class YoloTargetDetector {
     // transformation_history, aligned_points, closest_point_pairs = icp(
     //     pts, corners, distance_threshold=15, point_pairs_threshold=10, verbose=False
     // )
+
     let icpInstance = new ICPAlgorithm();
     const result = icpInstance.icp(pts, filteredCorners, {
       maxIterations: 100,
-      distanceThreshold: 30,
+      distanceThreshold: pairMatchingDistanceThreshold,
       convergenceTranslationThreshold: 1e-3,
       convergenceRotationThreshold: 1e-4,
-      pointPairsThreshold: 10,
+      pointPairsThreshold: pairMatchingDistanceThreshold * 0.33,
       verbose: true,
     });
     console.debug(result);

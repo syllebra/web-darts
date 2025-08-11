@@ -13,7 +13,7 @@ class DartNet {
     this.mqttPort = 8083;
     this.mqttClient = null;
     this.mqttStatusCallback = mqttStatusCallback;
-
+    this.calibrationPairFactor = 1.0;
     this.initDetectors();
   }
 
@@ -177,14 +177,13 @@ class DartNet {
       throw Error("❌ Camera not ready");
     }
 
-    //this.showLoading(true);
     console.log("Capturing and analyzing frame");
 
     this.cropArea = null;
     this.sourceCalibPts = null;
     this.M = null;
     this.Mi = null;
-    // try {
+
     let imgData = this.preprocessImageForModel(null, this.targetDetector.modelSize);
     let input = ImageProcessor.normalizeToYOLOinput(imgData).data;
 
@@ -195,21 +194,25 @@ class DartNet {
       debugCanvas.height = imgData.height;
       debugCanvas.style.width = "" + imgData.width + "px";
       debugCanvas.style.height = "" + imgData.height + "px";
-      //console.log("Image size:", imageData.width, imageData.height);
 
       debugCtx.putImageData(imgData, 0, 0);
     }
 
-    let results = await this.targetDetector.detect(input, debugCtx);
+    // proportional threshold for image width (30px for 640)
+    const distanceThreshold = (this.calibrationPairFactor * (30.0 * this.targetDetector.modelSize)) / 640.0;
+    console.debug(
+      "Calibration pair factor:",
+      self.calibrationPairFactor,
+      " computed distance threshold:",
+      distanceThreshold
+    );
+
+    let results = await this.targetDetector.detect(input, debugCtx, distanceThreshold);
     if (results?.calibrationPoints) {
       let sourceCalib = results.calibrationPoints.map((p) => [
         (p[0] * this.videoSource.videoWidth) / this.targetDetector.modelSize,
         (p[1] * this.videoSource.videoHeight) / this.targetDetector.modelSize,
       ]);
-      //   console.log(this.targetDetector.modelSize);
-      //   console.log(this.videoSource.videoWidth, this.videoSource.videoHeight);
-      //   console.log(results.calibrationPoints);
-      //   console.log(sourceCalib);
       let crop = autoCrop(sourceCalib, this.videoSource.videoWidth, this.videoSource.videoHeight);
       console.debug("Auto Crop:", crop);
       this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
@@ -221,12 +224,11 @@ class DartNet {
         debugCanvas.height = imgData.height;
         debugCanvas.style.width = "" + imgData.width + "px";
         debugCanvas.style.height = "" + imgData.height + "px";
-        //console.log("Image size:", imageData.width, imageData.height);
 
         debugCtx.putImageData(imgData, 0, 0);
       }
 
-      let calibration = await this.targetDetector.detect(input, debugCtx);
+      let calibration = await this.targetDetector.detect(input, debugCtx, distanceThreshold);
       console.log("Calibration:", calibration);
       if (!calibration) {
         console.warn("Unable to find target in croped area... Using previous (bad) one");
@@ -243,18 +245,6 @@ class DartNet {
       console.warn("Unable to find initial target to auto crop...");
       throw Error("Unable to find initial target to auto crop...");
     }
-    //zoomableCanvas.getOverlayContext();
-
-    //     if (this.onnxSession) {
-    //         await this.runInference();
-    //     }
-    // } catch (error) {
-    //     this.log('Capture and analyze error: ' + error.message);
-    //     this.updateStatus('❌ Error during processing: ' + error.message, 'error');
-    // } finally {
-    //     this.showLoading(false);
-    // }
-    //this.showLoading(false);
   }
 
   async detectDartImpact() {

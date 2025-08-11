@@ -90,17 +90,17 @@ class SettingsManager {
 
   getDefaultSettings() {
     return {
-      mqtt: { brokerIP: "192.168.1.100", port: 1883, username: "", password: "" },
+      mqtt: { brokerIP: "192.168.1.100", port: 8083, username: "", password: "" },
       dart: {
         type: "vo",
         vaiURL: "http://192.168.1.100:80",
         vaiBurstLength: 20,
         vaiExtraWaitFrames: 10,
-        confidence: 75,
+        confidence: 25,
         nms: 45,
         model: "yolo",
       },
-      calibration: { type: "automatic", points: 9, accuracy: 7, tolerance: 5 },
+      calibration: { type: "automatic", points: 9, accuracy: 7, tolerance: 10 },
       general: { language: "en", theme: "dark", updateInterval: 100, logLevel: 3 },
     };
   }
@@ -117,7 +117,7 @@ class SettingsManager {
         nms: false,
         model: true,
       },
-      // calibration: { type: "automatic", points: 9, accuracy: 7, tolerance: 5 },
+      calibration: { type: true, points: true, accuracy: true, tolerance: false },
       // general: { language: "en", theme: "dark", updateInterval: 100, logLevel: 3 },
     };
   }
@@ -194,7 +194,7 @@ class SettingsManager {
       { id: "dartvaiBurstLength", suffix: "" },
       { id: "dartvaiExtraWaitFrames", suffix: "" },
       { id: "calibrationAccuracy", suffix: "" },
-      { id: "calibrationTolerance", suffix: "px" },
+      { id: "calibrationTolerance", suffix: "", transform: (v) => (v / 10).toFixed(1) },
       { id: "generalUpdateInterval", suffix: "ms" },
       { id: "generalLogLevel", transform: (v) => ["", "Error", "Warn", "Info", "Debug", "Trace"][v] },
     ];

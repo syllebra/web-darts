@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPIC DARTS ARCADE</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Orbitron', monospace;
+            background: radial-gradient(circle at center, #0a0a0a, #1a1a2e, #16213e);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .screen-shake {
+            animation: screenShake 0.6s ease-in-out;
+        }
+        
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            10% { transform: translate(-5px, -5px) rotate(-0.5deg); }
+            20% { transform: translate(5px, -5px) rotate(0.5deg); }
+            30% { transform: translate(-5px, 5px) rotate(-0.5deg); }
+            40% { transform: translate(5px, 5px) rotate(0.5deg); }
+            50% { transform: translate(-3px, -3px) rotate(-0.3deg); }
+            60% { transform: translate(3px, -3px) rotate(0.3deg); }
+            70% { transform: translate(-3px, 3px) rotate(-0.3deg); }
+            80% { transform: translate(3px, 3px) rotate(0.3deg); }
+            90% { transform: translate(-1px, -1px) rotate(-0.1deg); }
+        }
+        
+        .neon-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.15) 1px, transparent 1px),
+                linear-gradient(45deg, rgba(255, 0, 128, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px, 40px 40px, 80px 80px;
+            animation: gridFlow 6s linear infinite, gridPulse 4s ease-in-out infinite;
+        }
+        
+        @keyframes gridFlow {
+            0% { background-position: 0 0, 0 0, 0 0; }
+            100% { background-position: 40px 40px, 40px 40px, 80px 80px; }
+        }
+        
+        @keyframes gridPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.2; }
+        }
+        
+        .floating-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .particle-float {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #00ffff;
+            border-radius: 50%;
+            animation: floatUp 8s linear infinite;
+        }
+        
+        @keyframes floatUp {
+            0% {
+                opacity: 0;
+                transform: translateY(100vh) scale(0);
+            }
+            10% {
+                opacity: 1;
+                transform: translateY(90vh) scale(1);
+            }
+            90% {
+                opacity: 1;
+                transform: translateY(10vh) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(0) scale(0);
+            }
+        }
+        
+        .game-container {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 3px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        
+        .game-title {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #00ffff;
+            text-shadow: 0 0 30px #00ffff, 0 0 50px #00ffff;
+            animation: titleGlow 2s ease-in-out infinite alternate, titleFloat 4s ease-in-out infinite;
+        }
+        
+        @keyframes titleGlow {
+            from { text-shadow: 0 0 30px #00ffff, 0 0 50px #00ffff; }
+            to { text-shadow: 0 0 50px #00ffff, 0 0 80px #00ffff, 0 0 100px #00ffff; }
+        }
+        
+        @keyframes titleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        .round-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .round-counter {
+            font-size: 1.8rem;
+            color: #ff6b35;
+            text-shadow: 0 0 20px #ff6b35;
+            animation: counterPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes counterPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .dart-counter {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: #ffff00;
+            text-shadow: 0 0 25px #ffff00;
+            animation: dartFloat 3s ease-in-out infinite;
+        }
+        
+        @keyframes dartFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-3px) rotate(1deg); }
+        }
+        
+        .players-container {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - 140px);
+        }
+        
+        .player-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            border-right: 2px solid rgba(0, 255, 255, 0.3);
+        }
+        
+        .player-section:last-child {
+            border-right: none;
+        }
+        
+        .player-section.active {
+            background: rgba(0, 255, 255, 0.05);
+            border-color: #00ffff;
+            box-shadow: inset 0 0 50px rgba(0, 255, 255, 0.1);
+        }
+        
+        .player-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ff0080;
+            text-shadow: 0 0 20px #ff0080;
+            margin-bottom: 20px;
+            animation: nameGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes nameGlow {
+            from { color: #ff0080; text-shadow: 0 0 20px #ff0080; }
+            to { color: #ff4040; text-shadow: 0 0 30px #ff4040; }
+        }
+        
+        .score-display {
+            text-align: center;
+            position: relative;
+            margin-bottom: 30px;
+        }
+        
+        .current-leg {
+            font-size: 12rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.8), 0 0 80px rgba(255, 255, 255, 0.3);
+            margin-bottom: 30px;
+            transition: all 0.5s ease;
+            line-height: 1;
+        }
+        
+        .round-total {
+            font-size: 5rem;
+            font-weight: 700;
+            color: #00ff00;
+            text-shadow: 0 0 30px #00ff00, 0 0 60px #00ff00;
+            margin-bottom: 20px;
+            transition: all 0.4s ease;
+            line-height: 1;
+        }
+        
+        .incoming-score {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8rem;
+            font-weight: 900;
+            color: #ff0080;
+            text-shadow: 0 0 40px #ff0080, 0 0 80px #ff0080;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .score-animation {
+            animation: scorePopIn 2s ease-out forwards;
+        }
+        
+        @keyframes scorePopIn {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.3) rotate(-10deg);
+            }
+            20% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.5) rotate(5deg);
+            }
+            40% {
+                transform: translate(-50%, -50%) scale(1.2) rotate(-2deg);
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(1.1) rotate(1deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -120%) scale(0.6) rotate(0deg);
+            }
+        }
+        
+        .leg-decrease {
+            animation: legScoreDown 1.2s ease-out;
+        }
+        
+        @keyframes legScoreDown {
+            0% { color: #fff; transform: scale(1); }
+            20% { color: #ff4444; transform: scale(1.15) rotate(2deg); }
+            40% { color: #ff6666; transform: scale(0.95) rotate(-1deg); }
+            60% { color: #ff4444; transform: scale(1.05) rotate(1deg); }
+            100% { color: #fff; transform: scale(1) rotate(0deg); }
+        }
+        
+        .round-increase {
+            animation: roundScoreUp 0.8s ease-out;
+        }
+        
+        @keyframes roundScoreUp {
+            0% { transform: scale(1) rotate(0deg); }
+            30% { transform: scale(1.3) rotate(-3deg); color: #ffff00; }
+            60% { transform: scale(1.1) rotate(2deg); color: #80ff80; }
+            100% { transform: scale(1) rotate(0deg); color: #00ff00; }
+        }
+        
+        .dart-history {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 200px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+        }
+        
+        .history-title {
+            font-size: 1.2rem;
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        
+        .dart-scores {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .dart-score {
+            background: rgba(255, 0, 128, 0.2);
+            border: 1px solid #ff0080;
+            color: #ff0080;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 700;
+            min-width: 35px;
+            text-align: center;
+            animation: scoreAppear 0.5s ease-out;
+        }
+        
+        @keyframes scoreAppear {
+            0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        
+        .explosion-particles {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ffff00;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleExplosion 1.5s ease-out forwards;
+        }
+        
+        @keyframes particleExplosion {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0) translate(var(--dx), var(--dy));
+                opacity: 0;
+            }
+        }
+        
+        .countdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .countdown-number {
+            font-size: 20rem;
+            font-weight: 900;
+            color: #ff0080;
+            text-shadow: 0 0 80px #ff0080, 0 0 120px #ff0080;
+            animation: countdownBounce 1s ease-out;
+        }
+        
+        @keyframes countdownBounce {
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.3) rotate(10deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .btn-neon {
+            background: rgba(0, 255, 255, 0.2);
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 12px 24px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        
+        .btn-neon:hover {
+            background: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 30px #00ffff;
+            transform: translateY(-3px) scale(1.05);
+        }
+        
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            z-index: 100;
+        }
+        
+        .status-connected {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .status-disconnected {
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #ff0000;
+            color: #ff0000;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+        }
+        
+        .player-switch {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            font-weight: 900;
+            color: #ffff00;
+            text-shadow: 0 0 40px #ffff00;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .player-switch.show {
+            animation: playerSwitchAnim 2s ease-out forwards;
+        }
+        
+        @keyframes playerSwitchAnim {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5) rotate(-10deg);
+            }
+            30% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2) rotate(5deg);
+            }
+            70% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8) rotate(0deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-particles"></div>
+    <div class="neon-grid"></div>
+    <div class="status-indicator status-disconnected" id="status">MQTT: DISCONNECTED</div>
+    <div class="player-switch" id="playerSwitch">PLAYER 2 TURN!</div>
+    
+    <div class="dart-history">
+        <div class="history-title">ROUND HISTORY</div>
+        <div class="dart-scores" id="dartHistory"></div>
+    </div>
+    
+    <div class="game-container">
+        <div class="top-bar">
+            <div class="game-title">EPIC DARTS ARCADE</div>
+            <div class="round-info">
+                <div class="round-counter">ROUND <span id="roundNumber">1</span>/3</div>
+                <div class="dart-counter" id="dartCounter">DART 1</div>
+            </div>
+        </div>
+        
+        <div class="players-container">
+            <div class="player-section active" id="player1Section">
+                <div class="player-name">PLAYER 1</div>
+                <div class="score-display">
+                    <div class="current-leg" id="legScore1">501</div>
+                    <div class="round-total" id="roundTotal1">0</div>
+                    <div class="incoming-score" id="incomingScore1"></div>
+                </div>
+            </div>
+            
+            <div class="player-section" id="player2Section">
+                <div class="player-name">PLAYER 2</div>
+                <div class="score-display">
+                    <div class="current-leg" id="legScore2">501</div>
+                    <div class="round-total" id="roundTotal2">0</div>
+                    <div class="incoming-score" id="incomingScore2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="countdown-overlay" id="countdownOverlay">
+        <div class="countdown-number" id="countdownNumber">3</div>
+    </div>
+    
+    <div class="controls">
+        <button class="btn-neon" onclick="simulateScore()">Simulate Score</button>
+        <button class="btn-neon" onclick="resetGame()">New Game</button>
+        <button class="btn-neon" onclick="connectMQTT()">Connect MQTT</button>
+    </div>
+
+    <script>
+        class EpicDartsScorer {
+            constructor() {
+                this.players = [
+                    { legScore: 501, roundTotal: 0, dartHistory: [] },
+                    { legScore: 501, roundTotal: 0, dartHistory: [] }
+                ];
+                this.currentPlayer = 0;
+                this.currentRound = 1;
+                this.currentDart = 1;
+                this.allDartHistory = [];
+                this.mqttClient = null;
+                this.isConnected = false;
+                this.audioContext = null;
+                
+                this.elements = {
+                    legScore1: document.getElementById('legScore1'),
+                    legScore2: document.getElementById('legScore2'),
+                    roundTotal1: document.getElementById('roundTotal1'),
+                    roundTotal2: document.getElementById('roundTotal2'),
+                    roundNumber: document.getElementById('roundNumber'),
+                    dartCounter: document.getElementById('dartCounter'),
+                    incomingScore1: document.getElementById('incomingScore1'),
+                    incomingScore2: document.getElementById('incomingScore2'),
+                    status: document.getElementById('status'),
+                    countdownOverlay: document.getElementById('countdownOverlay'),
+                    countdownNumber: document.getElementById('countdownNumber'),
+                    player1Section: document.getElementById('player1Section'),
+                    player2Section: document.getElementById('player2Section'),
+                    playerSwitch: document.getElementById('playerSwitch'),
+                    dartHistory: document.getElementById('dartHistory')
+                };
+                
+                this.initAudio();
+                this.updateDisplay();
+                this.createFloatingParticles();
+            }
+            
+            initAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.masterGain = this.audioContext.createGain();
+                    this.masterGain.gain.setValueAtTime(0.8, this.audioContext.currentTime);
+                    this.masterGain.connect(this.audioContext.destination);
+                    console.log("Audio initialized successfully");
+                } catch (error) {
+                    console.log("Audio not supported:", error);
+                }
+            }
+            
+            resumeAudioContext() {
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().then(() => {
+                        console.log("Audio context resumed");
+                    });
+                }
+            }
+            
+            createReverb() {
+                const convolver = this.audioContext.createConvolver();
+                const length = this.audioContext.sampleRate * 4; // Longer reverb
+                const impulse = this.audioContext.createBuffer(2, length, this.audioContext.sampleRate);
+                
+                for (let channel = 0; channel < 2; channel++) {
+                    const channelData = impulse.getChannelData(channel);
+                    for (let i = 0; i < length; i++) {
+                        // Create a sharp, metallic reverb impulse
+                        const decay = Math.pow(1 - i / length, 0.3); // Slower decay for longer reverb
+                        const noise = (Math.random() * 2 - 1) * decay;
+                        const early = Math.exp(-i / (this.audioContext.sampleRate * 0.1)) * Math.sin(i * 0.01);
+                        channelData[i] = (noise * 0.7 + early * 0.3) * decay;
+                    }
+                }
+                convolver.buffer = impulse;
+                return convolver;
+            }
+            
+            playModernSound(type, params = {}) {
+                if (!this.audioContext) {
+                    console.log("Audio context not available");
+                    return;
+                }
+                
+                // Resume audio context if suspended
+                this.resumeAudioContext();
+                
+                const now = this.audioContext.currentTime;
+                const mainGain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+                const reverb = this.createReverb();
+                const reverbGain = this.audioContext.createGain();
+                const dryGain = this.audioContext.createGain();
+                
+                // Set up audio routing
+                mainGain.connect(filter);
+                
+                // Dry path (direct)
+                filter.connect(dryGain);
+                dryGain.connect(this.masterGain);
+                dryGain.gain.setValueAtTime(0.4, now);
+                
+                // Wet path (reverb)
+                filter.connect(reverb);
+                reverb.connect(reverbGain);
+                reverbGain.connect(this.masterGain);
+                reverbGain.gain.setValueAtTime(0.6, now);
+                
+                console.log("Playing sound:", type, params);
+                
+                switch(type) {
+                    case 'score':
+                        this.playScoreSound(mainGain, filter, params.score || 50, now);
+                        break;
+                    case 'bust':
+                        this.playBustSound(mainGain, filter, now);
+                        break;
+                    case 'switch':
+                        this.playSwitchSound(mainGain, filter, now);
+                        break;
+                    case 'countdown':
+                        this.playCountdownSound(mainGain, filter, params.count || 3, now);
+                        break;
+                    case 'victory':
+                        this.playVictorySound(mainGain, filter, now);
+                        break;
+                    case 'connect':
+                        this.playConnectSound(mainGain, filter, now);
+                        break;
+                    case 'reset':
+                        this.playResetSound(mainGain, filter, now);
+                        break;
+                }
+            }
+            
+            playScoreSound(gainNode, filter, score, startTime) {
+                // Sharp, bright arcade sound with immediate attack
+                const duration = 0.25; // Slightly longer for audibility
+                const baseFreq = 800 + (score * 6); // High base frequency
+                
+                // Set up filter
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(600, startTime);
+                filter.Q.setValueAtTime(2, startTime);
+                
+                console.log("Creating score sound with baseFreq:", baseFreq);
+                
+                // Sharp attack layer
+                const attackOsc = this.audioContext.createOscillator();
+                const attackGain = this.audioContext.createGain();
+                attackOsc.type = 'square';
+                attackOsc.frequency.setValueAtTime(baseFreq, startTime);
+                attackOsc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, startTime + 0.05);
+                attackGain.gain.setValueAtTime(0.5, startTime);
+                attackGain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                attackOsc.connect(attackGain);
+                attackGain.connect(gainNode);
+                
+                // Bright ping layer
+                const pingOsc = this.audioContext.createOscillator();
+                const pingGain = this.audioContext.createGain();
+                pingOsc.type = 'sine';
+                pingOsc.frequency.setValueAtTime(baseFreq * 2, startTime);
+                pingOsc.frequency.exponentialRampToValueAtTime(baseFreq * 1.2, startTime + duration);
+                pingGain.gain.setValueAtTime(0.6, startTime);
+                pingGain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                pingOsc.connect(pingGain);
+                pingGain.connect(gainNode);
+                
+                // Start oscillators
+                attackOsc.start(startTime);
+                attackOsc.stop(startTime + duration);
+                pingOsc.start(startTime);
+                pingOsc.stop(startTime + duration);
+                
+                console.log("Score sound oscillators started");
+            }
+            
+            playBustSound(gainNode, filter, startTime) {
+                // Sharp, aggressive bust sound
+                const duration = 0.3;
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(2000, startTime);
+                filter.frequency.exponentialRampToValueAtTime(800, startTime + duration);
+                filter.Q.setValueAtTime(15, startTime); // Sharp filter
+                
+                const osc1 = this.audioContext.createOscillator();
+                const osc2 = this.audioContext.createOscillator();
+                const gain1 = this.audioContext.createGain();
+                const gain2 = this.audioContext.createGain();
+                
+                osc1.type = 'square';
+                osc1.frequency.setValueAtTime(800, startTime);
+                osc1.frequency.exponentialRampToValueAtTime(200, startTime + duration);
+                
+                osc2.type = 'square';
+                osc2.frequency.setValueAtTime(803, startTime); // Slight detune for harshness
+                osc2.frequency.exponentialRampToValueAtTime(203, startTime + duration);
+                
+                gain1.gain.setValueAtTime(0.7, startTime);
+                gain1.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                gain2.gain.setValueAtTime(0.7, startTime);
+                gain2.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                gain1.connect(gainNode);
+                gain2.connect(gainNode);
+                
+                osc1.start(startTime);
+                osc2.start(startTime);
+                osc1.stop(startTime + duration);
+                osc2.stop(startTime + duration);
+            }
+            
+            playSwitchSound(gainNode, filter, startTime) {
+                // Sharp UI click with metallic ring
+                const duration = 0.12;
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(1200, startTime);
+                filter.Q.setValueAtTime(8, startTime);
+                
+                const clickOsc = this.audioContext.createOscillator();
+                const clickGain = this.audioContext.createGain();
+                
+                clickOsc.type = 'square';
+                clickOsc.frequency.setValueAtTime(2400, startTime);
+                clickOsc.frequency.exponentialRampToValueAtTime(1800, startTime + duration);
+                
+                clickGain.gain.setValueAtTime(0.5, startTime);
+                clickGain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                
+                clickOsc.connect(clickGain);
+                clickGain.connect(gainNode);
+                
+                clickOsc.start(startTime);
+                clickOsc.stop(startTime + duration);
+            }
+            
+            playCountdownSound(gainNode, filter, count, startTime) {
+                // Sharp, urgent countdown beep
+                const duration = 0.08;
+                const baseFreq = 1800 + (count * 200);
+                
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(1000, startTime);
+                filter.Q.setValueAtTime(12, startTime);
+                
+                const beepOsc = this.audioContext.createOscillator();
+                const beepGain = this.audioContext.createGain();
+                
+                beepOsc.type = 'square';
+                beepOsc.frequency.setValueAtTime(baseFreq, startTime);
+                
+                beepGain.gain.setValueAtTime(0.6, startTime);
+                beepGain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                
+                beepOsc.connect(beepGain);
+                beepGain.connect(gainNode);
+                
+                beepOsc.start(startTime);
+                beepOsc.stop(startTime + duration);
+            }
+            
+            playVictorySound(gainNode, filter, startTime) {
+                // Epic victory fanfare with modern production
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(100, startTime);
+                
+                const chords = [
+                    [523.25, 659.25, 783.99], // C major
+                    [587.33, 739.99, 880.00], // D major  
+                    [659.25, 830.61, 987.77], // E major
+                    [698.46, 880.00, 1046.50] // F major
+                ];
+                
+                chords.forEach((chord, i) => {
+                    const delay = i * 0.3;
+                    chord.forEach(freq => {
+                        const osc = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+                        
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, startTime + delay);
+                        
+                        gain.gain.setValueAtTime(0, startTime + delay);
+                        gain.gain.linearRampToValueAtTime(0.2, startTime + delay + 0.1);
+                        gain.gain.exponentialRampToValueAtTime(0.01, startTime + delay + 0.8);
+                        
+                        osc.connect(gain);
+                        gain.connect(gainNode);
+                        
+                        osc.start(startTime + delay);
+                        osc.stop(startTime + delay + 0.8);
+                    });
+                });
+            }
+            
+            playConnectSound(gainNode, filter, startTime) {
+                // Modern connection success sound
+                const duration = 0.6;
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(2000, startTime);
+                
+                const osc1 = this.audioContext.createOscillator();
+                const osc2 = this.audioContext.createOscillator();
+                const gain1 = this.audioContext.createGain();
+                const gain2 = this.audioContext.createGain();
+                
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(440, startTime);
+                osc1.frequency.exponentialRampToValueAtTime(880, startTime + duration);
+                
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(660, startTime + 0.2);
+                
+                gain1.gain.setValueAtTime(0.3, startTime);
+                gain1.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                gain2.gain.setValueAtTime(0.2, startTime + 0.2);
+                gain2.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                gain1.connect(gainNode);
+                gain2.connect(gainNode);
+                
+                osc1.start(startTime);
+                osc2.start(startTime + 0.2);
+                osc1.stop(startTime + duration);
+                osc2.stop(startTime + duration);
+            }
+            
+            playResetSound(gainNode, filter, startTime) {
+                // Clean reset/refresh sound
+                const duration = 0.4;
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(300, startTime);
+                
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, startTime);
+                osc.frequency.exponentialRampToValueAtTime(400, startTime + duration);
+                
+                gain.gain.setValueAtTime(0.3, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(gainNode);
+                
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            }
+            
+            createFloatingParticles() {
+                const container = document.querySelector('.floating-particles');
+                
+                setInterval(() => {
+                    if (Math.random() < 0.7) {
+                        const particle = document.createElement('div');
+                        particle.className = 'particle-float';
+                        particle.style.left = Math.random() * 100 + '%';
+                        particle.style.animationDelay = Math.random() * 2 + 's';
+                        particle.style.background = `hsl(${Math.random() * 60 + 180}, 100%, 70%)`;
+                        container.appendChild(particle);
+                        
+                        setTimeout(() => {
+                            particle.remove();
+                        }, 8000);
+                    }
+                }, 500);
+            }
+            
+            connectMQTT() {
+                try {
+                    this.mqttClient = new Paho.MQTT.Client('broker.hivemq.com', 8000, 'epicDarts_' + Math.random());
+                    
+                    this.mqttClient.onConnectionLost = (responseObject) => {
+                        if (responseObject.errorCode !== 0) {
+                            console.log("MQTT Connection lost: " + responseObject.errorMessage);
+                            this.updateConnectionStatus(false);
+                        }
+                    };
+                    
+                    this.mqttClient.onMessageArrived = (message) => {
+                        const score = parseInt(message.payloadString);
+                        if (!isNaN(score) && score >= 0 && score <= 180) {
+                            this.addScore(score);
+                        }
+                    };
+                    
+                    this.mqttClient.connect({
+                        onSuccess: () => {
+                            console.log("MQTT Connected");
+                            this.updateConnectionStatus(true);
+                            this.mqttClient.subscribe("darts/score");
+                            this.playModernSound('connect');
+                        },
+                        onFailure: (message) => {
+                            console.log("MQTT Connection failed: " + message.errorMessage);
+                            this.updateConnectionStatus(false);
+                        }
+                    });
+                } catch (error) {
+                    console.log("MQTT setup failed:", error);
+                    this.updateConnectionStatus(false);
+                }
+            }
+            
+            updateConnectionStatus(connected) {
+                this.isConnected = connected;
+                const status = this.elements.status;
+                if (connected) {
+                    status.className = 'status-indicator status-connected';
+                    status.textContent = 'MQTT: CONNECTED';
+                } else {
+                    status.className = 'status-indicator status-disconnected';
+                    status.textContent = 'MQTT: DISCONNECTED';
+                }
+            }
+            
+            addScore(score) {
+                if (score === 0) {
+                    this.playModernSound('bust');
+                    this.nextDart();
+                    return;
+                }
+                
+                const player = this.players[this.currentPlayer];
+                
+                // Play modern score sound
+                this.playModernSound('score', { score });
+                
+                // Screen shake for high scores
+                if (score >= 100) {
+                    document.body.classList.add('screen-shake');
+                    setTimeout(() => {
+                        document.body.classList.remove('screen-shake');
+                    }, 600);
+                }
+                
+                // Show incoming score animation
+                this.showIncomingScore(score);
+                
+                // Add to round total and history
+                player.roundTotal += score;
+                player.dartHistory.push(score);
+                this.allDartHistory.push(score);
+                this.updateDartHistory();
+                
+                // Update displays with animations
+                setTimeout(() => {
+                    this.animateRoundTotal();
+                    setTimeout(() => {
+                        this.subtractFromLeg(score);
+                    }, 300);
+                }, 800);
+                
+                // Move to next dart
+                this.nextDart();
+                
+                // Create explosion particles
+                this.createExplosionParticles();
+            }
+            
+            showIncomingScore(score) {
+                const element = this.currentPlayer === 0 ? this.elements.incomingScore1 : this.elements.incomingScore2;
+                element.textContent = '+' + score;
+                element.className = 'incoming-score score-animation';
+                
+                setTimeout(() => {
+                    element.className = 'incoming-score';
+                }, 2000);
+            }
+            
+            animateRoundTotal() {
+                const element = this.currentPlayer === 0 ? this.elements.roundTotal1 : this.elements.roundTotal2;
+                element.classList.add('round-increase');
+                element.textContent = this.players[this.currentPlayer].roundTotal;
+                
+                setTimeout(() => {
+                    element.classList.remove('round-increase');
+                }, 800);
+            }
+            
+            subtractFromLeg(score) {
+                const player = this.players[this.currentPlayer];
+                const newLegScore = player.legScore - score;
+                const element = this.currentPlayer === 0 ? this.elements.legScore1 : this.elements.legScore2;
+                
+                if (newLegScore < 0 || (newLegScore === 0 && score % 2 !== 0)) {
+                    // Bust - play bust sound and flash red
+                    this.playModernSound('bust');
+                    element.style.color = '#ff0000';
+                    element.style.textShadow = '0 0 50px #ff0000';
+                    setTimeout(() => {
+                        element.style.color = '#fff';
+                        element.style.textShadow = '0 0 40px rgba(255, 255, 255, 0.8)';
+                    }, 1500);
+                    return;
+                }
+                
+                player.legScore = newLegScore;
+                element.classList.add('leg-decrease');
+                element.textContent = player.legScore;
+                
+                setTimeout(() => {
+                    element.classList.remove('leg-decrease');
+                }, 1200);
+                
+                if (player.legScore === 0) {
+                    this.gameWon();
+                }
+            }
+            
+            nextDart() {
+                this.currentDart++;
+                
+                if (this.currentDart > 3) {
+                    this.endRound();
+                } else {
+                    this.updateDartCounter();
+                }
+            }
+            
+            switchPlayer() {
+                // Remove active class from current player
+                const currentSection = this.currentPlayer === 0 ? this.elements.player1Section : this.elements.player2Section;
+                currentSection.classList.remove('active');
+                
+                // Switch to next player
+                this.currentPlayer = (this.currentPlayer + 1) % 2;
+                
+                // Add active class to new current player
+                const newSection = this.currentPlayer === 0 ? this.elements.player1Section : this.elements.player2Section;
+                newSection.classList.add('active');
+                
+                // Show player switch animation
+                this.elements.playerSwitch.textContent = `PLAYER ${this.currentPlayer + 1} TURN!`;
+                this.elements.playerSwitch.classList.add('show');
+                
+                setTimeout(() => {
+                    this.elements.playerSwitch.classList.remove('show');
+                }, 2000);
+                
+                // Play switch sound
+                this.playModernSound('switch');
+            }
+            
+            updateDartCounter() {
+                this.elements.dartCounter.textContent = 'DART ' + this.currentDart;
+                this.elements.dartCounter.style.animation = 'none';
+                setTimeout(() => {
+                    this.elements.dartCounter.style.animation = 'dartFloat 3s ease-in-out infinite';
+                }, 10);
+            }
+            
+            updateDartHistory() {
+                const historyElement = this.elements.dartHistory;
+                historyElement.innerHTML = '';
+                
+                // Show last 9 darts
+                const recentDarts = this.allDartHistory.slice(-9);
+                recentDarts.forEach((score, index) => {
+                    const dartElement = document.createElement('div');
+                    dartElement.className = 'dart-score';
+                    dartElement.textContent = score;
+                    dartElement.style.animationDelay = (index * 0.1) + 's';
+                    
+                    // Color coding for different score ranges
+                    if (score >= 100) {
+                        dartElement.style.borderColor = '#ffff00';
+                        dartElement.style.color = '#ffff00';
+                        dartElement.style.background = 'rgba(255, 255, 0, 0.2)';
+                    } else if (score >= 50) {
+                        dartElement.style.borderColor = '#ff6600';
+                        dartElement.style.color = '#ff6600';
+                        dartElement.style.background = 'rgba(255, 102, 0, 0.2)';
+                    }
+                    
+                    historyElement.appendChild(dartElement);
+                });
+            }
+            
+            endRound() {
+                // Reset round totals for both players
+                this.players[0].roundTotal = 0;
+                this.players[1].roundTotal = 0;
+                
+                // Switch to next player
+                this.switchPlayer();
+                
+                // Start countdown for next round
+                this.showCountdown(() => {
+                    this.currentRound++;
+                    this.currentDart = 1;
+                    this.updateDisplay();
+                });
+            }
+            
+            showCountdown(callback) {
+                const overlay = this.elements.countdownOverlay;
+                const number = this.elements.countdownNumber;
+                
+                let count = 3;
+                overlay.style.display = 'flex';
+                
+                const countdownInterval = setInterval(() => {
+                    number.textContent = count;
+                    number.style.animation = 'none';
+                    setTimeout(() => {
+                        number.style.animation = 'countdownBounce 1s ease-out';
+                    }, 10);
+                    
+                    // Play countdown sound
+                    this.playModernSound('countdown', { count });
+                    
+                    count--;
+                    
+                    if (count < 0) {
+                        clearInterval(countdownInterval);
+                        overlay.style.display = 'none';
+                        callback();
+                    }
+                }, 1000);
+            }
+            
+            createExplosionParticles() {
+                const section = this.currentPlayer === 0 ? this.elements.player1Section : this.elements.player2Section;
+                const rect = section.getBoundingClientRect();
+                
+                for (let i = 0; i < 15; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'explosion-particles';
+                    
+                    const angle = (Math.PI * 2 * i) / 15;
+                    const distance = 100 + Math.random() * 100;
+                    const dx = Math.cos(angle) * distance;
+                    const dy = Math.sin(angle) * distance;
+                    
+                    particle.style.left = (rect.width / 2) + 'px';
+                    particle.style.top = (rect.height / 2) + 'px';
+                    particle.style.setProperty('--dx', dx + 'px');
+                    particle.style.setProperty('--dy', dy + 'px');
+                    
+                    // Random colors for particles
+                    const colors = ['#ffff00', '#ff0080', '#00ffff', '#ff6600', '#80ff80'];
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    particle.style.animationDelay = Math.random() * 0.3 + 's';
+                    
+                    section.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        particle.remove();
+                    }, 1500);
+                }
+            }
+            
+            gameWon() {
+                const overlay = this.elements.countdownOverlay;
+                const number = this.elements.countdownNumber;
+                
+                // Play victory sound
+                this.playModernSound('victory');
+                
+                number.textContent = `PLAYER ${this.currentPlayer + 1} WINS!`;
+                number.style.color = '#00ff00';
+                number.style.fontSize = '8rem';
+                number.style.textShadow = '0 0 80px #00ff00, 0 0 120px #00ff00';
+                overlay.style.display = 'flex';
+                
+                // Create victory particle explosion
+                this.createVictoryExplosion();
+                
+                setTimeout(() => {
+                    this.resetGame();
+                    overlay.style.display = 'none';
+                    number.style.color = '#ff0080';
+                    number.style.fontSize = '20rem';
+                    number.style.textShadow = '0 0 80px #ff0080, 0 0 120px #ff0080';
+                }, 4000);
+            }
+            
+            createVictoryExplosion() {
+                const container = document.querySelector('.game-container');
+                
+                for (let i = 0; i < 50; i++) {
+                    const particle = document.createElement('div');
+                    particle.style.position = 'absolute';
+                    particle.style.width = '6px';
+                    particle.style.height = '6px';
+                    particle.style.borderRadius = '50%';
+                    particle.style.left = '50%';
+                    particle.style.top = '50%';
+                    particle.style.pointerEvents = 'none';
+                    particle.style.zIndex = '1000';
+                    
+                    const colors = ['#ffff00', '#ff0080', '#00ffff', '#ff6600', '#80ff80', '#ff4040'];
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    
+                    const angle = (Math.PI * 2 * i) / 50;
+                    const distance = 200 + Math.random() * 300;
+                    const dx = Math.cos(angle) * distance;
+                    const dy = Math.sin(angle) * distance;
+                    
+                    particle.style.animation = `
+                        particleVictory 2s ease-out forwards
+                    `;
+                    
+                    const keyframes = `
+                        @keyframes particleVictory {
+                            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                            100% { transform: translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0); opacity: 0; }
+                        }
+                    `;
+                    
+                    if (!document.querySelector('#victory-keyframes')) {
+                        const style = document.createElement('style');
+                        style.id = 'victory-keyframes';
+                        style.textContent = keyframes;
+                        document.head.appendChild(style);
+                    }
+                    
+                    container.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        particle.remove();
+                    }, 2000);
+                }
+            }
+            
+            updateDisplay() {
+                this.elements.legScore1.textContent = this.players[0].legScore;
+                this.elements.legScore2.textContent = this.players[1].legScore;
+                this.elements.roundTotal1.textContent = this.players[0].roundTotal;
+                this.elements.roundTotal2.textContent = this.players[1].roundTotal;
+                this.elements.roundNumber.textContent = this.currentRound;
+                this.elements.dartCounter.textContent = 'DART ' + this.currentDart;
+            }
+            
+            resetGame() {
+                this.players = [
+                    { legScore: 501, roundTotal: 0, dartHistory: [] },
+                    { legScore: 501, roundTotal: 0, dartHistory: [] }
+                ];
+                this.currentPlayer = 0;
+                this.currentRound = 1;
+                this.currentDart = 1;
+                this.allDartHistory = [];
+                
+                // Reset player sections
+                this.elements.player1Section.classList.add('active');
+                this.elements.player2Section.classList.remove('active');
+                
+                this.updateDisplay();
+                this.updateDartHistory();
+                
+                // Play reset sound
+                this.playModernSound('reset');
+            }
+            
+            simulateScore() {
+                const scores = [0, 5, 15, 20, 25, 26, 30, 40, 45, 50, 60, 81, 85, 100, 120, 140, 180];
+                const weights = [2, 3, 4, 8, 4, 6, 5, 4, 4, 3, 3, 2, 2, 1, 1, 1, 0.5];
+                
+                let random = Math.random() * weights.reduce((a, b) => a + b, 0);
+                let selectedScore = 0;
+                
+                for (let i = 0; i < scores.length; i++) {
+                    random -= weights[i];
+                    if (random <= 0) {
+                        selectedScore = scores[i];
+                        break;
+                    }
+                }
+                
+                this.addScore(selectedScore);
+            }
+        }
+        
+        // Initialize the game
+        const game = new EpicDartsScorer();
+        
+        // Global functions for buttons
+        function connectMQTT() {
+            game.connectMQTT();
+        }
+        
+        function resetGame() {
+            game.resetGame();
+        }
+        
+        function simulateScore() {
+            game.simulateScore();
+        }
+        
+        // Auto-connect MQTT on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                game.connectMQTT();
+            }, 1000);
+        });
+        
+        // Initialize audio context on first user interaction
+        document.addEventListener('click', () => {
+            if (game.audioContext && game.audioContext.state === 'suspended') {
+                game.audioContext.resume().then(() => {
+                    console.log("Audio context resumed on click");
+                });
+            }
+        }, { once: true });
+        
+        // Also try to resume on any interaction
+        document.addEventListener('touchstart', () => {
+            if (game.audioContext && game.audioContext.state === 'suspended') {
+                game.audioContext.resume();
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>

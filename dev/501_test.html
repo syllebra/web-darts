@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Realtime Darts Scoreboard — Multiplayer Arcade</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;600;700&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        :root {
+            --bg-1: #03040a;
+            --bg-2: #061028;
+            --panel: #0b1116;
+            --neon-cyan: #00f7db;
+            --neon-pink: #ff3d6f;
+            --metal: #bfc7cc;
+            --glass: rgba(255, 255, 255, 0.03);
+            --score-size: 16vw;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto;
+            background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+            color: #fff;
+            overflow: hidden;
+        }
+
+        /* Animated background container */
+        #bgCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0
+        }
+
+        #bgGlow {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none
+        }
+
+        .stage {
+            position: relative;
+            z-index: 3;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: center center
+        }
+
+        /* Left: players panel */
+        .panel-left {
+            position: absolute;
+            left: 1rem;
+            top: 1rem;
+            width: 22.5rem;
+            padding: 1rem;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            border-radius: 14px;
+            box-shadow: 0 16px 80px rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 5
+        }
+
+        .players-list {
+            max-height: 52vh;
+            overflow: auto
+        }
+
+        .player-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.7rem;
+            border-radius: 10px;
+            margin-bottom: 0.6rem;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.012), rgba(0, 0, 0, 0.04));
+        }
+
+        .player-item.active {
+            box-shadow: 0 20px 60px rgba(0, 255, 214, 0.06) inset;
+            border: 1px solid rgba(0, 255, 214, 0.05)
+        }
+
+        .player-name {
+            font-weight: 700;
+            font-size: 1rem
+        }
+
+        .player-score {
+            font-family: Orbitron, monospace;
+            font-weight: 900;
+            font-size: 1.05rem
+        }
+
+        /* Right: round historic / log */
+        .panel-right {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            width: 18rem;
+            padding: 1rem;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            border-radius: 14px;
+            box-shadow: 0 16px 80px rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 5
+        }
+
+        .history-title {
+            font-weight: 700;
+            margin-bottom: 0.6rem
+        }
+
+        .round-history {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap
+        }
+
+        .round-slot {
+            width: 4.2rem;
+            height: 4.2rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.02);
+            font-weight: 800
+        }
+
+        .log-list {
+            max-height: 36vh;
+            overflow: auto;
+            margin-top: 0.6rem;
+            font-size: 0.92rem;
+            padding-right: 0.6rem
+        }
+
+        .log-item {
+            padding: 0.26rem 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.03)
+        }
+
+        /* custom scrollbar to match style */
+        .log-list::-webkit-scrollbar {
+            width: 10px
+        }
+
+        .log-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px
+        }
+
+        .log-list::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-pink));
+            border-radius: 10px
+        }
+
+        .log-list {
+            scrollbar-width: thin;
+            scrollbar-color: var(--neon-cyan) rgba(255, 255, 255, 0.02)
+        }
+
+        /* Center big round total */
+        .center-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .round-box {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            padding: 2rem 3rem;
+            border-radius: 20px;
+            text-align: center;
+            transform: translateZ(0);
+            box-shadow: 0 40px 110px rgba(0, 0, 0, 0.6);
+            z-index: 4
+        }
+
+        .round-label {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.64);
+            letter-spacing: 4px
+        }
+
+        .round-value {
+            font-family: Orbitron, monospace;
+            font-size: calc(var(--score-size));
+            font-weight: 900;
+            line-height: 0.82;
+            color: var(--neon-cyan);
+            text-shadow: 0 18px 60px rgba(0, 0, 0, 0.7), 0 0 48px rgba(0, 247, 219, 0.08)
+        }
+
+        /* Leg scores under center */
+        .leg-row {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+            align-items: center
+        }
+
+        .leg-score {
+            font-family: Orbitron;
+            font-size: 4.8vw;
+            font-weight: 900
+        }
+
+        /* Top-right current dart + player — moved right to avoid overlap with right panel */
+        .current-card {
+            position: absolute;
+            right: calc(18rem + 2rem);
+            top: 1.2rem;
+            width: 16rem;
+            padding: 0.9rem 1rem;
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            box-shadow: 0 12px 44px rgba(0, 0, 0, 0.6);
+            z-index: 6
+        }
+
+        .current-player {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.86);
+            letter-spacing: 1px
+        }
+
+        .current-dart {
+            font-family: Orbitron;
+            font-size: 3.9rem;
+            font-weight: 900
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            left: 1rem;
+            bottom: 1rem;
+            width: 24rem;
+            padding: 0.8rem;
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+            z-index: 5
+        }
+
+        .flying-score {
+            position: absolute;
+            pointer-events: none;
+            font-family: Orbitron;
+            font-weight: 900;
+            font-size: 2.6rem;
+            will-change: transform, opacity;
+            color: var(--neon-cyan);
+            text-shadow: 0 6px 30px rgba(0, 0, 0, 0.72)
+        }
+
+        .spark {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            pointer-events: none;
+            mix-blend-mode: screen
+        }
+
+        .overlay-alert {
+            position: fixed;
+            left: 50%;
+            top: 40%;
+            transform: translate(-50%, -50%);
+            z-index: 8;
+            pointer-events: none
+        }
+
+        .alert-bust,
+        .alert-win {
+            font-family: Orbitron;
+            font-size: 8vw;
+            font-weight: 900;
+            padding: 1rem 2rem;
+            border-radius: 14px;
+            text-align: center;
+            display: inline-block;
+            opacity: 0
+        }
+
+        .alert-bust {
+            background: linear-gradient(90deg, rgba(255, 40, 70, 0.14), rgba(160, 40, 70, 0.06));
+            color: #ffb3b3;
+            box-shadow: 0 40px 120px rgba(255, 40, 70, 0.08)
+        }
+
+        .alert-win {
+            background: linear-gradient(90deg, rgba(0, 240, 219, 0.12), rgba(40, 200, 255, 0.04));
+            color: #eafffb;
+            box-shadow: 0 40px 120px rgba(0, 240, 219, 0.08)
+        }
+
+        /* Player-change full screen overlay + countdown */
+        .player-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none
+        }
+
+        .player-overlay .name {
+            font-family: Orbitron;
+            font-size: 9.5vw;
+            color: var(--neon-pink);
+            text-shadow: 0 20px 80px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transform: scale(0.8)
+        }
+
+        .countdown {
+            position: absolute;
+            font-family: Orbitron;
+            font-size: 16vw;
+            color: var(--neon-cyan);
+            text-shadow: 0 30px 100px rgba(0, 0, 0, 0.9);
+            opacity: 0;
+            pointer-events: none
+        }
+
+        .hints {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 1rem;
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 0.82rem;
+            z-index: 3
+        }
+
+        @media (max-width:700px) {
+            .player-score {
+                font-size: 0.9rem
+            }
+
+            .round-value {
+                font-size: 18vw
+            }
+
+            .alert-bust,
+            .alert-win {
+                font-size: 12vw
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="bgCanvas"></canvas>
+    <canvas id="bgGlow"></canvas>
+    <div class="stage">
+
+        <div class="panel-left" id="leftPanel">
+            <div class="d-flex mb-2 align-items-center justify-content-between">
+                <strong>Players</strong>
+                <div class="small text-muted">Multiplayer X01</div>
+            </div>
+            <div class="players-list" id="playersList"></div>
+
+            <div class="d-flex gap-2 mt-2">
+                <input id="newPlayerName" class="form-control form-control-sm" placeholder="Name (e.g. Alice)">
+                <button id="addPlayerBtn" class="btn btn-sm btn-primary">Add</button>
+            </div>
+            <hr>
+            <div class="d-flex gap-2">
+                <input id="startLegInput" class="form-control form-control-sm" value="501">
+                <button id="startMatchBtn" class="btn btn-sm btn-outline-light">Start Match</button>
+            </div>
+        </div>
+
+        <div class="panel-right" id="rightPanel">
+            <div class="history-title">Round History (active)</div>
+            <div class="round-history" id="roundHistory"></div>
+            <div class="history-title mt-2">Match Log</div>
+            <div class="log-list" id="logList"></div>
+        </div>
+
+        <div class="center-wrap">
+            <div class="round-box" id="roundBox">
+                <div class="round-label">ROUND TOTAL</div>
+                <div class="round-value" id="roundTotal">0</div>
+            </div>
+
+            <div class="leg-row">
+                <div class="text-center">
+                    <div class="small text-muted">Current Player</div>
+                    <div class="leg-score" id="activePlayerName">—</div>
+                </div>
+                <div class="text-center">
+                    <div class="small text-muted">Leg Remaining</div>
+                    <div class="leg-score" id="legScore">501</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="current-card" id="currentCard">
+            <div class="current-player" id="currentPlayerLabel">—</div>
+            <div class="current-dart" id="currentDartValue">—</div>
+        </div>
+
+        <div class="controls" id="controls">
+            <div class="mb-2"><strong>MQTT</strong></div>
+            <div class="mb-2 small">Broker WS URL</div>
+            <input id="brokerUrl" class="form-control form-control-sm mb-2"
+                placeholder="wss://broker.example:8083/mqtt">
+            <div class="mb-2 small">Topic</div>
+            <input id="topic" class="form-control form-control-sm mb-2" value="darts/score">
+            <div class="d-flex gap-2">
+                <button id="connectBtn" class="btn btn-sm btn-success flex-fill">Connect</button>
+                <button id="simulateBtn" class="btn btn-sm btn-secondary">Sim</button>
+            </div>
+            <div class="mt-2 small text-muted">Payload: plain integer (e.g. <code>60</code>) = assigned to active
+                player, or JSON <code>{"player":"Alice","score":60}</code>.</div>
+        </div>
+
+        <div class="overlay-alert">
+            <div class="alert-bust" id="alertBust">BUST</div>
+            <div class="alert-win" id="alertWin">WIN</div>
+        </div>
+
+        <div class="player-overlay" id="playerOverlay">
+            <div class="name" id="playerOverlayName"></div>
+            <div class="countdown" id="countdownEl"></div>
+        </div>
+
+        <div class="hints">Keyboard: <strong>s</strong>=Sim &nbsp; <strong>n</strong>=Next player &nbsp;
+            <strong>u</strong>=Undo</div>
+    </div>
+
+    <script>
+        // Multiplayer realtime darts scoreboard — fixes: history overlap, custom scrollbar; adds countdown + fullscreen shake + stronger impact sounds
+
+        // ---------------------- Background animation ----------------------
+        const bg = document.getElementById('bgCanvas'); const g = document.getElementById('bgGlow'); const bgCtx = bg.getContext('2d'); const glowCtx = g.getContext('2d'); let W, H;
+        function resizeAll() { W = bg.width = g.width = window.innerWidth; H = bg.height = g.height = window.innerHeight; }
+        window.addEventListener('resize', resizeAll); resizeAll();
+
+        const blobs = [];
+        for (let i = 0; i < 7; i++) { blobs.push({ x: Math.random() * W, y: Math.random() * H, r: 160 + Math.random() * 280, vx: (Math.random() - 0.5) * 0.06, vy: (Math.random() - 0.5) * 0.06, hue: 160 + Math.random() * 120, flick: Math.random() * 0.9 }); }
+
+        function drawBackground(dt) {
+            bgCtx.clearRect(0, 0, W, H); const grd = bgCtx.createLinearGradient(0, 0, W, H); grd.addColorStop(0, '#06112a'); grd.addColorStop(1, '#03040a'); bgCtx.fillStyle = grd; bgCtx.fillRect(0, 0, W, H);
+            const spacing = 36; const offset = (performance.now() * 0.025) % spacing; bgCtx.save(); bgCtx.globalAlpha = 0.09; bgCtx.strokeStyle = '#00f7db'; bgCtx.lineWidth = 1.2; for (let x = -spacing; x < W + spacing; x += spacing) { bgCtx.beginPath(); bgCtx.moveTo(x + offset, 0); bgCtx.lineTo(x + offset, H); bgCtx.stroke(); } bgCtx.restore();
+            for (const b of blobs) { b.x += b.vx * dt * 0.055; b.y += b.vy * dt * 0.055; if (b.x < -b.r) b.x = W + b.r; if (b.x > W + b.r) b.x = -b.r; if (b.y < -b.r) b.y = H + b.r; if (b.y > H + b.r) b.y = -b.r; const grd2 = bgCtx.createRadialGradient(b.x, b.y, b.r * 0.08, b.x, b.y, b.r); const hue = b.hue; const alpha = 0.12 + 0.15 * b.flick; grd2.addColorStop(0, `hsla(${hue}, 95%, 67%, ${alpha})`); grd2.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 92%, 48%, ${alpha * 0.45})`); grd2.addColorStop(1, `rgba(0,0,0,0)`); bgCtx.fillStyle = grd2; bgCtx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); }
+            glowCtx.clearRect(0, 0, W, H); for (const b of blobs) { const g2 = glowCtx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r); g2.addColorStop(0, `hsla(${b.hue}, 95%, 67%, 0.18)`); g2.addColorStop(0.5, `hsla(${b.hue}, 95%, 50%, 0.06)`); g2.addColorStop(1, `rgba(0,0,0,0)`); glowCtx.fillStyle = g2; glowCtx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); }
+            bgCtx.save(); bgCtx.globalAlpha = 0.04; bgCtx.fillStyle = '#ffffff'; for (let y = 0; y < H; y += 2) { bgCtx.fillRect(0, y, W, 0.35); } bgCtx.restore();
+            bgCtx.save(); bgCtx.globalAlpha = 0.08; for (let i = 0; i < 40; i++) { const x = (i * 73 + (performance.now() * 0.02)) % W; const y = 40 + (i * 37) % (H - 80); bgCtx.fillStyle = 'rgba(255,255,255,' + (0.06 + 0.04 * Math.sin(performance.now() * 0.002 + i)) + ')'; bgCtx.fillRect(x, y, 2, 2); } bgCtx.restore();
+        }
+
+        let last = performance.now(); function frame(now) { const dt = now - last; drawBackground(dt); last = now; requestAnimationFrame(frame); } requestAnimationFrame(frame);
+
+        // ---------------------- App state ----------------------
+        let players = []; let activeIndex = -1; let legStart = parseInt(document.getElementById('startLegInput').value) || 501; let client = null; let matchLog = [];
+
+        // DOM refs
+        const playersListEl = document.getElementById('playersList'); const addPlayerBtn = document.getElementById('addPlayerBtn'); const newPlayerName = document.getElementById('newPlayerName');
+        const startMatchBtn = document.getElementById('startMatchBtn'); const roundTotalEl = document.getElementById('roundTotal'); const legScoreEl = document.getElementById('legScore');
+        const activePlayerNameEl = document.getElementById('activePlayerName'); const currentDartValueEl = document.getElementById('currentDartValue'); const currentPlayerLabel = document.getElementById('currentPlayerLabel');
+        const connectBtn = document.getElementById('connectBtn'); const brokerUrlInput = document.getElementById('brokerUrl'); const topicInput = document.getElementById('topic'); const simulateBtn = document.getElementById('simulateBtn');
+        const alertBust = document.getElementById('alertBust'); const alertWin = document.getElementById('alertWin'); const roundHistoryEl = document.getElementById('roundHistory'); const logListEl = document.getElementById('logList');
+        const playerOverlay = document.getElementById('playerOverlay'); const playerOverlayName = document.getElementById('playerOverlayName'); const countdownEl = document.getElementById('countdownEl');
+
+        // ---------------------- Audio: stronger explosion/impact-style sounds ----------------------
+        const AudioCtx = window.AudioContext || window.webkitAudioContext; let audioCtx = null; let reverb = null; let master = null; let wetGain = null;
+        function ensureAudio() { if (audioCtx) return; audioCtx = new AudioCtx(); master = audioCtx.createGain(); master.gain.value = 0.9; master.connect(audioCtx.destination); createReverb(); }
+        function createReverb() { const sr = audioCtx.sampleRate; const len = sr * 1.6; const buff = audioCtx.createBuffer(2, len, sr); for (let ch = 0; ch < 2; ch++) { const data = buff.getChannelData(ch); for (let i = 0; i < len; i++) { const t = i / len; const env = Math.pow(1 - t, 2.2) * Math.exp(-t * 1.8); data[i] = (Math.random() * 2 - 1) * env * (0.6 + 0.4 * (1 - t)); } } reverb = audioCtx.createConvolver(); reverb.buffer = buff; reverb.normalize = true; wetGain = audioCtx.createGain(); wetGain.gain.value = 0.5; reverb.connect(wetGain); wetGain.connect(master); }
+
+        // stronger percussive impact used for player change & heavy hits
+        function playImpact(level = 1.0) {
+            try {
+                ensureAudio(); const t = audioCtx.currentTime;
+                // big transient: filtered noise burst
+                const nbLen = 4096; const noiseBuffer = audioCtx.createBuffer(1, nbLen, audioCtx.sampleRate); const nb = noiseBuffer.getChannelData(0); for (let i = 0; i < nbLen; i++) nb[i] = (Math.random() * 2 - 1) * Math.exp(-i / nbLen * 6);
+                const burst = audioCtx.createBufferSource(); burst.buffer = noiseBuffer; const burstFilter = audioCtx.createBiquadFilter(); burstFilter.type = 'bandpass'; burstFilter.frequency.value = 800; burstFilter.Q.value = 0.7;
+                const burstGain = audioCtx.createGain(); burstGain.gain.value = 0.0001 * level;
+                burst.connect(burstFilter).connect(burstGain);
+
+                // low sub thump
+                const sub = audioCtx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 34; const subGain = audioCtx.createGain(); subGain.gain.value = 0.0001;
+
+                // distortion for punch
+                const shaper = audioCtx.createWaveShaper(); shaper.curve = makeDistCurve(450 * level); shaper.oversample = '4x';
+
+                // chain: burstGain -> shaper -> reverb + master, sub -> master
+                burstGain.connect(shaper); shaper.connect(reverb); shaper.connect(master);
+                sub.connect(subGain); subGain.connect(master);
+
+                // envelopes
+                burstGain.gain.setValueAtTime(0.0001, t); burstGain.gain.exponentialRampToValueAtTime(1.0 * level, t + 0.006); burstGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+                subGain.gain.setValueAtTime(0.0001, t); subGain.gain.exponentialRampToValueAtTime(0.55 * level, t + 0.02); subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+
+                burst.start(t); sub.start(t);
+                setTimeout(() => { try { burst.stop(); sub.stop(); } catch (e) { } }, 1200);
+            } catch (e) { console.warn('impact err', e); }
+        }
+
+        // refined hit sound uses an added impact layer for heavier punch
+        function playArcadeHit(score = 50) {
+            try {
+                ensureAudio(); const t = audioCtx.currentTime; const intensity = Math.min(1, Math.max(0.12, score / 140));
+                // short bright click
+                const click = audioCtx.createOscillator(); click.type = 'square'; click.frequency.value = 220 + score; const clickG = audioCtx.createGain(); clickG.gain.value = 0.0001; click.connect(clickG); clickG.connect(master);
+                clickG.gain.setValueAtTime(0.0001, t); clickG.gain.exponentialRampToValueAtTime(0.55 * intensity, t + 0.004); clickG.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+
+                // metallic body
+                const carrier = audioCtx.createOscillator(); carrier.type = 'sawtooth'; const carrierGain = audioCtx.createGain(); carrierGain.gain.value = 0.0; carrier.connect(carrierGain);
+                const carrier2 = audioCtx.createOscillator(); carrier2.type = 'sawtooth'; const carrierGain2 = audioCtx.createGain(); carrierGain2.gain.value = 0.0; carrier2.connect(carrierGain2);
+                const pannerL = audioCtx.createStereoPanner(); pannerL.pan.value = -0.15; const pannerR = audioCtx.createStereoPanner(); pannerR.pan.value = 0.15;
+                carrier.connect(carrierGain).connect(pannerL); carrier2.connect(carrierGain2).connect(pannerR);
+
+                const shaper = audioCtx.createWaveShaper(); shaper.curve = makeDistCurve(80 * (1 + intensity)); shaper.oversample = '4x'; const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 12000 - score * 12;
+                carrierGain.connect(shaper); carrierGain2.connect(shaper); shaper.connect(lp); lp.connect(reverb); lp.connect(master);
+
+                // small sub
+                const sub = audioCtx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 48 + Math.floor(score / 6); const subG = audioCtx.createGain(); subG.gain.value = 0.0001; sub.connect(subG); subG.connect(master);
+
+                // envelopes
+                carrierGain.gain.setValueAtTime(0.0001, t); carrierGain.gain.exponentialRampToValueAtTime(0.95 * intensity, t + 0.008); carrierGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+                carrierGain2.gain.setValueAtTime(0.0001, t); carrierGain2.gain.exponentialRampToValueAtTime(0.55 * intensity, t + 0.008); carrierGain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+                subG.gain.setValueAtTime(0.0001, t); subG.gain.exponentialRampToValueAtTime(0.18 * intensity, t + 0.02); subG.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+
+                // frequency glide
+                const baseFreq = 120 + score * 2; carrier.frequency.setValueAtTime(baseFreq * 1.12, t); carrier.frequency.exponentialRampToValueAtTime(baseFreq * 0.98, t + 0.22);
+                carrier2.frequency.setValueAtTime(baseFreq * 1.18, t); carrier2.frequency.exponentialRampToValueAtTime(baseFreq * 1.002, t + 0.26);
+
+                // play a small impact for big scores
+                if (score >= 40) playImpact(Math.min(1.6, 0.8 + score / 120));
+
+                // start sources
+                click.start(t); carrier.start(t); carrier2.start(t); sub.start(t);
+                setTimeout(() => { try { click.stop(); carrier.stop(); carrier2.stop(); sub.stop(); } catch (e) { } }, 900);
+            } catch (e) { console.warn('audio error', e); }
+        }
+
+        function playBusted() { try { ensureAudio(); playImpact(0.9); const t = audioCtx.currentTime; const clang = audioCtx.createOscillator(); clang.type = 'triangle'; clang.frequency.value = 420; const clangGain = audioCtx.createGain(); clangGain.gain.value = 0.0; clang.connect(clangGain); clangGain.connect(reverb); clangGain.connect(master); clangGain.gain.setValueAtTime(0.0001, t); clangGain.gain.exponentialRampToValueAtTime(0.9, t + 0.02); clangGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9); clang.start(t); setTimeout(() => { try { clang.stop(); } catch (e) { } }, 1100); } catch (e) { console.warn('busted sound err', e); } }
+
+        function playWin() { try { ensureAudio(); playImpact(1.2); const t = audioCtx.currentTime; const notes = [660, 880, 1100]; notes.forEach((n, i) => { const osc = audioCtx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = n; const g = audioCtx.createGain(); g.gain.value = 0.0001; osc.connect(g); g.connect(reverb); g.connect(master); g.gain.setValueAtTime(0.0001, t + i * 0.12); g.gain.exponentialRampToValueAtTime(0.7, t + i * 0.12 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.12 + 0.9); osc.start(t + i * 0.12); setTimeout(() => { try { osc.stop(); } catch (e) { } }, (i * 0.12 + 0.9) * 1000); }); } catch (e) { console.warn('win sound err', e); } }
+
+        function playPlayerChange(name) {
+            try {
+                ensureAudio(); const t = audioCtx.currentTime; // whoosh + impact
+                const whoosh = audioCtx.createOscillator(); whoosh.type = 'sawtooth'; whoosh.frequency.value = 120; const wg = audioCtx.createGain(); wg.gain.value = 0.0001; whoosh.connect(wg); wg.connect(reverb); wg.connect(master);
+                whoosh.frequency.setValueAtTime(120, t); whoosh.frequency.exponentialRampToValueAtTime(1200, t + 0.26);
+                wg.gain.setValueAtTime(0.0001, t); wg.gain.exponentialRampToValueAtTime(0.65, t + 0.03); wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.46);
+                whoosh.start(t); setTimeout(() => { try { whoosh.stop(); } catch (e) { } }, 520); playImpact(0.9);
+            } catch (e) { console.warn('player change audio err', e); }
+        }
+
+        function makeDistCurve(amount) { const k = typeof amount === 'number' ? amount : 50; const n = 44100; const curve = new Float32Array(n); const deg = Math.PI / 180; for (let i = 0; i < n; i++) { const x = i * 2 / n - 1; curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x)); } return curve; }
+
+        // ---------------------- Visual: flying score + confetti + alerts (unchanged) ----------------------
+        function spawnFlyingScore(text, fromX, fromY, targetEl, score) {
+            const el = document.createElement('div'); el.className = 'flying-score'; el.textContent = text; document.body.appendChild(el); const scale = 0.9 + Math.min(1.2, score / 60); el.style.transform = `scale(${scale})`;
+            el.style.left = (fromX - 30) + 'px'; el.style.top = (fromY - 20) + 'px'; let tx = window.innerWidth / 2, ty = window.innerHeight / 2; if (targetEl) { const rect = targetEl.getBoundingClientRect(); tx = rect.left + rect.width / 2; ty = rect.top + rect.height / 2; }
+            gsap.fromTo(el, { scale: scale * 1.12, opacity: 0, rotation: -8 }, { duration: 0.12, opacity: 1, scale: scale, ease: 'back.out(3)' });
+            gsap.to(el, { x: tx - fromX + (Math.random() - 0.5) * 40, y: ty - fromY - 80 + (Math.random() - 0.5) * 30, rotation: 8 + (Math.random() - 0.5) * 20, duration: 0.9, ease: 'power3.out', onComplete: () => { gsap.to(el, { opacity: 0, duration: 0.14, onComplete: () => el.remove() }); } });
+            const sx = fromX, sy = fromY; for (let i = 0; i < 10; i++) { const s = document.createElement('div'); s.className = 'spark'; document.body.appendChild(s); s.style.left = (sx) + 'px'; s.style.top = (sy) + 'px'; s.style.width = s.style.height = (6 + Math.random() * 16) + 'px'; s.style.background = (i % 2 === 0) ? 'radial-gradient(circle,var(--neon-cyan) 0%, transparent 60%)' : 'radial-gradient(circle,var(--neon-pink) 0%, transparent 60%)'; gsap.to(s, { x: (Math.random() - 0.5) * 420, y: -220 + Math.random() * 80, scale: Math.random() * 2.2 + 0.8, opacity: 0, duration: 0.92, ease: 'expo.out', onComplete: () => s.remove() }); }
+        }
+
+        function confettiBurst(x, y) {
+            const colors = ['#00f7db', '#ff3d6f', '#ffd166', '#9ad3bc']; for (let i = 0; i < 48; i++) { const c = document.createElement('div'); c.style.position = 'fixed'; c.style.left = x + 'px'; c.style.top = y + 'px'; c.style.zIndex = 9999; c.style.pointerEvents = 'none'; const w = 6 + Math.random() * 10; c.style.width = w + 'px'; c.style.height = (w * 0.6) + 'px'; c.style.background = colors[Math.floor(Math.random() * colors.length)]; c.style.borderRadius = '2px'; document.body.appendChild(c); gsap.to(c, { x: (Math.random() - 0.5) * 820, y: 800 + Math.random() * 360, rotation: Math.random() * 720, duration: 1.6 + Math.random() * 0.8, ease: 'power2.out', onComplete: () => c.remove() }); }
+        }
+
+        function showAlert(type) { if (type === 'bust') { gsap.killTweensOf(alertBust); alertBust.style.opacity = 0; gsap.fromTo(alertBust, { scale: 0.6, opacity: 0 }, { scale: 1.02, opacity: 1, duration: 0.18, ease: 'back.out(4)' }); gsap.to(alertBust, { opacity: 0, duration: 0.9, delay: 0.9 }); } else if (type === 'win') { gsap.killTweensOf(alertWin); alertWin.style.opacity = 0; gsap.fromTo(alertWin, { scale: 0.6, opacity: 0 }, { scale: 1.06, opacity: 1, duration: 0.22, ease: 'elastic.out(1,0.5)' }); gsap.to(alertWin, { opacity: 0, duration: 1.4, delay: 1.4 }); } }
+
+        // screen shake helper (fullscreen) - shakes stage element for streaming-safe effect
+        function screenShake(intensity = 10, duration = 600) { const shakes = Math.max(1, Math.floor(duration / 40)); gsap.to('.stage', { x: () => (Math.random() - 0.5) * intensity, y: () => (Math.random() - 0.5) * intensity, duration: 0.04, repeat: shakes, yoyo: true, ease: 'sine.inOut', onComplete: () => gsap.to('.stage', { x: 0, y: 0, duration: 0.08 }) }); }
+
+        // ---------------------- right-side history rendering ----------------------
+        function renderRoundHistory() {
+            roundHistoryEl.innerHTML = ''; const p = players[activeIndex]; if (!p) return; // show 3 slots
+            for (let i = 0; i < 3; i++) { const slot = document.createElement('div'); slot.className = 'round-slot'; slot.textContent = p.roundDarts[i] !== undefined ? p.roundDarts[i] : '—'; roundHistoryEl.appendChild(slot); }
+        }
+
+        function pushLog(entry) {
+            matchLog.unshift(entry); if (matchLog.length > 60) matchLog.length = 60; // cap
+            logListEl.innerHTML = ''; for (let i = 0; i < matchLog.length; i++) { const it = matchLog[i]; const d = document.createElement('div'); d.className = 'log-item'; d.innerHTML = `<strong>${escapeHtml(it.player)}</strong> &nbsp; <span style="float:right">${it.score}</span><div class="small text-muted">${it.time}</div>`; logListEl.appendChild(d); }
+        }
+
+        // ---------------------- Core UI logic with countdown overlay and improved simulate ----------------------
+        function renderPlayers() { playersListEl.innerHTML = ''; players.forEach((p, idx) => { const div = document.createElement('div'); div.className = 'player-item' + (idx === activeIndex ? ' active' : ''); div.innerHTML = `<div><div class="player-name">${escapeHtml(p.name)}</div><div class="small text-muted">Darts: ${p.roundDarts.length}/3</div></div><div class="text-end"><div class="player-score">${p.leg}</div></div>`; div.addEventListener('click', () => { setActive(idx); }); playersListEl.appendChild(div); }); updateCenter(); renderRoundHistory(); }
+
+        function escapeHtml(s) { return (s + '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+        function addPlayer(name) { const id = 'p' + Math.random().toString(36).substr(2, 6); players.push({ id, name, leg: legStart, roundDarts: [], roundTotal: 0, legAtTurnStart: legStart, matchHistory: [] }); if (activeIndex === -1) activeIndex = 0; renderPlayers(); }
+        function setActive(idx) { if (players[activeIndex]) players[activeIndex].legAtTurnStart = players[activeIndex].leg; activeIndex = idx; renderPlayers(); updateCenter(); }
+        function updateCenter() { if (activeIndex < 0 || !players[activeIndex]) { activePlayerNameEl.textContent = '—'; legScoreEl.textContent = legStart; roundTotalEl.textContent = '0'; currentPlayerLabel.textContent = '—'; currentDartValueEl.textContent = '—'; renderRoundHistory(); return; } const p = players[activeIndex]; activePlayerNameEl.textContent = p.name; legScoreEl.textContent = p.leg; roundTotalEl.textContent = p.roundTotal || 0; currentPlayerLabel.textContent = p.name; currentDartValueEl.textContent = p.roundDarts.length ? p.roundDarts[p.roundDarts.length - 1] : '—'; renderRoundHistory(); }
+
+        function showPlayerOverlay(name) { playerOverlayName.textContent = name; gsap.killTweensOf(playerOverlayName); playerOverlay.style.pointerEvents = 'none'; gsap.fromTo(playerOverlayName, { opacity: 0, scale: 0.7, y: 60 }, { opacity: 1, scale: 1, y: 0, duration: 0.36, ease: 'back.out(1.5)' }); gsap.to(playerOverlayName, { opacity: 0, scale: 1.06, duration: 0.9, delay: 0.9, ease: 'power2.out' }); }
+
+        // countdown animation: calls cb() after countdown completes
+        function showPlayerCountdown(name, cb) { countdownEl.textContent = '3'; gsap.killTweensOf(countdownEl); gsap.fromTo(countdownEl, { scale: 2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.22, ease: 'back.out(2)' }); playTick(); setTimeout(() => { countdownEl.textContent = '2'; gsap.fromTo(countdownEl, { scale: 1.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.18, ease: 'back.out(2)' }); playTick(); }, 700); setTimeout(() => { countdownEl.textContent = '1'; gsap.fromTo(countdownEl, { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.16, ease: 'back.out(2)' }); playTick(); }, 1250); setTimeout(() => { gsap.to(countdownEl, { opacity: 0, duration: 0.18 }); cb && cb(); }, 1700); }
+
+        function playTick() { try { ensureAudio(); const t = audioCtx.currentTime; const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.value = 660; const g = audioCtx.createGain(); g.gain.value = 0.0001; o.connect(g); g.connect(master); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); o.start(t); setTimeout(() => { try { o.stop(); } catch (e) { } }, 220); } catch (e) { } }
+
+        function nextPlayerTurn() {
+            if (players.length === 0) return; if (players[activeIndex]) players[activeIndex].legAtTurnStart = players[activeIndex].leg; // compute next
+            const nextIdx = (activeIndex + 1) % players.length; const nextName = players[nextIdx].name;
+            // show countdown, then activate and play overlay + shake + sound
+            showPlayerCountdown(nextName, () => {
+                activeIndex = nextIdx; renderPlayers(); updateCenter(); showPlayerOverlay(players[activeIndex].name);
+                // large fullscreen shake + impact
+                screenShake(18, 700); playImpact(1.1);
+            });
+        }
+
+        // Register dart with bust & win handling (also push to log)
+        function registerDartForPlayer(playerIndex, score) {
+            const p = players[playerIndex]; if (!p) return; score = parseInt(score) || 0; if (typeof p.legAtTurnStart === 'undefined') p.legAtTurnStart = p.leg;
+            const candidateLeg = p.leg - score; const isBust = (candidateLeg < 0) || (candidateLeg === 1); const isWin = (candidateLeg === 0);
+            if (isBust) { playBusted(); showAlert('bust'); const rect = document.getElementById('roundBox').getBoundingClientRect(); const fx = rect.left + rect.width / 2; const fy = rect.top + rect.height / 2; const s = document.createElement('div'); s.className = 'spark'; document.body.appendChild(s); s.style.left = (fx) + 'px'; s.style.top = (fy) + 'px'; s.style.width = s.style.height = '160px'; s.style.background = 'radial-gradient(circle, rgba(255,30,70,0.85) 0%, transparent 40%)'; gsap.to(s, { scale: 1.02, opacity: 0, duration: 0.9, ease: 'expo.out', onComplete: () => s.remove() }); p.roundDarts = []; p.roundTotal = 0; p.leg = p.legAtTurnStart; animateNumber(roundTotalEl, parseInt(roundTotalEl.textContent) || 0, 0, 0.32); animateNumber(legScoreEl, parseInt(legScoreEl.textContent) || 0, p.leg, 0.42); pushLog({ player: p.name, score: 'BUST', time: new Date().toLocaleTimeString() }); setTimeout(() => { nextPlayerTurn(); renderPlayers(); updateCenter(); }, 700); return; }
+            p.roundDarts.push(score); p.roundTotal = (p.roundTotal || 0) + score; p.matchHistory.unshift({ score: score, time: new Date().toLocaleTimeString() }); if (p.matchHistory.length > 200) p.matchHistory.length = 200; pushLog({ player: p.name, score: score, time: new Date().toLocaleTimeString() }); const prevLeg = p.leg; p.leg = candidateLeg;
+            const rect = document.getElementById('roundBox').getBoundingClientRect(); const fx = rect.left + rect.width / 2; const fy = rect.top + rect.height / 2; const playerEl = Array.from(playersListEl.children)[playerIndex]; spawnFlyingScore((score > 0 ? '+' + score : '0'), fx, fy, playerEl || null, score);
+            gsap.fromTo('#roundBox', { scale: 1 }, { scale: 1.1, duration: 0.06, yoyo: true, repeat: 1, ease: 'power4.out' }); animateNumber(roundTotalEl, p.roundTotal - score, p.roundTotal, 0.32); animateNumber(legScoreEl, prevLeg, p.leg, 0.6); playArcadeHit(score); currentDartValueEl.textContent = score; currentPlayerLabel.textContent = p.name; renderPlayers(); updateCenter(); if (isWin) { playWin(); showAlert('win'); const centerX = window.innerWidth / 2; const centerY = window.innerHeight / 2; confettiBurst(centerX, centerY - 40); gsap.fromTo('#roundBox', { scale: 1 }, { scale: 1.2, duration: 0.2, ease: 'elastic.out(1,0.6)' }); setTimeout(() => { nextPlayerTurn(); p.roundDarts = []; p.roundTotal = 0; animateNumber(roundTotalEl, parseInt(roundTotalEl.textContent) || 0, 0, 0.5); renderPlayers(); updateCenter(); }, 1400); return; }
+            // if 3 darts -> end turn normally
+            if (p.roundDarts.length >= 3) { gsap.to('#currentCard', { x: +6, duration: 0.05, yoyo: true, repeat: 4, ease: 'sine.inOut' }); setTimeout(() => { p.roundDarts = []; p.roundTotal = 0; animateNumber(roundTotalEl, parseInt(roundTotalEl.textContent) || 0, 0, 0.45); nextPlayerTurn(); }, 520); }
+        }
+
+        function animateNumber(el, from, to, duration = 0.5) { const obj = { v: from }; gsap.to(obj, { v: to, duration: duration, ease: 'power3.out', onUpdate: () => { el.textContent = Math.round(obj.v); } }); }
+
+        // ---------------------- MQTT wiring ----------------------
+        function connectMQTT(brokerUrl, topic) { if (client) { client.end(true); client = null; } try { const opts = { reconnectPeriod: 2000, clean: true, clientId: 'darts_m_' + Math.random().toString(16).slice(2, 9) }; client = mqtt.connect(brokerUrl, opts); client.on('connect', () => { connectBtn.textContent = 'Disconnect'; connectBtn.classList.remove('btn-success'); connectBtn.classList.add('btn-danger'); client.subscribe(topic); }); client.on('message', (t, p) => { if (t !== topic) return; let payload = p.toString(); let score = null; let playerName = null; try { const j = JSON.parse(payload); if (j) { if (j.score !== undefined) score = j.score; if (j.player) playerName = j.player; } } catch (e) { } if (score === null) score = parseInt(payload); if (isNaN(score)) return; let idx = activeIndex; if (playerName) { const found = players.findIndex(pp => pp.name === playerName || pp.id === playerName); if (found >= 0) idx = found; } registerDartIncoming(idx, score); }); client.on('close', () => { connectBtn.textContent = 'Connect'; connectBtn.classList.remove('btn-danger'); connectBtn.classList.add('btn-success'); }); } catch (err) { console.error(err); } }
+        function registerDartIncoming(idx, score) { if (idx < 0 || idx >= players.length) idx = activeIndex; registerDartForPlayer(idx, score); }
+
+        // ---------------------- Controls & improved simulate (with more delay) ----------------------
+        addPlayerBtn.addEventListener('click', () => { const n = newPlayerName.value.trim() || 'Player' + (players.length + 1); addPlayer(n); newPlayerName.value = ''; });
+        startMatchBtn.addEventListener('click', () => { legStart = parseInt(document.getElementById('startLegInput').value) || 501; players.forEach(p => { p.leg = legStart; p.roundDarts = []; p.roundTotal = 0; p.legAtTurnStart = legStart; p.matchHistory = []; }); renderPlayers(); updateCenter(); matchLog = []; pushLog({ player: 'SYSTEM', score: 'New match started', time: new Date().toLocaleTimeString() }); });
+
+        connectBtn.addEventListener('click', () => { if (client && client.connected) { client.end(); client = null; connectBtn.textContent = 'Connect'; connectBtn.classList.remove('btn-danger'); connectBtn.classList.add('btn-success'); return; } const url = brokerUrlInput.value.trim(); const topic = topicInput.value.trim() || 'darts/score'; if (!url) { alert('Enter broker websocket URL'); return; } connectMQTT(url, topic); });
+
+        simulateBtn.addEventListener('click', () => {
+            if (players.length === 0) { addPlayer('A'); addPlayer('B'); }
+            // slower, more humanized delays
+            const seq = [randomDart(), randomDart(), randomDart()]; let i = 0; const idx = activeIndex;
+            function step() { if (i >= seq.length) return; registerDartForPlayer(idx, seq[i]); i++; const delay = 520 + Math.random() * 900; setTimeout(step, delay); }
+            step();
+        });
+
+        function randomDart() { const common = [20, 20, 20, 19, 19, 18, 17, 16, 15, 25, 50, 25, 25]; if (Math.random() < 0.25) return 0; if (Math.random() < 0.5) return common[Math.floor(Math.random() * common.length)]; return Math.floor(Math.random() * 61); }
+
+        window.addEventListener('keydown', (e) => { if (e.key === 's') simulateBtn.click(); if (e.key === 'n') nextPlayerTurn(); if (e.key === 'u') undoLast(); });
+
+        function undoLast() { const p = players[activeIndex]; if (!p || p.roundDarts.length === 0) return; const last = p.roundDarts.pop(); p.roundTotal = Math.max(0, p.roundTotal - last); p.leg = p.leg + last; animateNumber(roundTotalEl, 0, p.roundTotal, 0.4); animateNumber(legScoreEl, p.leg - last, p.leg, 0.4); renderPlayers(); updateCenter(); pushLog({ player: p.name, score: 'UNDO ' + last, time: new Date().toLocaleTimeString() }); }
+
+        // ensure audio on first interaction
+        window.addEventListener('pointerdown', () => { ensureAudio(); }, { once: true });
+
+        // initial demo
+        addPlayer('Alice'); addPlayer('Bob'); setActive(0);
+
+    </script>
+</body>
+
+</html>

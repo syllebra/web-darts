@@ -402,6 +402,35 @@
             .game-title {
                 font-size: 2rem;
             }
+
+            .checkout-section {
+                margin-top: 10px;
+            }
+
+            .checkout-suggestions {
+                margin-top: 10px;
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: #80ff80;
+                text-shadow: 0 0 15px #80ff80;
+                text-align: center;
+                line-height: 1.4;
+                min-height: 2em;
+            }
+
+
+            .checkout-route {
+                display: inline-block;
+                padding: 5px 10px;
+                border-radius: 8px;
+                font-size: 1.2rem;
+                font-weight: bold;
+                margin: 3px;
+                background-color: rgba(0, 255, 0, 0.15);
+                border: 2px solid #80ff80;
+                color: #80ff80;
+                text-shadow: 0 0 10px #80ff80;
+            }
         }
     </style>
 </head>
@@ -433,10 +462,15 @@
             <div class="round-total" id="currentRoundTotal">Round Total: 0</div>
             <div class="incoming-score" id="incomingScore"></div>
         </div>
-
+        <div class="column">
         <div class="dart-history neon-panel neon-panel--secondary">
             <div class="history-title">CURRENT ROUND</div>
             <div class="dart-scores" id="dartHistory"></div>
+        </div>
+        <div class="checkout-section neon-panel neon-panel--secondary">
+            <div class="history-title">CHECKOUT SUGGESTIONS</div>
+            <div class="checkout-suggestions" id="checkoutSuggestions"></div>
+        </div>
         </div>
     </div>
     <div class="countdown-overlay" id="countdownOverlay">
@@ -450,6 +484,17 @@
 
     <script src="../utils/sound_effects.js"></script>
     <script>
+
+        let checkoutRoutes = {};
+
+        fetch('main_checkouts_double_out.json') // adjust path if needed
+            .then(res => res.json())
+            .then(data => {
+                checkoutRoutes = data;
+                console.log("Checkout routes loaded:", checkoutRoutes);
+            })
+            .catch(err => console.error("Failed to load checkout routes", err));
+
         const legScore = 101;
         class EpicDartsScorer {
             constructor() {
@@ -474,7 +519,8 @@
                     countdownOverlay: document.getElementById('countdownOverlay'),
                     countdownNumber: document.getElementById('countdownNumber'),
                     playerSwitch: document.getElementById('playerSwitch'),
-                    dartHistory: document.getElementById('dartHistory')
+                    dartHistory: document.getElementById('dartHistory'),
+                    checkoutSuggestions: document.getElementById('checkoutSuggestions'),
                 };
 
                 this.initGSAP();
@@ -608,6 +654,7 @@
                 player.roundTotal += score;
                 this.currentRoundDarts.push(score);
                 this.updateDartHistory();
+                this.updateCheckoutSuggestions();
 
                 // Update displays with animations
                 setTimeout(() => {
@@ -695,6 +742,7 @@
                 player.legScore = newLegScore;
                 element.textContent = player.legScore;
 
+                
                 // Animate leg score decrease
                 gsap.timeline()
                     .to(element, {
@@ -716,12 +764,43 @@
                         duration: 0.4
                     });
 
+
+                this.updateCheckoutSuggestions();
                 // Update other player displays
                 this.updatePlayersList();
 
                 if (player.legScore === 0) {
                     this.gameWon();
                 }
+            }
+
+            updateCheckoutSuggestions() {
+                // Show checkout suggestions if available
+                const player = this.players[this.currentPlayer];
+                const remaining = player.legScore;
+                const checkoutEl = this.elements.checkoutSuggestions;
+
+                if (checkoutRoutes[remaining]) {
+                    checkoutEl.innerHTML = checkoutRoutes[remaining]
+                        .map(route => `<div class="checkout-route">${route.join(' - ')}</div>`)
+                        .join('');
+                    // function htmlElems(route) {
+                    //     const dscores = route.map(r => `<div class="dart-score">${r}</div>`).join('');
+                    //     return `<div class="dart-scores">${dscores}</div>`;
+                    // }
+                    // checkoutEl.innerHTML = checkoutRoutes[remaining]
+                    //     .map(route => `<div class="checkout-route">${htmlElems(route)}</div>`)
+                    //     .join('');
+
+                    // Animate appearance
+                    gsap.fromTo(checkoutEl,
+                        { opacity: 0, scale: 0.8 },
+                        { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.7)" }
+                    );
+                } else {
+                    checkoutEl.innerHTML = '';
+                }
+
             }
 
             animateBust() {
@@ -1060,6 +1139,8 @@
                         duration: 0.3,
                         ease: "power2.out"
                     });
+
+                this.updateCheckoutSuggestions();
             }
 
             updatePlayersList() {

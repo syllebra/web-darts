@@ -123,6 +123,7 @@ function onDartDetected(data) {
     const hit = Throw.fromCartesian(cartesian[0], cartesian[1], dartnet.board.r_double, score, null);
     const message = new Paho.MQTT.Message(JSON.stringify(hit));
     message.destinationName = "dartnet/hit";
+    if (dartnet?.mqttClient) console.log("Sending message:", message);
     dartnet.mqttClient?.send(message);
   }
 

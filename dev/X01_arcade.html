@@ -7,6 +7,7 @@
     <title>EPIC DARTS ARCADE</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
@@ -480,9 +481,11 @@
     <div class="controls">
         <button class="btn-neon" onclick="simulateScore()">Simulate Score</button>
         <button class="btn-neon" onclick="resetGame()">New Game</button>
+        <button class="btn-neon" onclick="connectMQTT()">Connect MQTT</button>
     </div>
 
     <script src="../utils/sound_effects.js"></script>
+    <script src="../core/Throw.js"></script>
     <script>
 
         let checkoutRoutes = {};
@@ -498,6 +501,9 @@
         const legScore = 101;
         class EpicDartsScorer {
             constructor() {
+
+                this.mqttClient = null;
+
                 this.players = [
                     { name: "PLAYER 1", legScore: legScore, roundTotal: 0, dartHistory: [] },
                     { name: "PLAYER 2", legScore: legScore, roundTotal: 0, dartHistory: [] }
@@ -527,6 +533,60 @@
                 this.updateDisplay();
                 this.updatePlayersList();
                 this.createFloatingParticles();
+            }
+
+            connectMQTT() {
+                try {
+                    this.mqttClient = new Paho.MQTT.Client('192.168.31.120', 8083, 'epicDarts_' + Math.random());
+                    
+                    this.mqttClient.onConnectionLost = (responseObject) => {
+                        if (responseObject.errorCode !== 0) {
+                            console.log("MQTT Connection lost: " + responseObject.errorMessage);
+                            this.updateConnectionStatus(false);
+                        }
+                    };
+                    
+                    this.mqttClient.onMessageArrived = (message) => {
+                        const hit = JSON.parse(message.payloadString);
+                        console.log("MQTT arrived:", hit)
+                        let th = new Throw(hit.alpha, hit.d, hit.zone, hit.targetZone);
+                        th.id = hit.id;
+                        th.timestamp = hit.timestamp;
+
+                           const score = th.getStandardZoneScore();
+                        if (!isNaN(score) && score >= 0 && score <= 180) {
+                            this.addScore(score);
+                        }
+                    };
+                    
+                    this.mqttClient.connect({
+                        onSuccess: () => {
+                            console.log("MQTT Connected");
+                            this.updateConnectionStatus(true);
+                            this.mqttClient.subscribe("dartnet/hit");
+                            soundEffects.playModernSound('connect');
+                        },
+                        onFailure: (message) => {
+                            console.log("MQTT Connection failed: " + message.errorMessage);
+                            this.updateConnectionStatus(false);
+                        }
+                    });
+                } catch (error) {
+                    console.log("MQTT setup failed:", error);
+                    this.updateConnectionStatus(false);
+                }
+            }
+            
+            updateConnectionStatus(connected) {
+                this.isConnected = connected;
+                const status = this.elements.status;
+                if (connected) {
+                    status.className = 'status-indicator status-connected';
+                    status.textContent = 'MQTT: CONNECTED';
+                } else {
+                    status.className = 'status-indicator status-disconnected';
+                    status.textContent = 'MQTT: DISCONNECTED';
+                }
             }
 
             initGSAP() {
@@ -937,13 +997,15 @@
 
                 // Wait 2 seconds before switching player and starting countdown
                 setTimeout(() => {
+                    const overlay = this.elements.countdownOverlay;
+                    overlay.style.display = 'flex';
                     this.switchPlayer();
+                    if (this.currentPlayer == 0)
+                        this.currentRound++;
 
                     // Wait another 1 second before countdown
                     setTimeout(() => {
                         this.showCountdown(() => {
-                            if (this.currentPlayer == 0)
-                                this.currentRound++;
                             this.currentDart = 1;
                             this.updateDisplay();
                             this.updateDartHistory();
@@ -955,12 +1017,13 @@
             showCountdown(callback) {
                 const overlay = this.elements.countdownOverlay;
                 const number = this.elements.countdownNumber;
-
+                number.style.display = 'none'
                 let count = 3;
-                overlay.style.display = 'flex';
+                
 
                 const countdownInterval = setInterval(() => {
                     number.textContent = count;
+                    number.style.display = 'block'
 
                     // Play countdown sound FIRST
                     soundEffects.playModernSound('countdown', { count });
@@ -1291,11 +1354,15 @@
         // Initialize the game
         const game = new EpicDartsScorer();
 
-        // Global functions for buttons
+       // Global functions for buttons
+        function connectMQTT() {
+            game.connectMQTT();
+        }
+        
         function resetGame() {
             game.resetGame();
         }
-
+        
         function simulateScore() {
             game.simulateScore();
         }
@@ -1303,6 +1370,14 @@
         function addPlayer() {
             game.addPlayer();
         }
+
+        
+        // Auto-connect MQTT on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                game.connectMQTT();
+            }, 1000);
+        });
 
         // Initialize audio context on first user interaction
         document.addEventListener('click', () => {

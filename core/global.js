@@ -12,3 +12,5 @@ var dartnet = null;
 var zoomableCanvas = null;
 var cameraManager = null;
 var settingsManager = null;
+
+var timings = {};

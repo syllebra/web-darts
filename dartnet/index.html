@@ -788,23 +788,23 @@
    
 <script>
     // DEBUG zone
-    // document.addEventListener(
-    //         "keyup",
-    //         (event) => {
-    //             const keyName = event.key;
-    //             console.log(keyName);
-    //             if (keyName === "q") {
-    //                 const message = new Paho.MQTT.Message('{"mytest":"DB"}');
-    //                 message.destinationName = "dartnet/hit";
-    //                 dartnet.mqttClient?.send(message);
-    //             }
-    //             else if (keyName === "d") {
-    //                 console.log("Switching dart detector");
-    //                 dartnet.switchDartDetector();
-    //             }
-    //         },
-    //         false,
-    //     );
+    document.addEventListener(
+            "keyup",
+            (event) => {
+                const keyName = event.key;
+                console.log(keyName);
+                if (keyName === "q") {
+                    const message = new Paho.MQTT.Message('{"alpha":239.7233154677353,"d":0.46474837192142665,"zone":"12","targetZone":null,"timestamp":1755132729396,"id":"jzhn3ssra"}');
+                    message.destinationName = "dartnet/hit";
+                    dartnet.mqttClient?.send(message);
+                }
+                else if (keyName === "d") {
+                    console.log("Switching dart detector");
+                    dartnet.switchDartDetector();
+                }
+            },
+            false,
+        );
     </script>
 </body>
 

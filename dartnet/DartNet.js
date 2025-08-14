@@ -249,11 +249,14 @@ class DartNet {
 
   async detectDartImpact() {
     if (!this.dartDetector) return;
+    let timerStart = performance.now();
     const imgData = this.preprocessImageForModel(this.cropArea, this.dartDetector.modelSize);
+    timings["DartNet: Image preprocessing for model inference"] = performance.now() - timerStart;
     this.dartDetector.onNewFrame(imgData);
   }
 
   async onDetectedDartImpact(data) {
     console.log("DartImpact:", data);
+    console.log("timings:", timings);
   }
 }

@@ -384,6 +384,7 @@ function initializeHardwareUI() {
   toggleButtons["gpuToggle"].onChangeCallbacks.push((v, el) => {
     console.log("Switching to ", v);
     g_useGPU = v == "gpu";
+    dartnet?.initDetectors();
   });
 }
 

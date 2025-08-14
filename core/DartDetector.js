@@ -52,16 +52,26 @@ class DartDetector {
     //   dartnet.dartDetector.modelSize,
     //   40
     // );
-
+    let timerStart = performance.now();
     var imageData = ImageProcessor.grayscaleToYOLOInput(obj.delta, this.modelSize, this.modelSize);
+    timings["DartDetector: grayscaleToYOLOInput"] = performance.now() - timerStart;
+
     try {
       this.updateStatus(DartDetectorStatus.INFERING);
       //console.log(imageData);
       //const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
+      timerStart = performance.now();
       const tensor = new ort.Tensor(Float32Array.from(imageData.data), [1, 3, this.modelSize, this.modelSize]);
+      timings["DartDetector: tensor preparation"] = performance.now() - timerStart;
+
+      timerStart = performance.now();
       const results = await this.session.run({ images: tensor });
+      timings["DartDetector: inference"] = performance.now() - timerStart;
+
       //console.log("Results:", results);
+      timerStart = performance.now();
       const boxes = YOLO.processYoloOnnxResults(results, this.minConfidence, this.iouThreshold, this.modelSize);
+      timings["DartDetector: processYoloOnnxResults"] = performance.now() - timerStart;
       obj.boxes = boxes;
       this.onDetectionCallbacks.forEach((cb) => cb(obj));
       //return this.processOnnxResults(results);
@@ -451,7 +461,7 @@ class AccelerometerDartImpactDetector extends DartDetector {
 
     if (topic.includes("sensors/tap")) {
       this.playSound();
-      this.lastImpact = Date.now();
+      this.lastImpact = performance.now();
       this.updateStatus(DartDetectorStatus.DETECTED);
 
       // Reset to detecting after a brief period
@@ -561,8 +571,10 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
     if (this.burst.qsize() >= maxFrames) {
       this.burst.get();
       if (this.currentStatus === DartDetectorStatus.DETECTED) {
+        let timerStart = performance.now();
+        timings["DartDetector: impact to detection:"] = performance.now() - this.lastImpact;
         ret = this.computeDelta();
-
+        timings["DeltaVideoAccelImpactDetector: Conpute delta"] = performance.now() - timerStart;
         this.infer({ delta: ret });
       }
     }
@@ -579,6 +591,7 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
       this.playSound();
       console.log(`DeltaVideo: ${topic} - ${payload}`);
       this.countDownCpt = this.extraWaitFrames;
+      this.lastImpact = performance.now();
       this.updateStatus(DartDetectorStatus.DETECTED);
     }
   }

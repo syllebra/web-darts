@@ -27,7 +27,7 @@ window.addEventListener("DOMContentLoaded", () => {
   onCalibrationSuccess(initCalibPts, false, true);
 });
 
-let animationId = null;
+//let animationId = null;
 async function processFrame() {
   let wait = false;
   if (
@@ -49,7 +49,8 @@ async function processFrame() {
       console.error("Error processing frame:", err);
     }
   }
-  animationId = requestAnimationFrame(processFrame);
+  //animationId = requestAnimationFrame(processFrame);
+  setTimeout(processFrame, 50);
 }
 processFrame();
 

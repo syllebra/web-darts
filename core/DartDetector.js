@@ -118,7 +118,7 @@ class DartDetector {
       return null;
     } finally {
       this.updateStatus(DartDetectorStatus.DETECTING);
-      if (this.inferQueue.length() > 0) this.infer();
+      if (this.inferQueue.length() > 0) this.process_infer();
     }
   }
 

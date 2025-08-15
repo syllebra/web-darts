@@ -73,14 +73,21 @@ class DartDetector {
   }
 
   infer(obj) {
-    this.inferQueue.put(obj);
-    if (this.currentStatus != DartDetectorStatus.INFERING) this.process_infer();
+    const copy = deepCopy(obj);
+    console.log("OBJ:", obj);
+    console.log("COPY:", copy);
+    this.inferQueue.put(copy);
+    this.process_infer();
   }
 
   async process_infer() {
-    var obj = this.inferQueue.get();
-    if (!this.session) {
+    if (!this.session || this.currentStatus == DartDetectorStatus.INFERING) {
       return null;
+    }
+
+    var obj = this.inferQueue.get();
+    if (!obj) {
+      return; // Empty queue
     }
 
     // // Compute closer view of the dart(s)

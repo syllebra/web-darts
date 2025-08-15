@@ -7,6 +7,37 @@ const DartDetectorStatus = {
   INFERING: 4,
 };
 
+// Queue implementation for frame buffering
+class Queue {
+  constructor(maxSize) {
+    this.items = [];
+    this.maxSize = maxSize;
+  }
+
+  put(item) {
+    if (this.items.length >= this.maxSize) {
+      this.items.shift(); // Remove oldest item
+    }
+    this.items.push(item);
+  }
+
+  get() {
+    return this.items.shift();
+  }
+
+  qsize() {
+    return this.items.length;
+  }
+
+  clear() {
+    this.items = [];
+  }
+
+  length() {
+    return this.items.length;
+  }
+}
+
 /**
  * Base class for dart impact detection systems
  */
@@ -21,6 +52,7 @@ class DartDetector {
     this.initializeModel();
     this.minConfidence = 0.25;
     this.iouThreshold = 0.45;
+    this.inferQueue = new Queue(5);
   }
 
   async initializeModel() {
@@ -40,7 +72,13 @@ class DartDetector {
     }
   }
 
-  async infer(obj) {
+  infer(obj) {
+    this.inferQueue.put(obj);
+    if (this.currentStatus != DartDetectorStatus.INFERING) process_infer();
+  }
+
+  async process_infer() {
+    var obj = this.inferQueue.get();
     if (!this.session) {
       return null;
     }
@@ -80,6 +118,7 @@ class DartDetector {
       return null;
     } finally {
       this.updateStatus(DartDetectorStatus.DETECTING);
+      if (this.inferQueue.length() > 0) this.infer();
     }
   }
 
@@ -499,33 +538,6 @@ class AccelerometerDartImpactDetector extends DartDetector {
 
   isReady() {
     return this.session != null && this.ready;
-  }
-}
-
-// Queue implementation for frame buffering
-class Queue {
-  constructor(maxSize) {
-    this.items = [];
-    this.maxSize = maxSize;
-  }
-
-  put(item) {
-    if (this.items.length >= this.maxSize) {
-      this.items.shift(); // Remove oldest item
-    }
-    this.items.push(item);
-  }
-
-  get() {
-    return this.items.shift();
-  }
-
-  qsize() {
-    return this.items.length;
-  }
-
-  clear() {
-    this.items = [];
   }
 }
 

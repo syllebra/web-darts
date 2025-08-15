@@ -74,7 +74,7 @@ class DartDetector {
 
   infer(obj) {
     this.inferQueue.put(obj);
-    if (this.currentStatus != DartDetectorStatus.INFERING) process_infer();
+    if (this.currentStatus != DartDetectorStatus.INFERING) this.process_infer();
   }
 
   async process_infer() {

@@ -164,6 +164,7 @@ class DartNet {
 
   updateCalibPoints(newPts) {
     this.sourceCalibPts = newPts;
+    localStorage.setItem("dartnetCalib", JSON.stringify({ calibPts: this.sourceCalibPts, cropArea: this.cropArea }));
     this.M = PerspectiveUtils.getPerspectiveTransform(this.sourceCalibPts, this.board.board_cal_pts);
     this.Mi = PerspectiveUtils.getPerspectiveTransform(this.board.board_cal_pts, this.sourceCalibPts);
   }

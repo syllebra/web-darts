@@ -16,15 +16,23 @@ window.addEventListener("DOMContentLoaded", () => {
   //   [320, 0],
   // ];
 
-  const alpha = -Math.PI / 20;
-  const initCalibPts = [0, 0.5, 1, 1.5].map((a) => [
-    Math.cos(a * Math.PI + alpha) * 320 + 320,
-    Math.sin(a * Math.PI + alpha) * 320 + 320,
-  ]);
+  function defaultCalib() {
+    const alpha = -Math.PI / 20;
+    const initCalibPts = [0, 0.5, 1, 1.5].map((a) => [
+      Math.cos(a * Math.PI + alpha) * 320 + 320,
+      Math.sin(a * Math.PI + alpha) * 320 + 320,
+    ]);
 
-  dartnet.cropArea = [-150, -150, 800, 800];
-  dartnet.updateCalibPoints(initCalibPts);
-  onCalibrationSuccess(initCalibPts, false, true);
+    const cropArea = [-150, -150, 800, 800];
+    return { calibPts: initCalibPts, cropArea: cropArea };
+  }
+
+  const savedCalibString = localStorage.getItem("dartnetCalib");
+  const calibSettings = savedCalibString ? JSON.parse(savedCalibString) : defaultCalib();
+  console.log("calibSettings:", calibSettings);
+  dartnet.cropArea = calibSettings.cropArea;
+  dartnet.updateCalibPoints(calibSettings.calibPts);
+  onCalibrationSuccess(calibSettings.calibPts, false, true);
 });
 
 //let animationId = null;

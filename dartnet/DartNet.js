@@ -1,5 +1,5 @@
 class DartNet {
-  constructor(videoSource, mqttBroker = location.hostname, mqttStatusCallback = null) {
+  constructor(videoSource, mqttBroker = "192.168.31.120", mqttStatusCallback = null) {
     this.processingCanvas = null;
     this.videoSource = videoSource;
     this.board = new Board();
@@ -13,27 +13,30 @@ class DartNet {
     this.mqttPort = 8083;
     this.mqttClient = null;
     this.mqttStatusCallback = mqttStatusCallback;
-
+    this.calibrationPairFactor = 1.0;
     this.initDetectors();
   }
 
   initMqtt() {
-    // Create MQTT client
-    const clientId = "DARTNET_" + Math.random().toString(16).substr(2, 8);
-    this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
+    try {
+      console.log("Starting MQTT client...");
+      // Create MQTT client
+      const clientId = "DARTNET_" + Math.random().toString(16).substr(2, 8);
+      this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
 
-    // Set callback handlers
-    this.mqttClient.onConnectionLost = this.onMqttConnectionLost.bind(this);
-    this.mqttClient.onMessageArrived = this.onMqttMessage.bind(this);
+      // Set callback handlers
+      this.mqttClient.onConnectionLost = this.onMqttConnectionLost.bind(this);
+      this.mqttClient.onMessageArrived = this.onMqttMessage.bind(this);
 
-    this.updateMqttStatus("connecting");
-    // Connect to MQTT broker
-    this.mqttClient.connect({
-      onSuccess: this.onMqttConnect.bind(this),
-      onFailure: this.onMqttConnectFailure.bind(this),
-    });
-
-    console.log("Starting MQTT client...");
+      this.updateMqttStatus("connecting");
+      // Connect to MQTT broker
+      this.mqttClient.connect({
+        onSuccess: this.onMqttConnect.bind(this),
+        onFailure: this.onMqttConnectFailure.bind(this),
+      });
+    } catch (error) {
+      console.error("Unable to initialize mqtt:", this.mqttBroker, error);
+    }
   }
 
   updateMqttStatus(status) {
@@ -84,30 +87,35 @@ class DartNet {
     if (!this.targetDetector) {
       this.targetDetector = new YoloTargetDetector(
         this.board,
-        "../../models/best_n_tip_boxes_cross_640_B.onnx",
+        "../models/best_n_tip_boxes_cross_640_B.onnx",
         640,
         false
       );
     } else this.targetDetector.initializeModel();
 
-    if (!this.dartDetectorVAI) {
-      this.dartDetectorVAI = new DeltaVideoAccelImpactDetector(); //new DeltaVideoOnlyDartDetector();
-      this.dartDetectorVAI.onDetectionCallbacks.push(this.onDetectedDartImpact);
-    } else this.dartDetectorVAI.initializeModel();
+    if (!this.dartDetector) {
+      switch (settingsManager.getSetting("dart", "type")) {
+        case "vai":
+          this.dartDetector = new DeltaVideoAccelImpactDetector(
+            settingsManager.getSetting("dart", "vaiURL"),
+            settingsManager.getSetting("mqtt", "brokerIP"),
+            settingsManager.getSetting("mqtt", "port"),
+            settingsManager.getSetting("dart", "vaiBurstLength"),
+            settingsManager.getSetting("dart", "vaiExtraWaitFrames")
+          );
+          break;
 
-    if (!this.dartDetectorVO) {
-      this.dartDetectorVO = new DeltaVideoOnlyDartDetector();
-      this.dartDetectorVO.onDetectionCallbacks.push(this.onDetectedDartImpact);
-    } else this.dartDetectorVO.initializeModel();
+        case "vo":
+          this.dartDetector = new DeltaVideoOnlyDartDetector();
+          break;
+      }
 
-    this.dartDetector = this.dartDetectorVO;
-    this.dartDetector.start();
-  }
-
-  switchDartDetector() {
-    if (this.dartDetector) this.dartDetector.stop();
-    this.dartDetector = this.dartDetector == this.dartDetectorVAI ? this.dartDetectorVO : this.dartDetectorVAI;
-    console.log("Starting " + (this.dartDetector == this.dartDetectorVAI ? "VAI" : "VO"));
+      if (this.dartDetector) {
+        this.dartDetector.onDetectionCallbacks.push(this.onDetectedDartImpact);
+        this.dartDetector.minConfidence = settingsManager.getSetting("dart", "confidence") * 0.01;
+        this.dartDetector.iouThreshold = settingsManager.getSetting("dart", "nms") * 0.01;
+      }
+    } else this.dartDetector.initializeModel();
     this.dartDetector.start();
   }
 
@@ -128,8 +136,8 @@ class DartNet {
       this.videoSource,
       inputBox[0],
       inputBox[1],
-      inputBox[2],
-      inputBox[3],
+      inputBox[2] - inputBox[0],
+      inputBox[3] - inputBox[1],
       0,
       0,
       modelSize,
@@ -140,15 +148,40 @@ class DartNet {
     return imgData;
   }
 
-  cropppedToSource(p) {
+  normalizedToSource(p) {
+    // Assumed that p is [0..1,0..1] normalized inside the cropped area
     return [
-      this.cropArea[0] + (p[0] * this.cropArea[2]) / this.targetDetector.modelSize,
-      this.cropArea[1] + (p[1] * this.cropArea[3]) / this.targetDetector.modelSize,
+      this.cropArea[0] + p[0] * (this.cropArea[2] - this.cropArea[0]),
+      this.cropArea[1] + p[1] * (this.cropArea[3] - this.cropArea[1]),
     ];
+  }
+
+  dartModelToSource(p) {
+    const ratio = this.targetDetector.modelSize / this.dartDetector.modelSize;
+    const cropped = [p[0] * ratio, p[1] * ratio];
+    return croppedToSource(cropped);
+  }
+
+  rotateCalibrationToClosest20point(pt) {
+    const possible = PerspectiveUtils.transformPoints(
+      [...Array(20).keys()].map((i) => {
+        const angle = (Math.PI * 2 * i) / 20; // + Math.PI / 20;
+        const dis = this.board.r_double; // * 1.2;
+        return [Math.cos(angle) * dis, Math.sin(angle) * dis];
+      }),
+      this.Mi
+    );
+    const distances = possible.map((p) => MathUtils.distance(p, pt));
+    var indexMin = distances.indexOf(Math.min(...distances));
+    var rotMatrix = MathUtils.createRotationMatrix((indexMin * 360) / 20);
+    var boardRotated = MathUtils.rotatePoints(this.board.board_cal_pts, rotMatrix);
+    var newCalib = PerspectiveUtils.transformPoints(boardRotated, this.Mi);
+    this.updateCalibPoints(newCalib);
   }
 
   updateCalibPoints(newPts) {
     this.sourceCalibPts = newPts;
+    localStorage.setItem("dartnetCalib", JSON.stringify({ calibPts: this.sourceCalibPts, cropArea: this.cropArea }));
     this.M = PerspectiveUtils.getPerspectiveTransform(this.sourceCalibPts, this.board.board_cal_pts);
     this.Mi = PerspectiveUtils.getPerspectiveTransform(this.board.board_cal_pts, this.sourceCalibPts);
   }
@@ -162,67 +195,94 @@ class DartNet {
       throw Error("❌ Camera not ready");
     }
 
-    //this.showLoading(true);
     console.log("Capturing and analyzing frame");
+
+    const oldCalib0 = this.sourceCalibPts ? this.sourceCalibPts[0] : null;
 
     this.cropArea = null;
     this.sourceCalibPts = null;
     this.M = null;
     this.Mi = null;
-    // try {
+
     let imgData = this.preprocessImageForModel(null, this.targetDetector.modelSize);
     let input = ImageProcessor.normalizeToYOLOinput(imgData).data;
-    //const cropContext = zoomableCanvas.getOverlayContext();
-    const cropContext = this.processingCanvas.getContext("2d", { willReadFrequently: true });
-    let results = await this.targetDetector.detect(input, cropContext);
+
+    const debugCanvas = null; //document.getElementById("debugCanvas");
+    const debugCtx = debugCanvas?.getContext("2d");
+    if (debugCanvas) {
+      debugCanvas.width = imgData.width;
+      debugCanvas.height = imgData.height;
+      debugCanvas.style.width = "" + imgData.width + "px";
+      debugCanvas.style.height = "" + imgData.height + "px";
+
+      debugCtx.putImageData(imgData, 0, 0);
+    }
+
+    // proportional threshold for image width (30px for 640)
+    const distanceThreshold = (this.calibrationPairFactor * (30.0 * this.targetDetector.modelSize)) / 640.0;
+    console.debug(
+      "Calibration pair factor:",
+      self.calibrationPairFactor,
+      " computed distance threshold:",
+      distanceThreshold
+    );
+
+    let results = await this.targetDetector.detect(input, debugCtx, distanceThreshold);
     if (results?.calibrationPoints) {
       let sourceCalib = results.calibrationPoints.map((p) => [
         (p[0] * this.videoSource.videoWidth) / this.targetDetector.modelSize,
         (p[1] * this.videoSource.videoHeight) / this.targetDetector.modelSize,
       ]);
-      //   console.log(this.targetDetector.modelSize);
-      //   console.log(this.videoSource.videoWidth, this.videoSource.videoHeight);
-      //   console.log(results.calibrationPoints);
-      //   console.log(sourceCalib);
       let crop = autoCrop(sourceCalib, this.videoSource.videoWidth, this.videoSource.videoHeight);
-      console.log("Auto Crop:", crop);
+      console.debug("Auto Crop:", crop);
       this.cropArea = [crop[0], crop[1], crop[2], crop[3]];
       imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
       input = ImageProcessor.normalizeToYOLOinput(imgData).data;
-      let calibration = await this.targetDetector.detect(input, cropContext);
+
+      if (debugCanvas) {
+        debugCanvas.width = imgData.width;
+        debugCanvas.height = imgData.height;
+        debugCanvas.style.width = "" + imgData.width + "px";
+        debugCanvas.style.height = "" + imgData.height + "px";
+
+        debugCtx.putImageData(imgData, 0, 0);
+      }
+
+      let calibration = await this.targetDetector.detect(input, debugCtx, distanceThreshold);
       console.log("Calibration:", calibration);
       if (!calibration) {
         console.warn("Unable to find target in croped area... Using previous (bad) one");
         this.cropArea = [0, 0, this.videoSource.videoWidth, this.videoSource.videoHeight];
         calibration = results;
       }
-      this.sourceCalibPts = calibration.calibrationPoints.map((p) => this.cropppedToSource(p));
+
+      console.debug("CALIB POINTS:", calibration.calibrationPoints);
+      this.sourceCalibPts = calibration.calibrationPoints.map((p) =>
+        this.normalizedToSource([p[0] / this.targetDetector.modelSize, p[1] / this.targetDetector.modelSize])
+      );
+      console.debug("SOURCE CALIB POINTS:", this.sourceCalibPts);
       this.updateCalibPoints(this.sourceCalibPts);
+      if (oldCalib0) {
+        console.debug("Trying to match old calib global orientation...", calibration.calibrationPoints);
+        this.rotateCalibrationToClosest20point(oldCalib0);
+      }
+      console.debug("SOURCE CALIB POINTS (ROTATED):", this.sourceCalibPts);
     } else {
       console.warn("Unable to find initial target to auto crop...");
       throw Error("Unable to find initial target to auto crop...");
     }
-    //zoomableCanvas.getOverlayContext();
-
-    //     if (this.onnxSession) {
-    //         await this.runInference();
-    //     }
-    // } catch (error) {
-    //     this.log('Capture and analyze error: ' + error.message);
-    //     this.updateStatus('❌ Error during processing: ' + error.message, 'error');
-    // } finally {
-    //     this.showLoading(false);
-    // }
-    //this.showLoading(false);
   }
 
   async detectDartImpact() {
     if (!this.dartDetector) return;
-    const imgData = this.preprocessImageForModel(this.cropArea, this.targetDetector.modelSize);
+    let timerStart = performance.now();
+    const imgData = this.preprocessImageForModel(this.cropArea, this.dartDetector.modelSize);
+    timings["DartNet: Image preprocessing for model inference"] = performance.now() - timerStart;
     this.dartDetector.onNewFrame(imgData);
   }
 
   async onDetectedDartImpact(data) {
-    //console.log("DartImpact:", data);
+    console.log("DartImpact:", data);
+    console.log("timings:", timings);
   }
 }

@@ -4,22 +4,293 @@
 <head>
     <meta charset="UTF-8">
     <title>YOLOv8 Object Detection</title>
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/eruda"></script> -->
     <script src="../ext/ort.min.js"></script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        input,
+        select,
+        button {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            cursor: pointer;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            margin: 20px 0;
+            text-align: center;
+        }
+
         canvas {
-            display: block;
-            border: 1px solid black;
-            margin-top: 10px;
+            max-width: 100%;
+            border: 3px solid #ddd;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+
+        .detection-item {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .metric-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .metric-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .metric-value {
+            font-family: monospace;
+            color: #764ba2;
+            font-weight: bold;
         }
     </style>
 </head>
 
 <body>
-    <input id="uploadInput" type="file" />
-    <canvas></canvas>
-    <script>eruda.init();</script>
+    <div class="container">
+        <h1>🔍 TEST</h1>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="modelFile">ONNX Model File:</label>
+                <select id="modelSelect">
+                    <option value="">Loading models...</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="imageFile">Image File:</label>
+                <input id="uploadInput" type="file" />
+            </div>
+
+            <div class="control-group">
+                <label for="inputSize">Input Size:</label>
+                <input type="number" id="inputSize" value="640" min="320" max="1280" step="32" />
+            </div>
+
+            <div class="control-group">
+                <label for="backend">Backend:</label>
+                <select id="backend">
+                    <option value="webgpu">WebGPU</option>
+                    <option value="wasm">CPU (WASM)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="confidenceThreshold">Confidence Threshold:</label>
+                <input type="range" id="confidenceThreshold" min="0.1" max="1.0" step="0.05" value="0.5" />
+                <span id="confidenceValue">0.5</span>
+            </div>
+
+            <div class="control-group">
+                <label for="iouThreshold">IoU Threshold:</label>
+                <input type="range" id="iouThreshold" min="0.1" max="1.0" step="0.05" value="0.45" />
+                <span id="iouValue">0.45</span>
+            </div>
+        </div>
+
+        <button id="rerunButton">🚀 Re-run Inference</button>
+
+        <div id="status"></div>
+        <div id="progressContainer" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div class="results" id="timingMetrics" style="margin-bottom: 20px;">
+            <h3>Performance Metrics</h3>
+            <div class="metric-group">
+                <div class="metric">
+                    <span class="metric-label">Model Loading:</span>
+                    <span class="metric-value" id="modelLoadTime">0 ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Input Preparation:</span>
+                    <span class="metric-value" id="inputPrepTime">0 ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Pure Inference:</span>
+                    <span class="metric-value" id="inferenceTime">0 ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total:</span>
+                    <span class="metric-value" id="totalTime">0 ms</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+
+    </div>
+    <script src="../utils/DebugConsole.js"></script>
+
     <script>
+        // Default image URL to load on startup
+        //const DEFAULT_IMAGE_URL = '../dev/target_detector_test/03.jpg'; // Replace with your desired default image URL
+        const DEFAULT_IMAGE_URL = '../dev/diff.png'; // Replace with your desired default image URL
+        // Load default image on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            //try {
+            const response = await fetch(DEFAULT_IMAGE_URL);
+            const blob = await response.blob();
+            currentImage = blob;
+            const [boxes, image] = await detect_objects_on_image(blob);
+            draw_image_and_boxes(blob, boxes, image);
+            // } catch (error) {
+            //     console.error('Error loading default image:', error);
+            // }
+        });
+
         async function checkGPU() {
             if (!navigator.gpu) {
                 throw Error("WebGPU not supported.");
@@ -39,12 +310,67 @@
          * and draws them on top of image
          */
         let model = null;
+        let model_size = 320;
         let inputImage = null;
+        let currentImage = null;
+        let modelsData = [];
+        let confidenceThreshold=0.5;
+        let iouThreshold=0.45;
+
+        const modelSelect = document.getElementById("modelSelect");
+
+        // Load models data
+        fetch('../models/models.json')
+            .then(response => response.json())
+            .then(data => {
+                modelsData = data;
+                modelSelect.innerHTML = '';
+                data.forEach((model, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${model.name} (${model.type} ${model.version}) - ${model.size}x${model.size}`;
+                    modelSelect.appendChild(option);
+                });
+                modelSelect.value = 0;
+            });
+
+
         const input = document.getElementById("uploadInput");
+        const rerunButton = document.getElementById("rerunButton");
+
+        rerunButton.addEventListener("click", async () => {
+            console.log("Re-run button clicked, currentImage:", currentImage);
+            if (currentImage) {
+                console.log("Reloading model and running inference...");
+                model = null; // Force model reload with new provider
+                try {
+                    const [boxes, image] = await detect_objects_on_image(currentImage);
+                    console.log("Inference completed, drawing boxes...");
+                    draw_image_and_boxes(currentImage, boxes, image);
+                } catch (error) {
+                    console.error("Error during re-run:", error);
+                }
+            } else {
+                console.log("No currentImage available to process");
+            }
+        });
+
         input.addEventListener("change", async (event) => {
-            const [boxes, image] = await detect_objects_on_image(event.target.files[0]);
-            draw_image_and_boxes(event.target.files[0], boxes, image);
+            currentImage = event.target.files[0];
+            const [boxes, image] = await detect_objects_on_image(currentImage);
+            draw_image_and_boxes(currentImage, boxes, image);
         })
+
+
+        document.getElementById('confidenceThreshold').addEventListener('input', (e) => {
+            confidenceThreshold = parseFloat(e.target.value);
+            document.getElementById('confidenceValue').textContent = e.target.value;
+        });
+
+        document.getElementById('iouThreshold').addEventListener('input', (e) => {
+            iouThreshold = parseFloat(e.target.value);
+            document.getElementById('iouValue').textContent = e.target.value;
+        });
 
         /**
          * Function draws the image from provided file
@@ -57,22 +383,39 @@
             const img = new Image()
             img.src = URL.createObjectURL(file);
             img.onload = () => {
-                                const canvas = document.querySelector("canvas");
+                const canvas = document.querySelector("canvas");
                 canvas.width = img.width;
                 canvas.height = img.height;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(img, 0, 0);
-                //ctx.putImageData(image, 0,0);
-                ctx.strokeStyle = "#00FF00";
+
+                // Color mapping for each label
+                const labelColors = {
+                    "tip": "#FF0000",    // Red
+                    "cal1": "#00FF00",    // Green
+                    "cal2": "#0000FF",    // Blue
+                    "cal3": "#FFFF00",    // Yellow
+                    "cal4": "#FF00FF",    // Magenta
+                    "dart": "#00FFFF",    // Cyan
+                    "cross": "#FFA500",   // Orange
+                    "D-Bull": "#800080",  // Purple
+                    "Bull": "#008000"     // Dark Green
+                };
+
                 ctx.lineWidth = 3;
                 ctx.font = "18px serif";
                 boxes.forEach(([x1, y1, x2, y2, label]) => {
+                    const labelName = yolo_classes[label];
+                    const color = labelColors[labelName] || "#FFFFFF"; // Default to white if unknown
+
+                    ctx.strokeStyle = color;
+                    ctx.fillStyle = color;
                     ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-                    ctx.fillStyle = "#00ff00";
-                    // const width = ctx.measureText(label).width;
-                    // ctx.fillRect(x1, y1, width + 10, 25);
-                    // ctx.fillStyle = "#000000";
-                    // ctx.fillText(label, x1, y1 + 18);
+
+                    const width = ctx.measureText(labelName).width;
+                    ctx.fillRect(x1, y1 - 18, width + 10, 20);
+                    ctx.fillStyle = "#000000";
+                    ctx.fillText(labelName, x1 + 5, y1 - 2);
                 });
             }
         }
@@ -84,8 +427,34 @@
          * @returns Array of bounding boxes in format [[x1,y1,x2,y2,object_type,probability],..]
          */
         async function detect_objects_on_image(buf) {
+            const url = `../models/${modelsData[modelSelect.value].file}`
+            console.log("Reloading model:", url)
+            
+            // Track timing
+            let modelLoadStart = performance.now();
+            await reload_model(url);
+            let modelLoadEnd = performance.now();
+            
+            let inputPrepStart = performance.now();
             const [input, img_width, img_height, to_infer] = await prepare_input(buf);
+            let inputPrepEnd = performance.now();
+            
+            let inferenceStart = performance.now();
             const outputs = await run_model(input);
+            let inferenceEnd = performance.now();
+            
+            // Calculate durations
+            const modelLoadTime = modelLoadEnd - modelLoadStart;
+            const inputPrepTime = inputPrepEnd - inputPrepStart;
+            const inferenceTime = inferenceEnd - inferenceStart;
+            const totalTime = modelLoadTime + inputPrepTime + inferenceTime;
+            
+            // Update UI
+            document.getElementById('modelLoadTime').textContent = `${modelLoadTime.toFixed(1)} ms`;
+            document.getElementById('inputPrepTime').textContent = `${inputPrepTime.toFixed(1)} ms`;
+            document.getElementById('inferenceTime').textContent = `${inferenceTime.toFixed(1)} ms`;
+            document.getElementById('totalTime').textContent = `${totalTime.toFixed(1)} ms`;
+            
             return process_output(outputs, img_width, img_height, to_infer);
         }
 
@@ -102,12 +471,13 @@
                 img.src = URL.createObjectURL(buf);
                 img.onload = () => {
                     const [img_width, img_height] = [img.width, img.height]
+                    const selectedModelIndex = modelSelect.value;
                     const canvas = document.createElement("canvas");
-                    canvas.width = 640;
-                    canvas.height = 640;
+                    canvas.width = model_size;
+                    canvas.height = model_size;
                     const context = canvas.getContext("2d");
-                    context.drawImage(img, 0, 0, 640, 640);
-                    const imgData = context.getImageData(0, 0, 640, 640);
+                    context.drawImage(img, 0, 0, model_size, model_size);
+                    const imgData = context.getImageData(0, 0, model_size, model_size);
                     const pixels = imgData.data;
 
                     const red = [], green = [], blue = [];
@@ -122,18 +492,22 @@
             })
         }
 
+        async function reload_model(url = "../models/best_temporal_B_n_320.onnx") {
+            const provider = document.getElementById("backend").value;
+            const options = { executionProviders: [provider] };
+            //model = await ort.InferenceSession.create("../models/best_n_tip_boxes_cross_640_B.onnx", options);
+            model = await ort.InferenceSession.create(url, options);
+            console.log(model.handler.inputMetadata[0].shape)
+            model_size = model.handler.inputMetadata[0].shape[2];
+        }
+
         /**
          * Function used to pass provided input tensor to YOLOv8 neural network and return result
          * @param input Input pixels array
          * @returns Raw output of neural network as a flat array of numbers
          */
         async function run_model(input) {
-            if(!model) {
-                // model = await ort.InferenceSession.create("../models/best_s_tip_boxes640_B.onnx",{ executionProviders: ['webgpu'] });
-                model = await ort.InferenceSession.create("../models/best_n_tip_boxes_cross_640_B.onnx", { executionProviders: ['webgpu'] });
-                console.log(model)
-            }
-            inputImage = new ort.Tensor(Float32Array.from(input), [1, 3, 640, 640]);
+            inputImage = new ort.Tensor(Float32Array.from(input), [1, 3, model_size, model_size]);
             const outputs = await model.run({ images: inputImage });
             return outputs;
         }
@@ -195,38 +569,42 @@
 
             console.log(outputs)
             const output = outputs["output0"].data;
-            const num_classes = outputs["output0"]["dims"][1]-4;//yolo_classes.length;
+            const num_classes = outputs["output0"]["dims"][1] - 4;//yolo_classes.length;
+            const anchors = outputs["output0"]["dims"][2];//yolo_classes.length;
             let boxes = [];
 
+            const selectedModelIndex = modelSelect.value;
+            const modelSize = modelsData[selectedModelIndex].size;
+
             // Iterate through all 8400 anchor boxes
-            for (let index = 0; index < 8400; index++) {
+            for (let index = 0; index < anchors; index++) {
                 // Get the class with highest confidence
                 let max_class = 0;
                 let max_confidence = 0;
 
                 // Check class confidences (they start at offset 4*8400)
                 for (let class_id = 0; class_id < num_classes; class_id++) {
-                    const confidence = output[8400 * (4 + class_id) + index];
+                    const confidence = output[anchors * (4 + class_id) + index];
                     if (confidence > max_confidence) {
                         max_confidence = confidence;
                         max_class = class_id;
                     }
                 }
                 // Skip boxes with low confidence
-                if (max_confidence < 0.5) {
+                if (max_confidence < confidenceThreshold) {
                     continue;
                 }
 
                 const xc = output[index];          // x-center
-                const yc = output[8400 + index];   // y-center
-                const w = output[2 * 8400 + index];  // width
-                const h = output[3 * 8400 + index];  // height
+                const yc = output[anchors + index];   // y-center
+                const w = output[2 * anchors + index];  // width
+                const h = output[3 * anchors + index];  // height
 
                 // Convert from center+width to xyxy format
-                const x1 = (xc - w / 2) * img_width / 640;
-                const y1 = (yc - h / 2) * img_height / 640;
-                const x2 = (xc + w / 2) * img_width / 640;
-                const y2 = (yc + h / 2) * img_height / 640;
+                const x1 = (xc - w / 2) * img_width / model_size;
+                const y1 = (yc - h / 2) * img_height / model_size;
+                const x2 = (xc + w / 2) * img_width / model_size;
+                const y2 = (yc + h / 2) * img_height / model_size;
                 const box = [x1, y1, x2, y2, max_class, max_confidence];
                 boxes.push(box);
             }
@@ -238,12 +616,12 @@
             while (boxes.length > 0) {
                 final_boxes.push(boxes[0]);
                 // Remove boxes that overlap too much with the current box
-                boxes = boxes.filter(box => iou(boxes[0], box) < 0.85);
+                boxes = boxes.filter(box => iou(boxes[0], box) < iouThreshold);
             }
 
             return [final_boxes, inferred];
             // return [boxes, inferred];
-        }        
+        }
 
         /**
          * Function calculates "Intersection-over-union" coefficient for specified two boxes

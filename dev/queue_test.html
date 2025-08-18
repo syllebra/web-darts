@@ -1,0 +1,53 @@
+<script>class Queue {
+  constructor(maxSize) {
+    this.items = [];
+    this.maxSize = maxSize;
+  }
+
+  put(item) {
+    if (this.items.length >= this.maxSize) {
+      this.items.shift(); // Remove oldest item
+    }
+    this.items.push(item);
+  }
+
+  get() {
+    return this.items.shift();
+  }
+
+  qsize() {
+    return this.items.length;
+  }
+
+  clear() {
+    this.items = [];
+  }
+
+  length() {
+    return this.items.length;
+  }
+}
+
+
+var test = new Queue(5);
+function show() {
+    console.log(test.items.toString(), " Length:", test.length())
+}
+console.log(test.get())
+show()
+
+test.put(1)
+show()
+test.put(2)
+show()
+test.put(3)
+show()
+test.put(4)
+show()
+test.put(5)
+show()
+test.get()
+show()
+test.put(6)
+show()
+</script>

@@ -557,23 +557,27 @@ class ZoomablePannableCanvas {
    * @param {boolean} animated - Whether to animate the zoom transition (default: false)
    */
   autoZoomVideo(padding = 20, animated = false, srcCrop = null) {
-    if (!this.videoElement) {
-      console.warn("No video element set. Cannot auto-zoom.");
-      return;
+    let x, y, w, h;
+    if (srcCrop) {
+      [x, y, w, h] = [srcCrop[0], srcCrop[1], srcCrop[2] - srcCrop[0], srcCrop[3] - srcCrop[1]];
+    } else {
+      if (!this.videoElement) {
+        console.warn("No video element set. Cannot auto-zoom.");
+        return;
+      }
+
+      const videoWidth = this.videoElement.videoWidth || this.videoElement.width;
+      const videoHeight = this.videoElement.videoHeight || this.videoElement.height;
+
+      if (!videoWidth || !videoHeight) {
+        console.warn("Video dimensions not available. Cannot auto-zoom.");
+        return;
+      }
+
+      [x, y, w, h] = [0, 0, videoWidth, videoHeight];
     }
 
-    const videoWidth = this.videoElement.videoWidth || this.videoElement.width;
-    const videoHeight = this.videoElement.videoHeight || this.videoElement.height;
-
-    if (!videoWidth || !videoHeight) {
-      console.warn("Video dimensions not available. Cannot auto-zoom.");
-      return;
-    }
-
-    const [x, y, w, h] = srcCrop
-      ? [srcCrop[0], srcCrop[1], srcCrop[2] - srcCrop[0], srcCrop[3] - srcCrop[1]]
-      : [0, 0, videoWidth, videoHeight];
-    console.log("AUTO-ZOOM:", [x, y, w, h]);
+    console.debug("AUTO-ZOOM:", [x, y, w, h]);
     // Calculate available canvas space (minus padding)
     const availableWidth = this.canvas.width - padding * 2;
     const availableHeight = this.canvas.height - padding * 2;

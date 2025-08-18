@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPIC DARTS ARCADE</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: radial-gradient(circle at center, #0a0a0a, #1a1a2e, #16213e);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        .neon-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 255, 255, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.15) 1px, transparent 1px),
+                linear-gradient(45deg, rgba(255, 0, 128, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px, 40px 40px, 80px 80px;
+            z-index: 1;
+        }
+
+        .floating-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .particle-float {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #00ffff;
+            border-radius: 50%;
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-areas:
+                "header header header"
+                "left center right";
+            gap: 20px;
+            padding: 20px;
+        }
+
+        /* Factored common panel styles */
+        .neon-panel {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .neon-panel--primary {
+            border: 3px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .neon-panel--secondary {
+            border: 2px solid rgba(0, 255, 255, 0.5);
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-areas:
+                "header header header"
+                "left center right";
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .top-bar {
+            grid-area: header;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .game-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #00ffff;
+            text-shadow: 0 0 30px #00ffff;
+        }
+
+        .round-info {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .round-counter {
+            font-size: 1.5rem;
+            color: #ff6b35;
+            text-shadow: 0 0 20px #ff6b35;
+        }
+
+        .dart-counter {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #ffff00;
+            text-shadow: 0 0 25px #ffff00;
+        }
+
+        .player-info {
+            grid-area: left;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .players-header {
+            font-size: 1.5rem;
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .player-item.active {
+            background: rgba(0, 255, 255, 0.15);
+            border-color: #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .player-item-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #ff0080;
+            text-shadow: 0 0 15px #ff0080;
+        }
+
+        .player-item.active .player-item-name {
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+        }
+
+        .player-item-score {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+
+        .player-item.active .player-item-score {
+            color: #ffff00;
+            text-shadow: 0 0 25px #ffff00;
+        }
+
+        .add-player-btn {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px dashed #00ff00;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .add-player-btn:hover {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            transform: scale(1.02);
+        }
+
+        .score-section {
+            grid-area: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .player-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ff0080;
+            text-shadow: 0 0 20px #ff0080;
+            margin-bottom: 20px;
+        }
+
+        .current-leg {
+            font-size: 8rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.8);
+            margin-bottom: 20px;
+            line-height: 1;
+        }
+
+        .round-total {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #00ff00;
+            text-shadow: 0 0 30px #00ff00;
+            line-height: 1;
+        }
+
+        .incoming-score {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6rem;
+            font-weight: 900;
+            color: #ff0080;
+            text-shadow: 0 0 40px #ff0080;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .dart-history {
+            grid-area: right;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-title {
+            font-size: 1.2rem;
+            color: #00ffff;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        .dart-scores {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .dart-score {
+            background: rgba(255, 0, 128, 0.2);
+            border: 1px solid #ff0080;
+            color: #ff0080;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-align: center;
+            opacity: 0;
+            transform: translateX(50px);
+        }
+
+        .countdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .countdown-number {
+            font-size: 15rem;
+            font-weight: 900;
+            color: #ff0080;
+            text-shadow: 0 0 80px #ff0080;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .btn-neon {
+            background: rgba(0, 255, 255, 0.2);
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 12px 24px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-neon:hover {
+            background: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 30px #00ffff;
+            transform: translateY(-3px) scale(1.05);
+        }
+
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            z-index: 100;
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #ff0000;
+            color: #ff0000;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+        }
+
+        .player-switch {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: 900;
+            color: #ffff00;
+            text-shadow: 0 0 40px #ffff00;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .explosion-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                grid-template-rows: auto auto 1fr auto;
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "header"
+                    "left"
+                    "center"
+                    "right";
+            }
+
+            .current-leg {
+                font-size: 6rem;
+            }
+
+            .round-total {
+                font-size: 2rem;
+            }
+
+            .game-title {
+                font-size: 2rem;
+            }
+
+            .checkout-section {
+                margin-top: 10px;
+            }
+
+            .checkout-suggestions {
+                margin-top: 10px;
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: #80ff80;
+                text-shadow: 0 0 15px #80ff80;
+                text-align: center;
+                line-height: 1.4;
+                min-height: 2em;
+            }
+
+
+            .checkout-route {
+                display: inline-block;
+                padding: 5px 10px;
+                border-radius: 8px;
+                font-size: 1.2rem;
+                font-weight: bold;
+                margin: 3px;
+                background-color: rgba(0, 255, 0, 0.15);
+                border: 2px solid #80ff80;
+                color: #80ff80;
+                text-shadow: 0 0 10px #80ff80;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="floating-particles"></div>
+    <div class="neon-grid"></div>
+    <div class="status-indicator" id="status">MQTT: DISCONNECTED</div>
+    <div class="player-switch" id="playerSwitch">PLAYER 2 TURN!</div>
+
+    <div class="game-container">
+        <div class="top-bar neon-panel neon-panel--primary">
+            <div class="game-title">EPIC DARTS ARCADE</div>
+            <div class="round-info">
+                <div class="round-counter">ROUND <span id="roundNumber">1</span></div>
+                <div class="dart-counter" id="dartCounter">DART 1</div>
+            </div>
+        </div>
+
+        <div class="player-info neon-panel neon-panel--secondary">
+            <div class="players-header">PLAYERS</div>
+            <div id="playersList"></div>
+            <button class="add-player-btn" onclick="addPlayer()">+ ADD PLAYER</button>
+        </div>
+
+        <div class="score-section neon-panel neon-panel--primary">
+            <div class="player-name" id="currentPlayerName">PLAYER 1</div>
+            <div class="current-leg" id="currentLegScore">101</div>
+            <div class="round-total" id="currentRoundTotal">Round Total: 0</div>
+            <div class="incoming-score" id="incomingScore"></div>
+        </div>
+        <div class="column">
+        <div class="dart-history neon-panel neon-panel--secondary">
+            <div class="history-title">CURRENT ROUND</div>
+            <div class="dart-scores" id="dartHistory"></div>
+        </div>
+        <div class="checkout-section neon-panel neon-panel--secondary">
+            <div class="history-title">CHECKOUT SUGGESTIONS</div>
+            <div class="checkout-suggestions" id="checkoutSuggestions"></div>
+        </div>
+        </div>
+    </div>
+    <div class="countdown-overlay" id="countdownOverlay">
+        <div class="countdown-number" id="countdownNumber">3</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-neon" onclick="simulateScore()">Simulate Score</button>
+        <button class="btn-neon" onclick="resetGame()">New Game</button>
+        <button class="btn-neon" onclick="connectMQTT()">Connect MQTT</button>
+    </div>
+
+    <script src="../utils/sound_effects.js"></script>
+    <script src="../core/Throw.js"></script>
+    <script>
+
+        let checkoutRoutes = {};
+
+        fetch('main_checkouts_double_out.json') // adjust path if needed
+            .then(res => res.json())
+            .then(data => {
+                checkoutRoutes = data;
+                console.log("Checkout routes loaded:", checkoutRoutes);
+            })
+            .catch(err => console.error("Failed to load checkout routes", err));
+
+        const legScore = 101;
+        class EpicDartsScorer {
+            constructor() {
+
+                this.mqttClient = null;
+
+                this.players = [
+                    { name: "PLAYER 1", legScore: legScore, roundTotal: 0, dartHistory: [] },
+                    { name: "PLAYER 2", legScore: legScore, roundTotal: 0, dartHistory: [] }
+                ];
+                this.currentPlayer = 0;
+                this.currentRound = 1;
+                this.currentDart = 1;
+                this.currentRoundDarts = [];
+
+                this.elements = {
+                    currentLegScore: document.getElementById('currentLegScore'),
+                    currentRoundTotal: document.getElementById('currentRoundTotal'),
+                    currentPlayerName: document.getElementById('currentPlayerName'),
+                    playersList: document.getElementById('playersList'),
+                    roundNumber: document.getElementById('roundNumber'),
+                    dartCounter: document.getElementById('dartCounter'),
+                    incomingScore: document.getElementById('incomingScore'),
+                    status: document.getElementById('status'),
+                    countdownOverlay: document.getElementById('countdownOverlay'),
+                    countdownNumber: document.getElementById('countdownNumber'),
+                    playerSwitch: document.getElementById('playerSwitch'),
+                    dartHistory: document.getElementById('dartHistory'),
+                    checkoutSuggestions: document.getElementById('checkoutSuggestions'),
+                };
+
+                this.initGSAP();
+                this.updateDisplay();
+                this.updatePlayersList();
+                this.createFloatingParticles();
+            }
+
+            connectMQTT() {
+                try {
+                    this.mqttClient = new Paho.MQTT.Client('192.168.31.120', 8083, 'epicDarts_' + Math.random());
+                    
+                    this.mqttClient.onConnectionLost = (responseObject) => {
+                        if (responseObject.errorCode !== 0) {
+                            console.log("MQTT Connection lost: " + responseObject.errorMessage);
+                            this.updateConnectionStatus(false);
+                        }
+                    };
+                    
+                    this.mqttClient.onMessageArrived = (message) => {
+                        const hit = JSON.parse(message.payloadString);
+                        console.log("MQTT arrived:", hit)
+                        let th = new Throw(hit.alpha, hit.d, hit.zone, hit.targetZone);
+                        th.id = hit.id;
+                        th.timestamp = hit.timestamp;
+
+                           const score = th.getStandardZoneScore();
+                        if (!isNaN(score) && score >= 0 && score <= 180) {
+                            this.addScore(score);
+                        }
+                    };
+                    
+                    this.mqttClient.connect({
+                        onSuccess: () => {
+                            console.log("MQTT Connected");
+                            this.updateConnectionStatus(true);
+                            this.mqttClient.subscribe("dartnet/hit");
+                            soundEffects.playModernSound('connect');
+                        },
+                        onFailure: (message) => {
+                            console.log("MQTT Connection failed: " + message.errorMessage);
+                            this.updateConnectionStatus(false);
+                        }
+                    });
+                } catch (error) {
+                    console.log("MQTT setup failed:", error);
+                    this.updateConnectionStatus(false);
+                }
+            }
+            
+            updateConnectionStatus(connected) {
+                this.isConnected = connected;
+                const status = this.elements.status;
+                if (connected) {
+                    status.className = 'status-indicator status-connected';
+                    status.textContent = 'MQTT: CONNECTED';
+                } else {
+                    status.className = 'status-indicator status-disconnected';
+                    status.textContent = 'MQTT: DISCONNECTED';
+                }
+            }
+
+            initGSAP() {
+                // Set up GSAP animations
+                gsap.set(".neon-grid", {
+                    backgroundPosition: "0 0, 0 0, 0 0"
+                });
+
+                // Continuous animations
+                gsap.to(".neon-grid", {
+                    backgroundPosition: "40px 40px, 40px 40px, 80px 80px",
+                    duration: 6,
+                    repeat: -1,
+                    ease: "none"
+                });
+
+                gsap.to(".neon-grid", {
+                    opacity: 0.2,
+                    duration: 4,
+                    repeat: -1,
+                    yoyo: true,
+                    ease: "power2.inOut"
+                });
+
+                // Title animations
+                gsap.to(".game-title", {
+                    textShadow: "0 0 50px #00ffff, 0 0 80px #00ffff, 0 0 100px #00ffff",
+                    duration: 2,
+                    repeat: -1,
+                    yoyo: true,
+                    ease: "power2.inOut"
+                });
+
+                gsap.to(".game-title", {
+                    y: -5,
+                    duration: 4,
+                    repeat: -1,
+                    yoyo: true,
+                    ease: "power2.inOut"
+                });
+
+                // Dart counter animation
+                gsap.to(".dart-counter", {
+                    y: -3,
+                    rotation: 1,
+                    duration: 3,
+                    repeat: -1,
+                    yoyo: true,
+                    ease: "power2.inOut"
+                });
+            }
+
+            createFloatingParticles() {
+                const container = document.querySelector('.floating-particles');
+
+                setInterval(() => {
+                    if (Math.random() < 0.7) {
+                        const particle = document.createElement('div');
+                        particle.className = 'particle-float';
+                        particle.style.left = Math.random() * 100 + '%';
+                        particle.style.background = `hsl(${Math.random() * 60 + 180}, 100%, 70%)`;
+                        container.appendChild(particle);
+
+                        // GSAP animation for particle
+                        gsap.fromTo(particle,
+                            {
+                                y: window.innerHeight + 50,
+                                opacity: 0,
+                                scale: 0
+                            },
+                            {
+                                y: -50,
+                                opacity: 1,
+                                scale: 1,
+                                duration: 8,
+                                ease: "none",
+                                onComplete: () => particle.remove()
+                            }
+                        );
+
+                        gsap.to(particle, {
+                            opacity: 0,
+                            scale: 0,
+                            duration: 1,
+                            delay: 7,
+                            ease: "power2.in"
+                        });
+                    }
+                }, 500);
+            }
+
+            addScore(score) {
+                if (score === 0) {
+                    soundEffects.playModernSound('bust');
+                    this.animateBust();
+                    this.switchPlayer();
+                    return;
+                }
+
+                const player = this.players[this.currentPlayer];
+
+                // Play modern score sound
+                soundEffects.playModernSound('score', { score });
+
+                // Screen shake for high scores using GSAP
+                if (score >= 100) {
+                    gsap.to("body", {
+                        x: "random(-5, 5)",
+                        y: "random(-5, 5)",
+                        rotation: "random(-0.5, 0.5)",
+                        duration: 0.1,
+                        repeat: 5,
+                        yoyo: true,
+                        ease: "power2.inOut",
+                        onComplete: () => {
+                            gsap.set("body", { x: 0, y: 0, rotation: 0 });
+                        }
+                    });
+                }
+
+                // Show incoming score animation
+                this.animateIncomingScore(score);
+
+                // Add to round total and history
+                player.roundTotal += score;
+                this.currentRoundDarts.push(score);
+                this.updateDartHistory();
+                this.updateCheckoutSuggestions();
+
+                // Update displays with animations
+                setTimeout(() => {
+                    this.animateRoundTotal();
+                    setTimeout(() => {
+                        this.subtractFromLeg(score);
+                    }, 300);
+                }, 800);
+
+                // Move to next dart
+                this.nextDart();
+
+                // Create explosion particles
+                this.createExplosionParticles(score);
+            }
+
+            animateIncomingScore(score) {
+                const element = this.elements.incomingScore;
+                element.textContent = '+' + score;
+
+                gsap.timeline()
+                    .set(element, { opacity: 0, scale: 0.3, rotation: -10 })
+                    .to(element, {
+                        opacity: 1,
+                        scale: 1.5,
+                        rotation: 5,
+                        duration: 0.4,
+                        ease: "back.out(1.7)"
+                    })
+                    .to(element, {
+                        scale: 1.2,
+                        rotation: -2,
+                        duration: 0.3,
+                        ease: "power2.out"
+                    })
+                    .to(element, {
+                        opacity: 0,
+                        y: -100,
+                        scale: 0.6,
+                        rotation: 0,
+                        duration: 0.8,
+                        ease: "power2.in"
+                    });
+            }
+
+            animateRoundTotal() {
+                const element = this.elements.currentRoundTotal;
+                element.textContent = `Round Total: ${this.players[this.currentPlayer].roundTotal}`;
+
+                gsap.timeline()
+                    .to(element, {
+                        scale: 1.3,
+                        rotation: -3,
+                        color: "#ffff00",
+                        duration: 0.2,
+                        ease: "power2.out"
+                    })
+                    .to(element, {
+                        scale: 1.1,
+                        rotation: 2,
+                        color: "#80ff80",
+                        duration: 0.2,
+                        ease: "power2.out"
+                    })
+                    .to(element, {
+                        scale: 1,
+                        rotation: 0,
+                        color: "#00ff00",
+                        duration: 0.4,
+                        ease: "power2.out"
+                    });
+            }
+
+            subtractFromLeg(score) {
+                const player = this.players[this.currentPlayer];
+                const newLegScore = player.legScore - score;
+                const element = this.elements.currentLegScore;
+
+                if (newLegScore < 0 || (newLegScore === 0 && score % 2 !== 0)) {
+                    // Bust animation
+                    this.animateBust();
+                    return;
+                }
+
+                player.legScore = newLegScore;
+                element.textContent = player.legScore;
+
+                
+                // Animate leg score decrease
+                gsap.timeline()
+                    .to(element, {
+                        color: "#ff4444",
+                        scale: 1.15,
+                        rotation: 2,
+                        duration: 0.2
+                    })
+                    .to(element, {
+                        color: "#ff6666",
+                        scale: 0.95,
+                        rotation: -1,
+                        duration: 0.2
+                    })
+                    .to(element, {
+                        color: "#fff",
+                        scale: 1,
+                        rotation: 0,
+                        duration: 0.4
+                    });
+
+
+                this.updateCheckoutSuggestions();
+                // Update other player displays
+                this.updatePlayersList();
+
+                if (player.legScore === 0) {
+                    this.gameWon();
+                }
+            }
+
+            updateCheckoutSuggestions() {
+                // Show checkout suggestions if available
+                const player = this.players[this.currentPlayer];
+                const remaining = player.legScore;
+                const checkoutEl = this.elements.checkoutSuggestions;
+
+                if (checkoutRoutes[remaining]) {
+                    checkoutEl.innerHTML = checkoutRoutes[remaining]
+                        .map(route => `<div class="checkout-route">${route.join(' - ')}</div>`)
+                        .join('');
+                    // function htmlElems(route) {
+                    //     const dscores = route.map(r => `<div class="dart-score">${r}</div>`).join('');
+                    //     return `<div class="dart-scores">${dscores}</div>`;
+                    // }
+                    // checkoutEl.innerHTML = checkoutRoutes[remaining]
+                    //     .map(route => `<div class="checkout-route">${htmlElems(route)}</div>`)
+                    //     .join('');
+
+                    // Animate appearance
+                    gsap.fromTo(checkoutEl,
+                        { opacity: 0, scale: 0.8 },
+                        { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.7)" }
+                    );
+                } else {
+                    checkoutEl.innerHTML = '';
+                }
+
+            }
+
+            animateBust() {
+                soundEffects.playModernSound('bust');
+                const element = this.elements.currentLegScore;
+
+                gsap.timeline()
+                    .to(element, {
+                        color: "#ff0000",
+                        scale: 1.3,
+                        rotation: 10,
+                        textShadow: "0 0 50px #ff0000",
+                        duration: 0.3,
+                        ease: "power2.out"
+                    })
+                    .to(element, {
+                        scale: 0.9,
+                        rotation: -5,
+                        duration: 0.3
+                    })
+                    .to(element, {
+                        color: "#fff",
+                        scale: 1,
+                        rotation: 0,
+                        textShadow: "0 0 40px rgba(255, 255, 255, 0.8)",
+                        duration: 0.6,
+                        ease: "power2.out"
+                    });
+            }
+
+            nextDart() {
+                this.currentDart++;
+
+                if (this.currentDart > 3) {
+                    this.endRound();
+                } else {
+                    this.updateDartCounter();
+                }
+            }
+
+            switchPlayer() {
+                this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
+
+                // Animate player switch
+                this.elements.playerSwitch.textContent = `${this.players[this.currentPlayer].name} TURN!`;
+
+                gsap.timeline()
+                    .set(this.elements.playerSwitch, { opacity: 0, scale: 0.5, rotation: -10 })
+                    .to(this.elements.playerSwitch, {
+                        opacity: 1,
+                        scale: 1.2,
+                        rotation: 5,
+                        duration: 0.6,
+                        ease: "back.out(1.7)"
+                    })
+                    .to(this.elements.playerSwitch, {
+                        scale: 1,
+                        rotation: 0,
+                        duration: 0.4
+                    })
+                    .to(this.elements.playerSwitch, {
+                        opacity: 0,
+                        scale: 0.8,
+                        duration: 0.5,
+                        delay: 0.5
+                    });
+
+                soundEffects.playModernSound('switch');
+                this.updateDisplay();
+                this.updatePlayersList();
+            }
+
+            updateDartCounter() {
+                this.elements.dartCounter.textContent = 'DART ' + this.currentDart;
+
+                // Animate dart counter update
+                gsap.timeline()
+                    .to(this.elements.dartCounter, {
+                        scale: 1.2,
+                        color: "#ffffff",
+                        duration: 0.2,
+                        ease: "power2.out"
+                    })
+                    .to(this.elements.dartCounter, {
+                        scale: 1,
+                        color: "#ffff00",
+                        duration: 0.3,
+                        ease: "power2.out"
+                    });
+            }
+
+            updateDartHistory() {
+                const historyElement = this.elements.dartHistory;
+                historyElement.innerHTML = '';
+
+                this.currentRoundDarts.forEach((score, index) => {
+                    const dartElement = document.createElement('div');
+                    dartElement.className = 'dart-score';
+                    dartElement.textContent = score;
+
+                    // Color coding for different score ranges
+                    if (score >= 100) {
+                        dartElement.style.borderColor = '#ffff00';
+                        dartElement.style.color = '#ffff00';
+                        dartElement.style.background = 'rgba(255, 255, 0, 0.2)';
+                    } else if (score >= 50) {
+                        dartElement.style.borderColor = '#ff6600';
+                        dartElement.style.color = '#ff6600';
+                        dartElement.style.background = 'rgba(255, 102, 0, 0.2)';
+                    }
+
+                    historyElement.appendChild(dartElement);
+
+                    // GSAP animation for dart score appearance
+                    gsap.fromTo(dartElement,
+                        { opacity: 0, x: 50, rotation: -10, scale: 0.5 },
+                        {
+                            opacity: 1,
+                            x: 0,
+                            rotation: 0,
+                            scale: 1,
+                            duration: 0.5,
+                            delay: index * 0.1,
+                            ease: "back.out(1.7)"
+                        }
+                    );
+                });
+            }
+
+            endRound() {
+                // Reset round totals for both players
+                this.players.forEach(player => player.roundTotal = 0);
+                this.currentRoundDarts = [];
+
+                // Wait 2 seconds before switching player and starting countdown
+                setTimeout(() => {
+                    const overlay = this.elements.countdownOverlay;
+                    overlay.style.display = 'flex';
+                    this.switchPlayer();
+                    if (this.currentPlayer == 0)
+                        this.currentRound++;
+
+                    // Wait another 1 second before countdown
+                    setTimeout(() => {
+                        this.showCountdown(() => {
+                            this.currentDart = 1;
+                            this.updateDisplay();
+                            this.updateDartHistory();
+                        });
+                    }, 1000);
+                }, 2000);
+            }
+
+            showCountdown(callback) {
+                const overlay = this.elements.countdownOverlay;
+                const number = this.elements.countdownNumber;
+                number.style.display = 'none'
+                let count = 3;
+                
+
+                const countdownInterval = setInterval(() => {
+                    number.textContent = count;
+                    number.style.display = 'block'
+
+                    // Play countdown sound FIRST
+                    soundEffects.playModernSound('countdown', { count });
+
+                    // GSAP countdown animation
+                    gsap.timeline()
+                        .set(number, { scale: 0, rotation: -180, opacity: 0 })
+                        .to(number, {
+                            scale: 1.3,
+                            rotation: 10,
+                            opacity: 1,
+                            duration: 0.5,
+                            ease: "back.out(1.7)"
+                        })
+                        .to(number, {
+                            scale: 1,
+                            rotation: 0,
+                            duration: 0.5,
+                            ease: "power2.out"
+                        });
+
+                    count--;
+
+                    if (count < 0) {
+                        clearInterval(countdownInterval);
+                        overlay.style.display = 'none';
+                        callback();
+                    }
+                }, 1000);
+            }
+
+            createExplosionParticles(score) {
+                const section = document.querySelector('.score-section');
+                const rect = section.getBoundingClientRect();
+                const particleCount = Math.min(score / 10, 20);
+
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'explosion-particle';
+
+                    const colors = ['#ffff00', '#ff0080', '#00ffff', '#ff6600', '#80ff80'];
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    particle.style.left = '50%';
+                    particle.style.top = '50%';
+
+                    section.appendChild(particle);
+
+                    // GSAP explosion animation
+                    const angle = (Math.PI * 2 * i) / particleCount;
+                    const distance = 100 + Math.random() * 150;
+                    const dx = Math.cos(angle) * distance;
+                    const dy = Math.sin(angle) * distance;
+
+                    gsap.timeline()
+                        .set(particle, { scale: 1, opacity: 1 })
+                        .to(particle, {
+                            x: dx,
+                            y: dy,
+                            scale: 0,
+                            opacity: 0,
+                            duration: 1.5,
+                            ease: "power2.out",
+                            onComplete: () => particle.remove()
+                        });
+                }
+            }
+
+            gameWon() {
+                // Play victory sound
+                soundEffects.playModernSound('victory');
+
+                const overlay = this.elements.countdownOverlay;
+                const number = this.elements.countdownNumber;
+
+                number.textContent = `PLAYER ${this.currentPlayer + 1} WINS!`;
+                number.style.fontSize = '6rem';
+                overlay.style.display = 'flex';
+
+                // GSAP victory animation
+                gsap.timeline()
+                    .set(number, {
+                        scale: 0,
+                        rotation: -180,
+                        color: "#00ff00",
+                        textShadow: "0 0 80px #00ff00"
+                    })
+                    .to(number, {
+                        scale: 1.2,
+                        rotation: 10,
+                        duration: 0.8,
+                        ease: "back.out(1.7)"
+                    })
+                    .to(number, {
+                        scale: 1,
+                        rotation: 0,
+                        duration: 0.5
+                    })
+                    .to(number, {
+                        scale: 1.1,
+                        duration: 0.5,
+                        repeat: 3,
+                        yoyo: true,
+                        ease: "power2.inOut"
+                    });
+
+                // Create victory particle explosion
+                this.createVictoryExplosion();
+
+                setTimeout(() => {
+                    this.resetGame();
+                    overlay.style.display = 'none';
+                    number.style.fontSize = '15rem';
+                    number.style.color = '#ff0080';
+                    number.style.textShadow = '0 0 80px #ff0080';
+                }, 4000);
+            }
+
+            createVictoryExplosion() {
+                const container = document.querySelector('.game-container');
+
+                for (let i = 0; i < 50; i++) {
+                    const particle = document.createElement('div');
+                    particle.style.position = 'absolute';
+                    particle.style.width = '8px';
+                    particle.style.height = '8px';
+                    particle.style.borderRadius = '50%';
+                    particle.style.left = '50%';
+                    particle.style.top = '50%';
+                    particle.style.pointerEvents = 'none';
+                    particle.style.zIndex = '1000';
+
+                    const colors = ['#ffff00', '#ff0080', '#00ffff', '#ff6600', '#80ff80', '#ff4040'];
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+                    container.appendChild(particle);
+
+                    // GSAP victory explosion
+                    const angle = (Math.PI * 2 * i) / 50;
+                    const distance = 200 + Math.random() * 300;
+                    const dx = Math.cos(angle) * distance;
+                    const dy = Math.sin(angle) * distance;
+
+                    gsap.timeline()
+                        .set(particle, { scale: 1, opacity: 1 })
+                        .to(particle, {
+                            x: dx,
+                            y: dy,
+                            scale: 0,
+                            opacity: 0,
+                            duration: 2,
+                            ease: "power2.out",
+                            onComplete: () => particle.remove()
+                        });
+                }
+            }
+
+            updateDisplay() {
+                const player = this.players[this.currentPlayer];
+                this.elements.currentLegScore.textContent = player.legScore;
+                this.elements.currentRoundTotal.textContent = `Round Total: ${player.roundTotal}`;
+                this.elements.currentPlayerName.textContent = player.name;
+                this.elements.roundNumber.textContent = this.currentRound;
+                this.elements.dartCounter.textContent = 'DART ' + this.currentDart;
+
+                // Animate player name change
+                gsap.timeline()
+                    .to(this.elements.currentPlayerName, {
+                        scale: 1.1,
+                        color: "#ff4040",
+                        duration: 0.3,
+                        ease: "power2.out"
+                    })
+                    .to(this.elements.currentPlayerName, {
+                        scale: 1,
+                        color: "#ff0080",
+                        duration: 0.3,
+                        ease: "power2.out"
+                    });
+
+                this.updateCheckoutSuggestions();
+            }
+
+            updatePlayersList() {
+                const container = this.elements.playersList;
+                container.innerHTML = '';
+
+                this.players.forEach((player, index) => {
+                    const playerItem = document.createElement('div');
+                    playerItem.className = 'player-item';
+                    if (index === this.currentPlayer) {
+                        playerItem.classList.add('active');
+                    }
+
+                    playerItem.innerHTML = `
+                        <div class="player-item-name">${player.name}</div>
+                        <div class="player-item-score">${player.legScore}</div>
+                    `;
+
+                    // Add click to remove player (if more than 2 players)
+                    if (this.players.length > 2) {
+                        playerItem.style.cursor = 'pointer';
+                        playerItem.title = 'Click to remove player';
+                        playerItem.addEventListener('click', () => {
+                            if (this.players.length > 2) {
+                                this.removePlayer(index);
+                            }
+                        });
+                    }
+
+                    container.appendChild(playerItem);
+
+                    // GSAP animation for player item
+                    gsap.fromTo(playerItem,
+                        { opacity: 0, x: -30, scale: 0.9 },
+                        {
+                            opacity: 1,
+                            x: 0,
+                            scale: 1,
+                            duration: 0.4,
+                            delay: index * 0.1,
+                            ease: "power2.out"
+                        }
+                    );
+                });
+            }
+
+            addPlayer() {
+                if (this.players.length >= 6) {
+                    // Flash red to indicate max players
+                    gsap.to('.add-player-btn', {
+                        backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                        borderColor: '#ff0000',
+                        color: '#ff0000',
+                        duration: 0.2,
+                        yoyo: true,
+                        repeat: 1
+                    });
+                    return;
+                }
+
+                const playerNumber = this.players.length + 1;
+                this.players.push({
+                    name: `PLAYER ${playerNumber}`,
+                    legScore: legScore,
+                    roundTotal: 0,
+                    dartHistory: []
+                });
+
+                soundEffects.playModernSound('connect');
+                this.updatePlayersList();
+            }
+
+            removePlayer(index) {
+                if (this.players.length <= 2) return;
+
+                // Adjust current player index if needed
+                if (index < this.currentPlayer) {
+                    this.currentPlayer--;
+                } else if (index === this.currentPlayer) {
+                    this.currentPlayer = this.currentPlayer % (this.players.length - 1);
+                }
+
+                this.players.splice(index, 1);
+                this.updatePlayersList();
+                this.updateDisplay();
+            }
+
+            resetGame() {
+                const playerCount = this.players.length;
+                this.players = [];
+
+                // Restore players with reset scores
+                for (let i = 0; i < playerCount; i++) {
+                    this.players.push({
+                        name: `PLAYER ${i + 1}`,
+                        legScore: legScore,
+                        roundTotal: 0,
+                        dartHistory: []
+                    });
+                }
+
+                this.currentPlayer = 0;
+                this.currentRound = 1;
+                this.currentDart = 1;
+                this.currentRoundDarts = [];
+
+                this.updateDisplay();
+                this.updatePlayersList();
+                this.updateDartHistory();
+
+                // Play reset sound
+                soundEffects.playModernSound('reset');
+
+                // Animate reset
+                gsap.timeline()
+                    .to([".current-leg", ".round-total"], {
+                        scale: 0.8,
+                        opacity: 0.5,
+                        duration: 0.3
+                    })
+                    .to([".current-leg", ".round-total"], {
+                        scale: 1,
+                        opacity: 1,
+                        duration: 0.4,
+                        ease: "back.out(1.7)"
+                    });
+            }
+
+            simulateScore() {
+                const scores = [0, 5, 15, 20, 25, 26, 30, 40, 45, 50, 60, 81, 85, 100, 120, 140, 180];
+                const weights = [2, 3, 4, 8, 4, 6, 5, 4, 4, 3, 3, 2, 2, 1, 1, 1, 0.5];
+
+                let random = Math.random() * weights.reduce((a, b) => a + b, 0);
+                let selectedScore = 0;
+
+                for (let i = 0; i < scores.length; i++) {
+                    random -= weights[i];
+                    if (random <= 0) {
+                        selectedScore = scores[i];
+                        break;
+                    }
+                }
+
+                this.addScore(selectedScore);
+            }
+        }
+
+        // Initialize the game
+        const game = new EpicDartsScorer();
+
+       // Global functions for buttons
+        function connectMQTT() {
+            game.connectMQTT();
+        }
+        
+        function resetGame() {
+            game.resetGame();
+        }
+        
+        function simulateScore() {
+            game.simulateScore();
+        }
+
+        function addPlayer() {
+            game.addPlayer();
+        }
+
+        
+        // Auto-connect MQTT on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                game.connectMQTT();
+            }, 1000);
+        });
+
+        // Initialize audio context on first user interaction
+        document.addEventListener('click', () => {
+            if (game.audioContext && game.audioContext.state === 'suspended') {
+                game.audioContext.resume().then(() => {
+                    console.log("Audio context resumed on click");
+                });
+            }
+        }, { once: true });
+
+        document.addEventListener('touchstart', () => {
+            if (game.audioContext && game.audioContext.state === 'suspended') {
+                game.audioContext.resume();
+            }
+        }, { once: true });
+    </script>
+</body>
+
+</html>

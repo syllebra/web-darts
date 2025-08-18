@@ -36,12 +36,7 @@ const classes_colors = [
 ];
 
 class YoloTargetDetector {
-  constructor(
-    board,
-    modelPath = "../../models/best_n_tip_boxes_cross_640_B.onnx",
-    modelSize = 640,
-    initCallback = null
-  ) {
+  constructor(board, modelPath = "../models/best_n_tip_boxes_cross_640_B.onnx", modelSize = 640, initCallback = null) {
     console.log("Chargement du modèle YoloTargetDetector...");
     this.modelPath = modelPath;
     this.modelSize = modelSize;
@@ -57,7 +52,7 @@ class YoloTargetDetector {
     this.pts = pts;
     this.outerIds = outerIds;
     this.initCallback = initCallback;
-    //this.initializeModel();
+    this.initializeModel();
   }
 
   async initializeModel() {
@@ -65,7 +60,7 @@ class YoloTargetDetector {
       if (g_useGPU)
         this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ["webgpu"] });
       else this.session = await ort.InferenceSession.create(this.modelPath);
-      console.log("Modèle ONNX chargé avec succès", this.session);
+      console.log("Modèle ONNX chargé avec succès", this.modelPath, this.session);
       if (this.initCallback) this.initCallback();
     } catch (error) {
       console.error("Erreur lors du chargement du modèle:", error);
@@ -81,21 +76,22 @@ class YoloTargetDetector {
     }
 
     try {
-      const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
+      const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, this.modelSize, this.modelSize]);
       const results = await this.session.run({ images: tensor });
-
-      let boxes = YOLO.processYoloOnnxResults(results);
+      let boxes = YOLO.processYoloOnnxResults(results, 0.3, 0.85, this.modelSize);
       const cross = boxes.filter((b) => b[4] === 6).map((b) => [(b[2] + b[0]) * 0.5, (b[3] + b[1]) * 0.5]);
       let binner = boxes.filter((b) => b[4] === 7);
       let bouter = boxes.filter((b) => b[4] === 8);
+      let others = boxes.filter((b) => b[4] < 6);
       binner = binner.length >= 1 ? binner[0] : null;
       bouter = bouter.length >= 1 ? bouter[0] : null;
-      console.log(binner);
-      console.log(bouter);
+      console.debug(binner);
+      console.debug(bouter);
       return {
         cross,
         bouter,
         binner,
+        others,
       };
     } catch (error) {
       console.error("Erreur lors de l'inférence:", error);
@@ -115,7 +111,7 @@ class YoloTargetDetector {
   }
 
   // RGB float (0..1)
-  async detect(input, canvasContext = null, imgData = null) {
+  async detect(input, canvasContext = null, pairMatchingDistanceThreshold = 30) {
     this.bouter = null;
     this.binner = null;
     this.ptsCal = null;
@@ -123,14 +119,21 @@ class YoloTargetDetector {
     // Step 1: Infer using trained model to find board intersections
     //  -------------
     const inferenceResults = await this.infer(input);
-    const { cross: corners, bouter, binner } = inferenceResults;
+    const { cross: corners, bouter, binner, others } = inferenceResults;
+
+    if (canvasContext) {
+      others.forEach((b) => {
+        if (b[4] > 0 && b[4] < 5) {
+          canvasContext.fillStyle = classes_colors[b[4]];
+          canvasContext.fillRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
+        }
+      });
+    }
 
     this.bouter = bouter;
     this.binner = binner;
 
     if (canvasContext) {
-      console.log(canvasContext);
-      //if (imgData) canvasContext.putImageData(imgData, 0, 0);
       canvasContext.strokeStyle = "#ffff00";
       corners.forEach((corner) => {
         canvasContext.beginPath();
@@ -138,7 +141,7 @@ class YoloTargetDetector {
         canvasContext.stroke();
       });
     }
-    console.log("CORNERS:", corners);
+    console.debug("CORNERS:", corners);
 
     // Step 2: Coarse initialisation using rough center/scale
     // -------------
@@ -212,16 +215,17 @@ class YoloTargetDetector {
     // transformation_history, aligned_points, closest_point_pairs = icp(
     //     pts, corners, distance_threshold=15, point_pairs_threshold=10, verbose=False
     // )
+
     let icpInstance = new ICPAlgorithm();
     const result = icpInstance.icp(pts, filteredCorners, {
       maxIterations: 100,
-      distanceThreshold: 15,
+      distanceThreshold: pairMatchingDistanceThreshold,
       convergenceTranslationThreshold: 1e-3,
       convergenceRotationThreshold: 1e-4,
-      pointPairsThreshold: 10,
+      pointPairsThreshold: pairMatchingDistanceThreshold * 0.33,
       verbose: true,
     });
-    console.log(result);
+    console.debug(result);
 
     const alignedPoints = result.alignedPoints;
     const pointPairs = result.closestPointPairsId;
@@ -261,12 +265,12 @@ class YoloTargetDetector {
     // -------------
     const projected = PerspectiveUtils.transformPoints(this.pts, M.model);
     const nn = ICPAlgorithm.findNearestNeighbors(corners, projected);
-    console.log(nn);
+    console.debug(nn);
     let validPairs = [];
     for (let i = 0; i < nn.length; i++)
       if (nn[i].distance < 10 && this.outerIds.includes(i)) validPairs.push([nn[i].index, i]);
 
-    console.log("Valid Pairs:", validPairs);
+    console.debug("Valid Pairs:", validPairs);
 
     if (canvasContext) {
       // projected.forEach( (p,i) => {
@@ -275,7 +279,7 @@ class YoloTargetDetector {
       // })
 
       validPairs.forEach((pair) => {
-        //console.log(pair)
+        //console.debug(pair)
         canvasContext.strokeStyle = this.outerIds.includes(pair[0]) ? "#FFFFFF" : "#FF88FF";
         // const corner = corners[pair[1]];
         // const orig = projected[pair[0]]
@@ -310,16 +314,16 @@ class YoloTargetDetector {
     //     return None, None, 0
 
     this.coarseCenter = center;
-    console.log(this.coarseCenter);
+    console.debug(this.coarseCenter);
     // Étapes 5-8: Algorithmes de correspondance et RANSAC
     // Implémentation simplifiée - dans un vrai projet, il faudrait implémenter ICP, RANSAC, etc.
 
-    console.log("Perspective Matrix:", M.model);
+    console.debug("Perspective Matrix:", M.model);
     this.ptsCal = PerspectiveUtils.transformPoints(this.board.board_cal_pts, M.model);
 
     this.coarseCenter = PerspectiveUtils.transformPoints([[0, 0]], M.model)[0];
     //this.ptsCal = this.board.transformCals(M.model);
-    console.log("Points cal:", this.ptsCal);
+    console.debug("Points cal:", this.ptsCal);
 
     if (canvasContext) {
       this.drawBoard(canvasContext);
@@ -375,7 +379,7 @@ class YoloTargetDetector {
     if (this.ptsCal) {
       for (let i = 0; i < this.ptsCal.length; i++) {
         let p = this.ptsCal[i];
-        //console.log(pair)
+        //console.debug(pair)
         classes_colors;
         canvasContext.strokeStyle = classes_colors[i + 1];
 

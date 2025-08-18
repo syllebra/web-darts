@@ -1,0 +1,253 @@
+/* Settings Panel Styles */
+.settings_floating-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+    user-select: none;
+}
+
+.settings_floating-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.settings_floating-button i {
+    color: white;
+    font-size: 20px;
+}
+
+.settings_modal .modal-content {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+}
+
+.settings_modal .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px 20px 0 0;
+}
+
+.settings_modal .modal-title {
+    color: white;
+    font-weight: 600;
+}
+
+.settings_modal .btn-close {
+    filter: invert(1);
+    opacity: 0.8;
+}
+
+.settings_nav-tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.settings_nav-tabs .nav-link {
+    color: rgba(255, 255, 255, 0.7);
+    border: none;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+}
+
+.settings_nav-tabs .nav-link:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.settings_nav-tabs .nav-link.active {
+    color: white;
+    background: rgba(255, 255, 255, 0.15);
+    border-bottom: 2px solid #4285F4;
+}
+
+.settings_tab-content {
+    background: rgba(255, 255, 255, 0.05);
+    min-height: 400px;
+    padding: 20px;
+}
+
+.settings_form-label {
+    color: white;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.settings_form-label-disabled {
+    color: rgba(129, 129, 129, 0.76);
+    font-weight: 500;
+    font-style: italic;
+    margin-bottom: 8px;
+}
+
+.settings_form-control,
+.settings_form-select {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    backdrop-filter: blur(5px);
+}
+
+.settings_form-control:focus,
+.settings_form-select:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #4285F4;
+    box-shadow: 0 0 0 0.2rem rgba(66, 133, 244, 0.25);
+    color: white;
+}
+
+.settings_form-control:disabled,
+.settings_form-select:disabled {
+    background: rgba(0, 0, 0, 0.205);
+    color: rgba(129, 129, 129, 0.76);
+    font-style: italic;    
+}
+
+/* Dropdown options styling */
+.settings_form-select option {
+    background: rgba(20, 25, 45, 0.95);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+}
+
+.settings_form-select option:hover,
+.settings_form-select option:focus,
+.settings_form-select option:checked {
+    background: rgba(66, 133, 244, 0.8);
+    color: white;
+}
+
+.settings_form-control::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+}
+
+.settings_slider-container {
+    margin: 15px 0;
+}
+
+.settings_slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.settings_slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4285F4;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.settings_slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4285F4;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.settings_slider:disabled::-webkit-slider-thumb {
+    background: #54575c;
+    cursor: default;
+}
+.settings_slider:disabled::-moz-range-thumb {
+    background: #54575c;
+    cursor: default;
+}
+.settings_slider-value {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    margin-left: 10px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.settings_btn-glass {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.settings_btn-glass:hover {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.settings_btn-success {
+    background: rgba(66, 133, 244, 0.8);
+    border: 1px solid rgba(66, 133, 244, 0.6);
+    color: white;
+}
+
+.settings_btn-success:hover {
+    background: rgba(66, 133, 244, 1);
+    color: white;
+}
+
+.settings_btn-danger {
+    background: rgba(244, 67, 54, 0.8);
+    border: 1px solid rgba(244, 67, 54, 0.6);
+    color: white;
+}
+
+.settings_btn-danger:hover {
+    background: rgba(244, 67, 54, 1);
+    color: white;
+}
+
+.settings_action-buttons {
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px 20px;
+    border-radius: 0 0 20px 20px;
+}
+
+@media (max-width: 768px) {
+    .settings_modal .modal-dialog {
+        margin: 10px;
+        max-width: none;
+    }
+
+    .settings_nav-tabs .nav-link {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+}
+
+.settings_sub-item {
+    margin-top: -15px;
+    scale: 0.9;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+}

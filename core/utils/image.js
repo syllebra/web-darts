@@ -143,4 +143,31 @@ class ImageProcessor {
     image.src = canvas.toDataURL();
     return image;
   }
+
+  static computeGrayscaleThresholdBox(grayImg, width, height, threshold = 40) {
+    let l = width - 1;
+    let r = 0;
+    let t = height - 1;
+    let b = 0;
+    let x = 0;
+    let y = 0;
+    let foundAny = false;
+
+    for (let index = 0; index < grayImg.length; index++) {
+      if (grayImg[index] >= threshold) {
+        foundAny = true;
+        if (x < l) l = x;
+        if (x > r) r = x;
+        if (y < t) t = y;
+        if (y > b) b = y;
+      }
+      x++;
+      if (x >= width) {
+        x = 0;
+        y++;
+      }
+    }
+
+    return foundAny ? [l, t, r, b] : [0, 0, width, height];
+  }
 }

@@ -88,8 +88,7 @@ class ToggleButton {
 // Initialize toggle buttons
 const toggleButtons = {};
 
-// Initialize all toggle button groups
-document.addEventListener("DOMContentLoaded", () => {
+function initializeToggleButtons() {
   const toggleGroups = document.querySelectorAll(".toggle-btn-group");
 
   toggleGroups.forEach((group) => {
@@ -105,29 +104,4 @@ document.addEventListener("DOMContentLoaded", () => {
       },
     });
   });
-});
-
-// Demo functions
-function toggleState(id) {
-  if (toggleButtons[id]) {
-    toggleButtons[id].toggle();
-  }
-}
-
-function setDisabled(id, disabled) {
-  if (toggleButtons[id]) {
-    toggleButtons[id].setDisabled(disabled);
-  }
-}
-
-function getValue(id) {
-  if (toggleButtons[id]) {
-    return toggleButtons[id].getValue();
-  }
-}
-
-function setValue(id, value) {
-  if (toggleButtons[id]) {
-    toggleButtons[id].setValue(value);
-  }
 }

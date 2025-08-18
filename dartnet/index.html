@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoomable Video Canvas</title>
-    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <link href="settings.css" rel="stylesheet">
+    <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         body,
         html {
@@ -364,6 +364,7 @@
             min-width: 0;
             min-height: 0;
             margin: 0;
+            border-radius: 6px;
         }
 
         #debugCanvas {
@@ -372,13 +373,14 @@
             position: absolute;
             left: 0;
             bottom: 0;
-            width: 640px;
-            height: 640px;
+            width: 320px;
+            height: 320px;
         }
     </style>
 </head>
 
 <body>
+    <!-- Status Indicators -->
     <div class="status-indicators">
         <div class="status-indicator" id="gpuIndicator">
             <span class="status-text" id="gpuStatusText">Checking GPU...</span>
@@ -395,13 +397,8 @@
 
         <div class="status-indicator" id="dartDetectionIndicator">
             <span class="status-text" id="dartDetectorText">Detector Type</span>
-            <div id="dartDetectorToggle" class="toggle-btn-group" data-value="vo">
-                <button class="toggle-btn toggle-btn-small active" data-value="vo" disabled>
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="toggle-btn toggle-btn-small" data-value="vai" disabled>
-                    <i class="fas fa-wave-square"></i>
-                </button>
+            <div id="dartDetectorIconButton" class="toggle-btn toggle-btn-small">
+                    <i class="fas" id="dartDetectorIcon"></i>
             </div>
             <span class="status-dot dart-unknown" id="dartDetectorDot"></span>
         </div>
@@ -413,7 +410,7 @@
                     <i class="fas fa-pause"></i>
                 </button>
                 <button class="toggle-btn toggle-btn-small" data-value="on" disabled>
-                    <i class="fas fa-eye"></i>
+                    <i class="fas fa-magnifying-glass"></i>
                 </button>
             </div>
             <span class="status-dot dart-unknown" id="dartStatusDot"></span>
@@ -474,7 +471,7 @@
         <!-- Auto Calibrate Control -->
         <div class="control-group">
             <button id="autoCalibMainBtn" class="btn main-button" title="Auto-Calibrate" disabled>
-                <i class="fas fa-bullseye"></i> Auto-Calibrate
+                <i class="fas fa-crosshairs"></i> Auto-Calibrate
             </button>
             <i id="autoCalibSpinner" class="fas fa-spinner group-spinner"></i>
         </div>
@@ -498,16 +495,277 @@
         </div>
     </div>
 
+    <!-- Main Canvas-->
     <div id="canvasContainer">
         <canvas id="videoCanvas"></canvas>
         <canvas id="overlayCanvas"></canvas>
         <video id="videoElement" autoplay muted controls width="1920" height="1080"></video>
     </div>
-    <!-- <canvas id="debugCanvas"></canvas> -->
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="../ext/ort.min.js"></script>
+    <!-- Floating Settings Button -->
+    <div id="settingsButton" class="settings_floating-button" onclick="openSettingsModal()">
+        <i class="fas fa-cog"></i>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal fade settings_modal" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title settings_modal-title" id="settingsModalLabel">
+                        <i class="fas fa-cog me-2"></i>Advanced Settings
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs settings_nav-tabs" id="settingsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="mqtt-tab" data-bs-toggle="tab" data-bs-target="#mqtt" type="button" role="tab">
+                            <i class="fas fa-wifi me-1"></i>MQTT
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="dart-tab" data-bs-toggle="tab" data-bs-target="#dart" type="button" role="tab">
+                            <i class="fas fa-eye me-1"></i>Dart Detector
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="calibration-tab" data-bs-toggle="tab" data-bs-target="#calibration" type="button" role="tab">
+                            <i class="fas fa-crosshairs me-1"></i>Calibration
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+                            <i class="fas fa-sliders-h me-1"></i>General
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content settings_tab-content" id="settingsTabContent">
+                    <!-- MQTT Tab -->
+                    <div class="tab-pane fade show active" id="mqtt" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Broker IP Address</label>
+                                    <input type="text" class="form-control settings_form-control" id="mqttBrokerIP" placeholder="192.168.1.100">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Port</label>
+                                    <input type="number" class="form-control settings_form-control" id="mqttPort" placeholder="1883" min="1" max="65535">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label-disabled" >Username (Optional)</label>
+                                    <input type="text" class="form-control settings_form-control" id="mqttUsername" placeholder="username" disabled>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label-disabled">Password (Optional)</label>
+                                    <input type="password" class="form-control settings_form-control" id="mqttPassword" placeholder="password" disabled>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DartDetector Tab -->
+                    <div class="tab-pane fade" id="dart" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">AI Model Type</label>
+                                    <select class="form-select settings_form-select" id="dartType">
+                                        <option value="vo"><i class="fas fa-eye"></i>Video Only</option>
+                                        <option value="vai"><i class="fas fa-wave-square"></i>Video + Accelerometer Impact Detector</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings_sub-item" id="vaiSpecificSettings">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label settings_form-label">URL</label>
+                                        <input type="text" class="form-control settings_form-control" id="dartvaiURL" placeholder="http://192.168.1.100:80">
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="settings_slider-container">
+                                        <label class="form-label settings_form-label">Burst Length</label>
+                                        <div class="d-flex align-items-center">
+                                            <input type="range" class="settings_slider" id="dartvaiBurstLength" min="1" max="100" value="20">
+                                            <span class="settings_slider-value" id="dartvaiBurstLengthValue">20</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="settings_slider-container">
+                                        <label class="form-label settings_form-label">Extra Wait Frames</label>
+                                        <div class="d-flex align-items-center">
+                                            <input type="range" class="settings_slider" id="dartvaiExtraWaitFrames" min="1" max="100" value="10">
+                                            <span class="settings_slider-value" id="dartvaiExtraWaitFramesValue">10</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <button class="form-control settings_form-control" id="calibrateVAI" disabled>Calibrate</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Confidence Threshold</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartConfidence" min="0" max="100" value="75">
+                                        <span class="settings_slider-value" id="dartConfidenceValue">75%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">NMS Threshold</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="dartNMS" min="0" max="100" value="45">
+                                        <span class="settings_slider-value" id="dartNMSValue">45%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label-disabled">Detection Model</label>
+                                    <select class="form-select settings_form-select" id="dartModel" disabled>
+                                        <option value="yolo">YOLO</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Calibration Tab -->
+                    <div class="tab-pane fade" id="calibration" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label" disabled>Calibration Type</label>
+                                    <select class="form-select settings_form-select" id="calibrationType" disabled>
+                                        <option value="automatic">Automatic</option>
+                                        <option value="manual">Manual</option>
+                                        <option value="semi-auto">Semi-Automatic</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label">Reference Points</label>
+                                    <input type="number" class="form-control settings_form-control" id="calibrationPoints" min="3" max="20" value="4" disabled>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label" disabled>Accuracy Level</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="calibrationAccuracy" min="1" max="10" value="7"  disabled>
+                                        <span class="settings_slider-value" id="calibrationAccuracyValue">7</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label">Pair Matching Tolerance Factor</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="calibrationTolerance" min="1" max="40" value="10">
+                                        <span class="settings_slider-value" id="calibrationToleranceValue">1.0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- General Tab -->
+                    <div class="tab-pane fade" id="general" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label" disabled>Language</label>
+                                    <select class="form-select settings_form-select" id="generalLanguage"  disabled>
+                                        <option value="en">English</option>
+                                        <option value="fr">Français</option>
+                                        <option value="de">Deutsch</option>
+                                        <option value="es">Español</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label settings_form-label"  disabled>Theme</label>
+                                    <select class="form-select settings_form-select" id="generalTheme"  disabled>
+                                        <option value="dark">Dark</option>
+                                        <option value="light">Light</option>
+                                        <option value="auto">Auto</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label" disabled>Update Interval (ms)</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="generalUpdateInterval" min="50" max="1000" value="100"  disabled>
+                                        <span class="settings_slider-value" id="generalUpdateIntervalValue"  disabled>100ms</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="settings_slider-container">
+                                    <label class="form-label settings_form-label"  disabled>Log Level</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="settings_slider" id="generalLogLevel" min="1" max="5" value="3"  disabled>
+                                        <span class="settings_slider-value" id="generalLogLevelValue" disabled>Info</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="settings_action-buttons">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="button" class="btn settings_btn-success me-2" onclick="settingsManager.saveSettings()">
+                                <i class="fas fa-save me-1"></i>Save Settings
+                            </button>
+                            <button type="button" class="btn settings_btn-glass me-2" onclick="settingsManager.loadSettings()">
+                                <i class="fas fa-upload me-1"></i>Load Settings
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn settings_btn-glass me-2" onclick="settingsManager.resetSettings()">
+                                <i class="fas fa-undo me-1"></i>Reset to Default
+                            </button>
+                            <button type="button" class="btn settings_btn-danger" onclick="settingsManager.exportSettings()">
+                                <i class="fas fa-download me-1"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Canvas-->
+    <canvas id="debugCanvas"></canvas>
+
+    <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../core/global.js"></script>
+    <script src="../ui/global.js"></script>
+    <script src="../utils/DebugConsole.js"></script>
+    <script src="../ext/ort.min.js"></script>
     <script src="../core/utils/tools.js"></script>
     <script src="../core/utils/icp.js"></script>
     <script src="../core/utils/ransac.js"></script>
@@ -519,527 +777,34 @@
     <script src="../core/TargetDetector.js"></script>
     <script src="../core/DartDetector.js" type="text/javascript"></script>
     <script src="../ui/ToggleButton.js"></script>
+    <script src="../ui/ToggleButtonGroup.js"></script>
     <script src="../ui/ZoomablePannableCanvas.js"></script>
+    <script src="settings.js"></script>
     <script src="../utils/CameraManager.js"></script>
     <script src="../utils/sound.js"></script>
     <script src="DartNet.js"></script>
+    <script src="ui.js"></script>
     <script src="main.js"></script>
-
-    <script>
-        // VConsole will be exported to `window.VConsole` by default.
-        if (isMobile()) {
-            var vConsole = new window.VConsole();
-        }
-    </script>
-    <script>
-        // Button group management functions
-        function toggleButtonGroup(groupId) {
-            const expandedBtns = document.getElementById(groupId + 'ExpandedBtns');
-            const mainBtn = document.getElementById(groupId + 'MainBtn');
-
-            if (expandedBtns.classList.contains('show')) {
-                expandedBtns.classList.remove('show');
-            } else {
-                // Hide all other expanded groups first
-                document.querySelectorAll('.expanded-buttons.show').forEach(group => {
-                    group.classList.remove('show');
-                });
-                expandedBtns.classList.add('show');
-            }
-        }
-
-        function showGroupSpinner(groupId) {
-            const spinner = document.getElementById(groupId + 'Spinner');
-            const mainBtn = document.getElementById(groupId + 'MainBtn');
-            if (spinner) {
-                spinner.classList.add('show');
-            }
-            if (mainBtn) {
-                mainBtn.disabled = true;
-            }
-        }
-
-        function hideGroupSpinner(groupId) {
-            const spinner = document.getElementById(groupId + 'Spinner');
-            const mainBtn = document.getElementById(groupId + 'MainBtn');
-
-            if (spinner) {
-                spinner.classList.remove('show');
-            }
-            if (mainBtn) {
-                mainBtn.disabled = false;
-            }
-        }
-
-        // Set up main button click handlers
-        document.getElementById('cameraMainBtn').addEventListener('click', () => {
-            toggleButtonGroup('camera');
-        });
-
-        document.getElementById('videoMainBtn').addEventListener('click', () => {
-            toggleButtonGroup('video');
-        });
-
-        // Hide expanded groups when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.control-group-expandable')) {
-                document.querySelectorAll('.expanded-buttons.show').forEach(group => {
-                    group.classList.remove('show');
-                });
-            }
-        });
-
-        async function reinitDetectors() {
-            dartnet.initDetectors();
-            console.log("Ondetection callbacks:",dartnet?.dartDetector?.onDetectionCallbacks);
-            if (!dartnet?.dartDetector?.onDetectionCallbacks.includes(onDartDetected))
-                dartnet.dartDetector.onDetectionCallbacks.push(onDartDetected);
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            toggleButtons["gpuToggle"].setDisabled(false);
-            toggleButtons["gpuToggle"].onChangeCallbacks.push((v, el) => {
-                g_useGPU = v == "gpu";
-                reinitDetectors();
-            });
-            toggleButtons["dartDetectorToggle"].onChangeCallbacks.push((v, el) => {
-                if(dartnet) {
-                    const newDetector = v == "vo" ? dartnet.dartDetectorVO : dartnet.dartDetectorVAI
-                    if(dartnet.dartDetector != newDetector)
-                        dartnet.switchDartDetector();
+   
+<script>
+    // DEBUG zone
+    document.addEventListener(
+            "keyup",
+            (event) => {
+                const keyName = event.key;
+                console.log(keyName);
+                if (keyName === "q") {
+                    const message = new Paho.MQTT.Message('{"alpha":239.7233154677353,"d":0.46474837192142665,"zone":"12","targetZone":null,"timestamp":1755132729396,"id":"jzhn3ssra"}');
+                    message.destinationName = "dartnet/hit";
+                    dartnet.mqttClient?.send(message);
                 }
-            });
-            toggleButtons["dartDetectionToggle"].onChangeCallbacks.push((v, el) => {
-                if(v == "off")
-                    dartnet?.dartDetector?.stop()
-                else
-                    dartnet?.dartDetector?.start()
-            });
-
-        });
-
-        const gpuDetector = new GPUDetector();
-        document.addEventListener("DOMContentLoaded", () =>gpuDetector.detectGPU().then(reinitDetectors()));
-
-
-        // Dart Detection Status Management
-        const dartStatusDot = document.getElementById('dartStatusDot');
-        const dartStatusText = document.getElementById('dartStatusText');
-
-        // Dart detection status handler
-        function updateDartDetectionStatus() {
-            const status = dartnet?.dartDetector?.isReady ? dartnet?.dartDetector?.currentStatus : "unknown"; 
-            // Remove all status classes
-            dartStatusDot.className = 'status-dot';
-            let enabled = true;
-            switch (status) {
-                case DartDetectorStatus.INITIALIZING:
-                    dartStatusDot.classList.add('dart-initializing');
-                    dartStatusText.textContent = '⚙️ Initializing...';
-                    enabled =false;
-                    break;
-                case DartDetectorStatus.DETECTING:
-                    dartStatusDot.classList.add('dart-detecting');
-                    dartStatusText.textContent = '🔍 Detecting';
-                    break;
-                case DartDetectorStatus.PAUSE:
-                    dartStatusDot.classList.add('dart-paused');
-                    dartStatusText.textContent = '⏸️ Paused';
-                    break;
-                case DartDetectorStatus.DETECTED:
-                    dartStatusDot.classList.add('dart-detected');
-                    dartStatusText.textContent = '🎯 Impact Detected!';
-                    break;
-                default:
-                    dartStatusDot.classList.add('dart-unknown');
-                    dartStatusText.textContent = 'Not Started';
-                    enabled = false;
-                    break;
-            }
-            let onPause = !enabled || (status == DartDetectorStatus.PAUSE);
-            if(status != DartDetectorStatus.INITIALIZING) {
-                toggleButtons["dartDetectionToggle"]?.setValue(onPause ? "off" : "on", true, false);
-            }
-            toggleButtons["dartDetectionToggle"]?.setDisabled(!enabled);
-        }
-
-        // MQTT Connection Status Management
-        const mqttStatusDot = document.getElementById('mqttStatusDot');
-        const mqttStatusText = document.getElementById('mqttStatusText');
-
-        function updateMqttStatus(status) {
-            // Remove all status classes
-            mqttStatusDot.className = 'status-dot';
-            
-            switch (status) {
-                case 'connected':
-                    mqttStatusDot.classList.add('mqtt-connected');
-                    //mqttStatusText.textContent = 'Connected';
-                    break;
-                case 'disconnected':
-                    mqttStatusDot.classList.add('mqtt-disconnected');
-                    //mqttStatusText.textContent = 'Disconnected';
-                    break;
-                case 'connecting':
-                    mqttStatusDot.classList.add('mqtt-connecting');
-                    //mqttStatusText.textContent = 'Connecting...';
-                    break;
-                default:
-                    mqttStatusDot.classList.add('mqtt-disconnected');
-                    //mqttStatusText.textContent = 'Disconnected';
-            }
-        }
-
-        // Initialize with disconnected status
-        updateMqttStatus('disconnected');
-
-        dartnet.mqttStatusCallback = updateMqttStatus;
-        dartnet.initMqtt();        
-
-        // Get DOM elements for camera manager
-        const elements = {
-            cameraSelect: document.getElementById("cameraSelect"),
-            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
-            webcamStopBtn: document.getElementById("webcamStopBtn"),
-            videoElement: document.getElementById("videoElement")
-        };
-
-        // Configuration options
-        const options = {
-            // Basic options
-            autoSelectFirstCamera: true,
-
-            onWebcamReady: (videoElement, resolution) => {
-                console.log("Webcam ready with resolution:", resolution);
-                if (zoomableCanvas) {
-                    zoomableCanvas.setVideoSource(videoElement);
+                else if (keyName === "d") {
+                    console.log("Switching dart detector");
+                    dartnet.switchDartDetector();
                 }
             },
-
-            onError: (error) => {
-                console.error("Camera error:", error);
-                // Custom error handling
-                showErrorNotification(error.message);
-            }
-        };
-
-        // Initialize CameraManager
-        const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
-        let cameraManager = new CameraManager({
-            cameraSelect: null,
-            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
-            webcamStopBtn: document.getElementById("webcamStopBtn"),
-            videoElement: document.getElementById("videoElement")
-        }, options);
-
-        // Camera selection button handler
-        document.getElementById('cameraSelectBtn').addEventListener('click', () => {
-            showGroupSpinner('camera');
-            cameraModal.show();
-        });
-
-        // Update camera manager to populate modal instead of dropdown
-        options.onCamerasEnumerated = (cameras) => {
-            const cameraList = document.getElementById('cameraList');
-            cameraList.innerHTML = '';
-
-            hideGroupSpinner('camera');
-
-            if (cameras.length === 0) {
-                cameraList.innerHTML = '<div class="text-center">No cameras found</div>';
-                return;
-            }
-
-            // Enable camera select button now that we have cameras
-            const btn = document.getElementById('cameraSelectBtn');
-            btn.disabled = false;
-
-            cameras.forEach((camera, index) => {
-                const cameraCard = document.createElement('div');
-                cameraCard.className = 'card bg-secondary text-white';
-                cameraCard.style.width = '300px';
-                cameraCard.style.cursor = 'pointer';
-                cameraCard.innerHTML = `
-                    <div class="card-body text-center">
-                        <i class="fas fa-camera fa-3x mb-3"></i>
-                        <h5 class="card-title">${camera.label || `Camera ${index + 1}`}</h5>
-                    </div>
-                `;
-                cameraCard.addEventListener('click', () => {
-                    cameraManager.selectCamera(camera.deviceId);
-                    cameraModal.hide();
-                    cameraManager.startWebcam(hideGroupSpinner("camera"));
-                });
-                cameraList.appendChild(cameraCard);
-            });
-
-            // Enable camera select button now that we have cameras
-            document.getElementById('cameraSelectBtn').disabled = false;
-        };
-
-        // Setup webcam button handlers
-        elements.webcamPlayBtn.onclick = () => {
-            cameraManager.startWebcam();
-            // Disable video file controls
-            videoFilePlayBtn.disabled = true;
-            videoFilePauseBtn.disabled = true;
-            videoFileStopBtn.disabled = true;
-            // Clear any video file
-            document.getElementById('videoElement').src = '';
-        };
-        elements.webcamStopBtn.onclick = () => cameraManager.stopWebcam();
-
-        // Set initial button states
-        elements.webcamPlayBtn.disabled = true;
-        elements.webcamStopBtn.disabled = true;
-
-        // Show group spinner and disable main button initially
-        showGroupSpinner('camera');
-
-        function updateAutoCalibButtonState() {
-            if(autoCalibBtn)
-                autoCalibBtn.disabled = !(zoomableCanvas?.videoSource);//!(zoomableCanvas?.videoSource?.videoWidth);
-        }
-
-        // Update camera manager options to handle webcam state changes
-        options.onWebcamReady = (videoElement, resolution) => {
-            console.log("Webcam ready with resolution:", resolution);
-            if (zoomableCanvas) {
-                zoomableCanvas.setVideoSource(videoElement);
-            }
-            updateAutoCalibButtonState();
-            // Update button states
-            elements.webcamPlayBtn.disabled = true;
-            elements.webcamStopBtn.disabled = false;
-        };
-
-        options.onWebcamStopped = () => {
-            // Re-enable video file controls when webcam stops
-            videoFilePlayBtn.disabled = false;
-            // Update webcam button states
-            elements.webcamPlayBtn.disabled = false;
-            elements.webcamStopBtn.disabled = true;
-            
-            updateAutoCalibButtonState();
-        };
-
-        // Reinitialize CameraManager with updated options
-        cameraManager = new CameraManager({
-            cameraSelect: null,
-            webcamPlayBtn: document.getElementById("webcamPlayBtn"),
-            webcamStopBtn: document.getElementById("webcamStopBtn"),
-            videoElement: document.getElementById("videoElement")
-        }, options);
-
-        // Video file functionality
-        const videoFilePlayBtn = document.getElementById('videoFilePlayBtn');
-        const videoFilePauseBtn = document.getElementById('videoFilePauseBtn');
-        const videoFileStopBtn = document.getElementById('videoFileStopBtn');
-        const videoFileSelectBtn = document.getElementById('videoFileSelectBtn');
-        const testVideoFileSelectBtn = document.getElementById('testVideoFileSelectBtn');
-
-        // Handle video file selection button click
-        videoFileSelectBtn.addEventListener('click', () => {
-            document.getElementById('videoFile').click();
-        });
-
-        function loadVideoUrl(url) {
-            videoElement.src = url;
-            videoElement.loop = true;
-
-            // Enable controls immediately when file is selected
-            videoFilePlayBtn.disabled = false;
-            videoFilePauseBtn.disabled = true;
-            videoFileStopBtn.disabled = false;
-
-            videoElement.addEventListener('loadedmetadata', () => {
-                hideGroupSpinner('video');
-                updateAutoCalibButtonState();
-                videoElement.play().then(() => {
-                    zoomableCanvas.setVideoSource(videoElement);
-                    updateAutoCalibButtonState();
-                    console.log('Video loaded.');
-
-                    // Update video controls
-                    videoFilePlayBtn.disabled = true;
-                    videoFilePauseBtn.disabled = false;
-                    videoFileStopBtn.disabled = false;
-
-                    // Disable webcam controls
-                    elements.webcamPlayBtn.disabled = true;
-                    elements.webcamStopBtn.disabled = true;
-
-                    cameraManager.stopWebcam();
-                }).catch(err => {
-                    console.error('Error playing video:', err);
-                    hideGroupSpinner('video');
-                    updateAutoCalibButtonState();
-                });
-            }, { once: true });
-
-            videoElement.addEventListener('play', () => {
-                videoFilePlayBtn.disabled = true;
-                videoFilePauseBtn.disabled = false;
-            });
-
-            videoElement.addEventListener('pause', () => {
-                videoFilePlayBtn.disabled = false;
-                videoFilePauseBtn.disabled = true;
-            });
-
-            videoElement.addEventListener('ended', () => {
-                videoFilePlayBtn.disabled = false;
-                videoFilePauseBtn.disabled = true;
-            });
-
-            // videoElement.addEventListener('error', (e) => {
-            //     console.error('Video loading error:', e);
-            //     alert('Could not load video file');
-            //     // Reset controls on error
-            //     videoFilePlayBtn.disabled = true;
-            //     videoFilePauseBtn.disabled = true;
-            //     videoFileStopBtn.disabled = true;
-            //     hideGroupSpinner('video');
-            // });
-        }
-        document.getElementById('videoFile').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                showGroupSpinner('video');
-                const videoElement = document.getElementById('videoElement');
-                const url = URL.createObjectURL(file);
-                loadVideoUrl(url);
-            }
-        });
-
-        testVideoFileSelectBtn.addEventListener('click', (e) => {
-            showGroupSpinner('video');
-            loadVideoUrl("../dev/darts_detectors_test/home03.avi");
-        });
-
-
-        // Video file control handlers
-        videoFilePlayBtn.addEventListener('click', () => {
-            const videoElement = document.getElementById('videoElement');
-            videoElement.play();
-            videoFilePlayBtn.disabled = true;
-            videoFilePauseBtn.disabled = false;
-        });
-
-        videoFilePauseBtn.addEventListener('click', () => {
-            const videoElement = document.getElementById('videoElement');
-            videoElement.pause();
-            videoFilePlayBtn.disabled = false;
-            videoFilePauseBtn.disabled = true;
-        });
-
-        videoFileStopBtn.addEventListener('click', () => {
-            const videoElement = document.getElementById('videoElement');
-
-            // First clear the src to prevent further loading
-            videoElement.src = '';
-
-            // Then pause the video
-            videoElement.pause();
-
-            // Update UI controls
-            videoFilePlayBtn.disabled = true;
-            videoFilePauseBtn.disabled = true;
-            videoFileStopBtn.disabled = true;
-            updateAutoCalibButtonState();
-
-            // Re-enable webcam controls
-            elements.webcamPlayBtn.disabled = false;
-        });
-
-        // Auto calib
-        const autoCalibBtn = document.getElementById('autoCalibMainBtn');
-        autoCalibBtn.addEventListener("click", () => {
-            showGroupSpinner("autoCalib");
-            autoCalib().then(()=> {
-                onCalibrationSuccess(dartnet.sourceCalibPts);
-            }).catch((error) => {
-                console.trace(error)
-            }).finally(() => {
-                hideGroupSpinner("autoCalib");
-            });
-        }
+            false,
         );
-
-
-        async function periodicUpdateUI() {
-            // GPU ui state
-            const gpuStatusDot = document.getElementById('gpuStatusDot');
-            const gpuStatusText = document.getElementById('gpuStatusText');
-
-            if(gpuStatusDot && gpuStatusText) {
-                switch (gpuDetector?.status) {
-                    case 'checking':
-                        gpuStatusDot.className = 'status-dot gpu-unknown';
-                        gpuStatusText.textContent = 'Checking GPU...';
-                        break;
-                    case 'webgpu':
-                        gpuStatusDot.className = 'status-dot gpu-available';
-                        gpuStatusText.textContent = 'WebGPU';
-                        gpuStatusDot.title = gpuDetector?.details;
-                        break;
-                    case 'webgl':
-                        gpuStatusDot.className = 'status-dot gpu-available';
-                        gpuStatusText.textContent = 'WebGL';
-                        gpuStatusDot.title = gpuDetector?.details;
-                        break;
-                    case 'none':
-                        gpuStatusDot.className = 'status-dot gpu-unavailable';
-                        gpuStatusText.textContent = 'No GPU';
-                        gpuStatusDot.title = gpuDetector?.details;
-                        break;
-                }
-                // const gpu = status == "webgpu" || status == "webgl";
-                // toggleButtons["gpuToggle"].setValue(gpu ? "gpu" : "cpu");
-                toggleButtons["gpuToggle"]?.setValue(g_useGPU ? "gpu" : "cpu", true);
-                toggleButtons["gpuToggle"]?.setDisabled(gpuDetector?.status != 'webgpu' && gpuDetector?.status != 'webgl');
-            }
-
-            if(dartnet) {
-                const vo = dartnet.dartDetectorVO?.session;
-                const vai = dartnet.dartDetectorVAI?.session;
-
-                if(toggleButtons["dartDetectorToggle"]) {
-                    const newVal = dartnet.dartDetector == dartnet.dartDetectorVO ? "vo" : "vai";
-                    if(toggleButtons["dartDetectorToggle"].getValue() != newVal)
-                        toggleButtons["dartDetectorToggle"].setValue(newVal, true);
-                    toggleButtons["dartDetectorToggle"].setDisabled(!vo && !vai);
-
-                    const dartDetectorDot = document.getElementById('dartDetectorDot')
-                    dartDetectorDot.className = 'status-dot';
-                    dartDetectorDot.classList.add( !dartnet.dartDetector.isReady() ? 'mqtt-disconnected' : 'mqtt-connected');
-                }
-            }
-
-            updateDartDetectionStatus();
-            setTimeout(() => periodicUpdateUI(), 200);
-        }
-            periodicUpdateUI();
-
-
-        // DEBUG zone
-        document.addEventListener(
-                "keyup",
-                (event) => {
-                    const keyName = event.key;
-                    console.log(keyName);
-                    if (keyName === "q") {
-                        const message = new Paho.MQTT.Message('{"mytest":"DB"}');
-                        message.destinationName = "dartnet/hit";
-                        dartnet.mqttClient?.send(message);
-                    }
-                    else if (keyName === "d") {
-                        console.log("Switching dart detector");
-                        dartnet.switchDartDetector();
-                    }
-                },
-                false,
-            );
     </script>
 </body>
 

@@ -7,18 +7,52 @@ const DartDetectorStatus = {
   INFERING: 4,
 };
 
+// Queue implementation for frame buffering
+class Queue {
+  constructor(maxSize) {
+    this.items = [];
+    this.maxSize = maxSize;
+  }
+
+  put(item) {
+    if (this.items.length >= this.maxSize) {
+      this.items.shift(); // Remove oldest item
+    }
+    this.items.push(item);
+  }
+
+  get() {
+    return this.items.shift();
+  }
+
+  qsize() {
+    return this.items.length;
+  }
+
+  clear() {
+    this.items = [];
+  }
+
+  length() {
+    return this.items.length;
+  }
+}
+
 /**
  * Base class for dart impact detection systems
  */
 class DartDetector {
-  constructor(modelPath = "../models/best_temporal_A.onnx", modelSize = 640) {
+  constructor(modelPath = "../models/best_temporal_B_n_320.onnx") {
     this.pauseDetection = false;
     this.currentStatus = DartDetectorStatus.INITIALIZING;
     this.statusChangeCallbacks = [];
     this.onDetectionCallbacks = [];
     this.modelPath = modelPath;
-    this.modelSize = modelSize;
+    this.modelSize = null;
     this.initializeModel();
+    this.minConfidence = 0.25;
+    this.iouThreshold = 0.45;
+    this.inferQueue = new Queue(5);
   }
 
   async initializeModel() {
@@ -26,29 +60,63 @@ class DartDetector {
       if (g_useGPU)
         this.session = await ort.InferenceSession.create(this.modelPath, { executionProviders: ["webgpu"] });
       else this.session = await ort.InferenceSession.create(this.modelPath);
-      console.log("Modèle ONNX chargé avec succès:", this.modelPath, this.session);
+      this.modelSize = this.session.handler.inputMetadata[0].shape[2];
+      console.log("ONNX model loading success:", this.modelPath, this.session);
+      console.log("ONNX model detected size:", this.modelSize);
       if (this.initCallback) this.initCallback();
     } catch (error) {
-      console.error("Erreur lors du chargement du modèle:", error);
+      console.error("Error while loading ONNX model:", error);
       // Utiliser un modèle de démo si le vrai modèle n'est pas disponible
       this.session = null;
       //if (this.initCallback) this.initCallback();
     }
   }
 
-  async infer(obj) {
-    if (!this.session) {
+  infer(obj) {
+    const copy = deepCopy(obj);
+    console.log("OBJ:", obj);
+    console.log("COPY:", copy);
+    this.inferQueue.put(copy);
+    this.process_infer();
+  }
+
+  async process_infer() {
+    if (!this.session || this.currentStatus == DartDetectorStatus.INFERING) {
       return null;
     }
+
+    var obj = this.inferQueue.get();
+    if (!obj) {
+      return; // Empty queue
+    }
+
+    // // Compute closer view of the dart(s)
+    // const cd = ImageProcessor.computeGrayscaleThresholdBox(
+    //   obj.delta.data,
+    //   dartnet.dartDetector.modelSize,
+    //   dartnet.dartDetector.modelSize,
+    //   40
+    // );
+    let timerStart = performance.now();
     var imageData = ImageProcessor.grayscaleToYOLOInput(obj.delta, this.modelSize, this.modelSize);
+    timings["DartDetector: grayscaleToYOLOInput"] = performance.now() - timerStart;
+
     try {
       this.updateStatus(DartDetectorStatus.INFERING);
       //console.log(imageData);
       //const tensor = new ort.Tensor(Float32Array.from(imageData), [1, 3, 640, 640]);
+      timerStart = performance.now();
       const tensor = new ort.Tensor(Float32Array.from(imageData.data), [1, 3, this.modelSize, this.modelSize]);
+      timings["DartDetector: tensor preparation"] = performance.now() - timerStart;
+
+      timerStart = performance.now();
       const results = await this.session.run({ images: tensor });
+      timings["DartDetector: inference"] = performance.now() - timerStart;
+
       //console.log("Results:", results);
-      const boxes = YOLO.processYoloOnnxResults(results);
+      timerStart = performance.now();
+      const boxes = YOLO.processYoloOnnxResults(results, this.minConfidence, this.iouThreshold, this.modelSize);
+      timings["DartDetector: processYoloOnnxResults"] = performance.now() - timerStart;
       obj.boxes = boxes;
       this.onDetectionCallbacks.forEach((cb) => cb(obj));
       //return this.processOnnxResults(results);
@@ -57,6 +125,7 @@ class DartDetector {
       return null;
     } finally {
       this.updateStatus(DartDetectorStatus.DETECTING);
+      if (this.inferQueue.length() > 0) this.process_infer();
     }
   }
 
@@ -126,6 +195,8 @@ class DartDetector {
 
   async start() {
     this.updateStatus(DartDetectorStatus.INITIALIZING);
+
+    console.log("Starting detector with minConfidence ", this.minConfidence, " iouThreshold:", this.iouThreshold);
     // Placeholder implementation
   }
 
@@ -164,7 +235,7 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
     await super.start();
     // Simulate initialization process
     setTimeout(() => {
-      this.updateStatus(DartDetectorStatus.DETECTING);
+      this.updateStatus(DartDetectorStatus.PAUSE);
     }, 500);
   }
 
@@ -189,6 +260,17 @@ class DeltaVideoOnlyDartDetector extends DartDetector {
       return false;
     }
 
+    // const debugCanvas = document.getElementById("debugCanvas");
+    // if (debugCanvas) {
+    //   debugCanvas.width = imageData.width;
+    //   debugCanvas.height = imageData.height;
+    //   debugCanvas.style.width = "" + imageData.width + "px";
+    //   debugCanvas.style.height = "" + imageData.height + "px";
+    //   //console.log("Image size:", imageData.width, imageData.height);
+
+    //   const debugCtx = debugCanvas.getContext("2d");
+    //   debugCtx.putImageData(imageData, 0, 0);
+    // }
     let detect = false;
 
     // Convert to grayscale
@@ -425,7 +507,7 @@ class AccelerometerDartImpactDetector extends DartDetector {
 
     if (topic.includes("sensors/tap")) {
       this.playSound();
-      this.lastImpact = Date.now();
+      this.lastImpact = performance.now();
       this.updateStatus(DartDetectorStatus.DETECTED);
 
       // Reset to detecting after a brief period
@@ -463,33 +545,6 @@ class AccelerometerDartImpactDetector extends DartDetector {
 
   isReady() {
     return this.session != null && this.ready;
-  }
-}
-
-// Queue implementation for frame buffering
-class Queue {
-  constructor(maxSize) {
-    this.items = [];
-    this.maxSize = maxSize;
-  }
-
-  put(item) {
-    if (this.items.length >= this.maxSize) {
-      this.items.shift(); // Remove oldest item
-    }
-    this.items.push(item);
-  }
-
-  get() {
-    return this.items.shift();
-  }
-
-  qsize() {
-    return this.items.length;
-  }
-
-  clear() {
-    this.items = [];
   }
 }
 
@@ -535,8 +590,10 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
     if (this.burst.qsize() >= maxFrames) {
       this.burst.get();
       if (this.currentStatus === DartDetectorStatus.DETECTED) {
+        let timerStart = performance.now();
+        timings["DartDetector: impact to detection:"] = performance.now() - this.lastImpact;
         ret = this.computeDelta();
-
+        timings["DeltaVideoAccelImpactDetector: Conpute delta"] = performance.now() - timerStart;
         this.infer({ delta: ret });
       }
     }
@@ -553,6 +610,7 @@ class DeltaVideoAccelImpactDetector extends AccelerometerDartImpactDetector {
       this.playSound();
       console.log(`DeltaVideo: ${topic} - ${payload}`);
       this.countDownCpt = this.extraWaitFrames;
+      this.lastImpact = performance.now();
       this.updateStatus(DartDetectorStatus.DETECTED);
     }
   }

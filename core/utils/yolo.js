@@ -1,5 +1,5 @@
 class YOLO {
-  static processYoloOnnxResults(results, confidence_threshold = 0.3, model_size = 640) {
+  static processYoloOnnxResults(results, confidence_threshold = 0.5, iou_threshold = 0.45, model_size = 640) {
     // Traitement des résultats ONNX
     // Cette partie dépend du format de sortie du modèle ONNX
     //const output = results.output;
@@ -65,19 +65,19 @@ class YOLO {
       // - In your case, num_classes is 9 (from your yolo_classes array)
 
       const output = outputs["output0"].data;
-      const num_classes = outputs["output0"]["dims"][1] - 4; //yolo_classes.length;
-      //console.log("YOLO CLASSES:", num_classes);
+      const num_classes = outputs["output0"]["dims"][1] - 4;
+      const anchors = outputs["output0"]["dims"][2];
       let boxes = [];
 
       // Iterate through all 8400 anchor boxes
-      for (let index = 0; index < 8400; index++) {
+      for (let index = 0; index < anchors; index++) {
         // Get the class with highest confidence
         let max_class = 0;
         let max_confidence = 0;
 
-        // Check class confidences (they start at offset 4*8400)
+        // Check class confidences (they start at offset 4*anchors)
         for (let class_id = 0; class_id < num_classes; class_id++) {
-          const confidence = output[8400 * (4 + class_id) + index];
+          const confidence = output[anchors * (4 + class_id) + index];
           if (confidence > max_confidence) {
             max_confidence = confidence;
             max_class = class_id;
@@ -89,9 +89,9 @@ class YOLO {
         }
 
         const xc = output[index]; // x-center
-        const yc = output[8400 + index]; // y-center
-        const w = output[2 * 8400 + index]; // width
-        const h = output[3 * 8400 + index]; // height
+        const yc = output[anchors + index]; // y-center
+        const w = output[2 * anchors + index]; // width
+        const h = output[3 * anchors + index]; // height
 
         // Convert from center+width to xyxy format
         const x1 = ((xc - w / 2) * img_width) / model_size;
@@ -107,9 +107,15 @@ class YOLO {
 
       const final_boxes = [];
       while (boxes.length > 0) {
-        final_boxes.push(boxes[0]);
-        // Remove boxes that overlap too much with the current box
-        boxes = boxes.filter((box) => iou(boxes[0], box) < 0.85);
+        const current = boxes.shift(); // take the highest-confidence box
+        final_boxes.push(current);
+
+        // keep only boxes that are either a different class or have low IoU
+        boxes = boxes.filter(
+          (box) =>
+            box[4] !== current[4] || // different class → keep
+            iou(current, box) < iou_threshold // same class but low overlap → keep
+        );
       }
 
       return [final_boxes, inferred];
@@ -118,7 +124,7 @@ class YOLO {
 
     var outputs = process_output(results, model_size, model_size, null);
     var boxes = outputs[0];
-    //console.log( "DETECTED BOXES:", boxes.map((b) => b[4]));
+    //console.debug( "DETECTED BOXES:", boxes.map((b) => b[4]));
     return boxes;
   }
 }

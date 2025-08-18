@@ -34,7 +34,7 @@ class Throw {
     if (this.zone === "DB") {
       return { type: "bull", sector: 25, multiplier: 2 };
     }
-    if (this.zone === "B") {
+    if (this.zone === "B" || this.zone === "SB") {
       return { type: "bull", sector: 25, multiplier: 1 };
     }
 
@@ -86,6 +86,19 @@ class Throw {
   // Method to check if throw hit the target zone
   hitTarget() {
     return this.targetZone && this.zone === this.targetZone;
+  }
+
+  getStandardZoneScore() {
+    const lz = this.zone.toLowerCase();
+    if (lz == "db") return 50;
+    if (lz == "b" || lz == "sb") return 25;
+    if (lz == "out") return 0;
+    let mult = 1;
+    if (lz.includes("d")) mult = 2;
+    if (lz.includes("t")) mult = 3;
+
+    const num = parseInt(lz.replace("t", "").replace("d", "").replace("s", ""));
+    return num * mult;
   }
 
   // Method to get a human-readable description of the throw

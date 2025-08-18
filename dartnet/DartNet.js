@@ -162,6 +162,23 @@ class DartNet {
     return croppedToSource(cropped);
   }
 
+  rotateCalibrationToClosest20point(pt) {
+    const possible = PerspectiveUtils.transformPoints(
+      [...Array(20).keys()].map((i) => {
+        const angle = (Math.PI * 2 * i) / 20; // + Math.PI / 20;
+        const dis = this.board.r_double; // * 1.2;
+        return [Math.cos(angle) * dis, Math.sin(angle) * dis];
+      }),
+      this.Mi
+    );
+    const distances = possible.map((p) => MathUtils.distance(p, pt));
+    var indexMin = distances.indexOf(Math.min(...distances));
+    var rotMatrix = MathUtils.createRotationMatrix((indexMin * 360) / 20);
+    var boardRotated = MathUtils.rotatePoints(this.board.board_cal_pts, rotMatrix);
+    var newCalib = PerspectiveUtils.transformPoints(boardRotated, this.Mi);
+    this.updateCalibPoints(newCalib);
+  }
+
   updateCalibPoints(newPts) {
     this.sourceCalibPts = newPts;
     localStorage.setItem("dartnetCalib", JSON.stringify({ calibPts: this.sourceCalibPts, cropArea: this.cropArea }));
@@ -179,6 +196,8 @@ class DartNet {
     }
 
     console.log("Capturing and analyzing frame");
+
+    const oldCalib0 = this.sourceCalibPts ? this.sourceCalibPts[0] : null;
 
     this.cropArea = null;
     this.sourceCalibPts = null;
@@ -236,12 +255,18 @@ class DartNet {
         this.cropArea = [0, 0, this.videoSource.videoWidth, this.videoSource.videoHeight];
         calibration = results;
       }
+
       console.debug("CALIB POINTS:", calibration.calibrationPoints);
       this.sourceCalibPts = calibration.calibrationPoints.map((p) =>
         this.normalizedToSource([p[0] / this.targetDetector.modelSize, p[1] / this.targetDetector.modelSize])
       );
       console.debug("SOURCE CALIB POINTS:", this.sourceCalibPts);
       this.updateCalibPoints(this.sourceCalibPts);
+      if (oldCalib0) {
+        console.debug("Trying to match old calib global orientation...", calibration.calibrationPoints);
+        this.rotateCalibrationToClosest20point(oldCalib0);
+      }
+      console.debug("SOURCE CALIB POINTS (ROTATED):", this.sourceCalibPts);
     } else {
       console.warn("Unable to find initial target to auto crop...");
       throw Error("Unable to find initial target to auto crop...");

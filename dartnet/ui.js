@@ -219,25 +219,28 @@ function initializeCameraManagementUI() {
   showGroupSpinner("camera");
 }
 
+function calibrateCamAndUpdateUI() {
+  showGroupSpinner("autoCalib");
+  setTimeout(() => {
+    dartnet
+      ?.calibrate()
+      .then(() => {
+        onCalibrationSuccess(dartnet.sourceCalibPts);
+      })
+      .catch((error) => {
+        console.trace(error);
+      })
+      .finally(() => {
+        hideGroupSpinner("autoCalib");
+      });
+  }, 300);
+}
 function intializeAutoCalibUI() {
   if (dartnet) dartnet.calibrationPairFactor = settingsManager.getSetting("calibration", "tolerance") * 0.1;
   // Auto calib
   const autoCalibBtn = document.getElementById("autoCalibMainBtn");
   autoCalibBtn.addEventListener("click", () => {
-    showGroupSpinner("autoCalib");
-    setTimeout(() => {
-      dartnet
-        ?.calibrate()
-        .then(() => {
-          onCalibrationSuccess(dartnet.sourceCalibPts);
-        })
-        .catch((error) => {
-          console.trace(error);
-        })
-        .finally(() => {
-          hideGroupSpinner("autoCalib");
-        });
-    }, 300);
+    calibrateCamAndUpdateUI();
   });
 }
 
@@ -388,6 +391,13 @@ function initializeHardwareUI() {
   });
 }
 
+function onDartnetUIMessage(message) {
+  const topic = message.destinationName;
+  const payload = message.payloadString;
+  console.log(`MQTT DartNet UI: ${topic} - ${payload}`);
+  if (payload == "calibrate camera") calibrateCamAndUpdateUI();
+}
+
 function initializeMqttUI() {
   // MQTT Connection Status Management
   const mqttStatusDot = document.getElementById("mqttStatusDot");
@@ -424,7 +434,7 @@ function initializeMqttUI() {
   dartnet.mqttBroker = settingsManager.getSetting("mqtt", "brokerIP");
   dartnet.mqttPort = settingsManager.getSetting("mqtt", "port");
 
-  dartnet.initMqtt();
+  dartnet.initMqtt(onDartnetUIMessage);
 }
 
 function initializeDartDetectionUI() {

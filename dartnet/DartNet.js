@@ -13,11 +13,11 @@ class DartNet {
     this.mqttPort = 8083;
     this.mqttClient = null;
     this.mqttStatusCallback = mqttStatusCallback;
-    this.calibrationPairFactor = 1.0;
+    (this.mqttMessageCallback = null), (this.calibrationPairFactor = 1.0);
     this.initDetectors();
   }
 
-  initMqtt() {
+  initMqtt(mqttMessageCallback) {
     try {
       console.log("Starting MQTT client...");
       // Create MQTT client
@@ -28,6 +28,7 @@ class DartNet {
       this.mqttClient.onConnectionLost = this.onMqttConnectionLost.bind(this);
       this.mqttClient.onMessageArrived = this.onMqttMessage.bind(this);
 
+      this.mqttMessageCallback = mqttMessageCallback;
       this.updateMqttStatus("connecting");
       // Connect to MQTT broker
       this.mqttClient.connect({
@@ -45,7 +46,8 @@ class DartNet {
 
   onMqttConnect() {
     console.log("Connected to MQTT broker");
-    this.mqttClient.subscribe("#");
+    //this.mqttClient.subscribe("#");
+    this.mqttClient.subscribe("dartnet/ui");
     this.isStarted = true;
     this.updateMqttStatus("connected");
   }
@@ -67,20 +69,8 @@ class DartNet {
     const topic = message.destinationName;
     const payload = message.payloadString;
 
-    console.log(`MQTT: ${topic} - ${payload}`);
-
-    // if (topic.includes("sensors/tap")) {
-    //   this.playSound();
-    //   this.lastImpact = Date.now();
-    //   this.updateStatus(DartDetectorStatus.DETECTED);
-
-    //   // Reset to detecting after a brief period
-    //   setTimeout(() => {
-    //     if (this.currentStatus === DartDetectorStatus.DETECTED) {
-    //       this.updateStatus(DartDetectorStatus.DETECTING);
-    //     }
-    //   }, 1000);
-    // }
+    //console.log(`MQTT: ${topic} - ${payload}`);
+    if (this.mqttMessageCallback) this.mqttMessageCallback(message);
   }
 
   async initDetectors() {

@@ -1,0 +1,35 @@
+<h3>Cricket Options</h3>
+<div>
+    <label for="cricketSubType">Sous-type de Jeu:</label>
+    <select id="cricketSubType">
+        <option value="standard">Standard</option>
+        <option value="holdem">Hold'em</option>
+        <option value="cut-throat">Cut-Throat</option>
+    </select>
+</div>
+<div style="margin-top: 10px;">
+    <label for="numPlayers">Nombre de Joueurs:</label>
+    <input type="number" id="numPlayers" value="2" min="1" max="8">
+</div>
+<div id="selectedOptionsSummary" style="margin-top: 15px; font-weight: bold;"></div>
+
+<script>
+    // Ce script est chargé avec pre_game_options.html
+    const cricketSubTypeSelect = document.getElementById('cricketSubType');
+    const numPlayersInput = document.getElementById('numPlayers');
+    const selectedOptionsSummary = document.getElementById('selectedOptionsSummary');
+
+    function updateOptionsSummary() {
+        const subType = cricketSubTypeSelect.value;
+        const numPlayers = numPlayersInput.value;
+        selectedOptionsSummary.textContent = `Type: ${subType}, Joueurs: ${numPlayers}`;
+
+        // Stocker ces options globalement si le jeu principal en a besoin
+        // window.currentGameOptions = { subType, numPlayers };
+    }
+
+    cricketSubTypeSelect.addEventListener('change', updateOptionsSummary);
+    numPlayersInput.addEventListener('input', updateOptionsSummary);
+
+    updateOptionsSummary(); // Initialiser l'affichage
+</script>

@@ -1,0 +1,24 @@
+{
+  "id": "Killer",
+  "title": "Killer",
+  "description": "Survival elimination game",
+  "icon": "images/games/killer.png",
+  "alt": "Killer Game",
+  "variants": [
+    {
+      "name": "3 Lives",
+      "icon": "images/variants/killer_3lives.png",
+      "maxPlayers": 10
+    },
+    {
+      "name": "5 Lives",
+      "icon": "images/variants/killer_5lives.png",
+      "maxPlayers": 8
+    },
+    {
+      "name": "7 Lives",
+      "icon": "images/variants/killer_7lives.png",
+      "maxPlayers": 6
+    }
+  ]
+}

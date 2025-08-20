@@ -1,0 +1,19 @@
+{
+  "id": "Chase",
+  "title": "Chase",
+  "description": "Chase your opponents",
+  "icon": "images/games/chase.png",
+  "alt": "Chase Game",
+  "variants": [
+    {
+      "name": "Random Start",
+      "icon": "images/variants/chase_random.png",
+      "maxPlayers": 8
+    },
+    {
+      "name": "Use multipliers",
+      "icon": "images/variants/chase_multipliers.png",
+      "maxPlayers": 6
+    }
+  ]
+}

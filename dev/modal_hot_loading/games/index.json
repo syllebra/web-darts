@@ -1,0 +1,14 @@
+
+{
+  "games": [
+    "x01",
+    "cricket", 
+    "round_the_clock",
+    "killer",
+    "around_the_world",
+    "high_score",
+    "chase"
+  ],
+  "version": "1.0",
+  "lastUpdated": "2025-08-02"
+}

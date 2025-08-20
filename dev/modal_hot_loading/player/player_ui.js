@@ -1,0 +1,338 @@
+(function() {
+    // Configuration du jeu
+    console.log("configuration du jeu");
+    
+    const gameConfig = {
+        maxPlayers: 6,
+        minPlayers: 2
+    };
+
+    // Couleurs vibrantes (sans noir ni gris)
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+        '#FFEAA7', '#DDA0DD', '#F8B500', '#FF7675',
+        '#74B9FF', '#A29BFE', '#FD79A8', '#FDCB6E'
+    ];
+
+    // Icônes futuristes
+    const icons = [
+        '🤖', '👾', '🚀', '⚡', '💎', '🔮',
+        '🎯', '⭐', '💫', '🌟', '✨', '🎮',
+        '🎭', '🎪', '🎨', '🎵', '🎸', '🎤'
+    ];
+
+    // Drapeaux
+    const flags = [
+        '🇫🇷', '🇺🇸', '🇬🇧', '🇩🇪', '🇪🇸', '🇮🇹',
+        '🇯🇵', '🇰🇷', '🇨🇳', '🇧🇷', '🇨🇦', '🇦🇺',
+        '🇷🇺', '🇮🇳', '🇲🇽', '🇳🇱', '🇸🇪', '🇳🇴'
+    ];
+
+    // État du jeu
+    let gameState = {
+        allPlayers: [
+            { id: 1, name: "Nova", icon: "🤖", color: "#FF6B6B", flag: "🇫🇷" },
+            { id: 2, name: "Cipher", icon: "👾", color: "#4ECDC4", flag: "🇺🇸" },
+            { id: 3, name: "Neon", icon: "⚡", color: "#45B7D1", flag: "🇬🇧" },
+            { id: 4, name: "Vortex", icon: "🔮", color: "#96CEB4", flag: "🇩🇪" },
+            { id: 5, name: "Quantum", icon: "💎", color: "#FFEAA7", flag: "🇯🇵" },
+            { id: 6, name: "Phoenix", icon: "🚀", color: "#DDA0DD", flag: "🇰🇷" },
+            { id: 7, name: "Matrix", icon: "💫", color: "#F8B500", flag: "🇮🇹" },
+            { id: 8, name: "Glitch", icon: "⭐", color: "#FF7675", flag: "🇪🇸" },
+        ],
+        selectedPlayers: [],
+        randomOrder: false,
+        bullUp: false,
+        animatingPlayer: null,
+        showCreateForm: false
+    };
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function() {
+        createParticles();
+        initializeGame();
+        setupEventListeners();
+        updateUI();
+    });
+
+    function createParticles() {
+        console.log("create particles");
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 8 + 's';
+            particle.style.animationDuration = (8 + Math.random() * 4) + 's';
+            particlesContainer.appendChild(particle);
+        }
+    }
+
+    function initializeGame() {
+        console.log("initialize Game");
+        document.getElementById('maxCount').textContent = gameConfig.maxPlayers;
+        document.getElementById('minRequired').textContent = gameConfig.minPlayers;
+        renderPlayerSlots();
+        renderAvailablePlayers();
+    }
+
+    function setupEventListeners() {
+        // Création de joueur
+        console.log("setup event listeners");
+        document.getElementById('createBtn').addEventListener('click', toggleCreateForm);
+        document.getElementById('createSubmit').addEventListener('click', createPlayer);
+        document.getElementById('newPlayerName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') createPlayer();
+        });
+
+        // Checkboxes
+        document.getElementById('randomOrderContainer').addEventListener('click', () => {
+            gameState.randomOrder = !gameState.randomOrder;
+            updateCheckbox('randomOrderCheck', gameState.randomOrder);
+        });
+
+        document.getElementById('bullUpContainer').addEventListener('click', () => {
+            gameState.bullUp = !gameState.bullUp;
+            updateCheckbox('bullUpCheck', gameState.bullUp);
+        });
+
+        // Bouton Start
+        document.getElementById('startButton').addEventListener('click', startGame);
+    }
+
+    function renderPlayerSlots() {
+        const slotsContainer = document.getElementById('playerSlots');
+        slotsContainer.innerHTML = '';
+
+        for (let i = 0; i < gameConfig.maxPlayers; i++) {
+            const slot = document.createElement('div');
+            const player = gameState.selectedPlayers[i];
+            const isRequired = i < gameConfig.minPlayers;
+
+            slot.className = `slot ${isRequired ? 'required' : 'empty'} ${player ? 'filled' : ''}`;
+
+            if (player) {
+                slot.style.color = player.color;
+                slot.innerHTML = `
+                    <div class="player-avatar">${player.icon}</div>
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-flag">${player.flag}</div>
+                `;
+                slot.addEventListener('click', () => removePlayer(player.id));
+            } else {
+                slot.innerHTML = '<div class="add-icon">+</div>';
+            }
+
+            slotsContainer.appendChild(slot);
+        }
+    }
+
+    function renderAvailablePlayers() {
+        const grid = document.getElementById('playersGrid');
+        const availablePlayers = gameState.allPlayers.filter(p =>
+            !gameState.selectedPlayers.find(sp => sp.id === p.id)
+        );
+
+        grid.innerHTML = '';
+
+        availablePlayers.forEach(player => {
+            const card = document.createElement('div');
+            card.className = 'player-card';
+            card.style.color = player.color;
+            card.innerHTML = `
+                <div class="player-info">
+                    <div class="player-visual">
+                        <div class="player-avatar">${player.icon}</div>
+                        <div class="player-flag">${player.flag}</div>
+                    </div>
+                    <div class="player-details">
+                        <div class="player-card-name">${player.name}</div>
+                    </div>
+                </div>
+            `;
+
+            card.addEventListener('click', () => addPlayer(player));
+            grid.appendChild(card);
+        });
+    }
+
+    function addPlayer(player) {
+        if (gameState.selectedPlayers.length >= gameConfig.maxPlayers) return;
+
+        // Animation
+        const playerCards = document.querySelectorAll('.player-card');
+        const targetCard = Array.from(playerCards).find(card =>
+            card.querySelector('.player-card-name').textContent === player.name
+        );
+
+        if (targetCard) {
+            targetCard.classList.add('animating');
+            setTimeout(() => {
+                gameState.selectedPlayers.push(player);
+                updateUI();
+            }, 300);
+        }
+    }
+
+    function removePlayer(playerId) {
+        gameState.selectedPlayers = gameState.selectedPlayers.filter(p => p.id !== playerId);
+        updateUI();
+    }
+
+    function toggleCreateForm() {
+        gameState.showCreateForm = !gameState.showCreateForm;
+        const form = document.getElementById('createForm');
+        form.style.display = gameState.showCreateForm ? 'block' : 'none';
+
+        if (gameState.showCreateForm) {
+            document.getElementById('newPlayerName').focus();
+        }
+    }
+
+    function createPlayer() {
+        const nameInput = document.getElementById('newPlayerName');
+        const name = nameInput.value.trim();
+
+        if (!name || gameState.selectedPlayers.length >= gameConfig.maxPlayers) return;
+
+        const usedColors = gameState.allPlayers.map(p => p.color);
+        const usedIcons = gameState.allPlayers.map(p => p.icon);
+        const usedFlags = gameState.allPlayers.map(p => p.flag);
+
+        const availableColors = colors.filter(c => !usedColors.includes(c));
+        const availableIcons = icons.filter(i => !usedIcons.includes(i));
+        const availableFlags = flags.filter(f => !usedFlags.includes(f));
+
+        const newPlayer = {
+            id: Math.max(...gameState.allPlayers.map(p => p.id), 0) + 1,
+            name: name,
+            icon: availableIcons[Math.floor(Math.random() * availableIcons.length)] || '🎮',
+            color: availableColors[Math.floor(Math.random() * availableColors.length)] || '#00f5ff',
+            flag: availableFlags[Math.floor(Math.random() * availableFlags.length)] || '🏴'
+        };
+
+        gameState.allPlayers.push(newPlayer);
+        gameState.selectedPlayers.push(newPlayer);
+
+        nameInput.value = '';
+        gameState.showCreateForm = false;
+        document.getElementById('createForm').style.display = 'none';
+
+        updateUI();
+    }
+
+    function updateCheckbox(checkboxId, checked) {
+        const checkbox = document.getElementById(checkboxId);
+        if (checked) {
+            checkbox.classList.add('checked');
+        } else {
+            checkbox.classList.remove('checked');
+        }
+    }
+
+    function updateUI() {
+        console.log("update");
+        document.getElementById('selectedCount').textContent = gameState.selectedPlayers.length;
+
+        renderPlayerSlots();
+        renderAvailablePlayers();
+
+        // Warning
+        const warning = document.getElementById('warning');
+        const isMinimumMet = gameState.selectedPlayers.length >= gameConfig.minPlayers;
+        warning.style.display = isMinimumMet ? 'none' : 'block';
+
+        // Bouton Start
+        const startButton = document.getElementById('startButton');
+        startButton.disabled = !isMinimumMet;
+
+        // Bouton Create
+        const createSubmit = document.getElementById('createSubmit');
+        const nameInput = document.getElementById('newPlayerName');
+        createSubmit.disabled = !nameInput.value.trim() || gameState.selectedPlayers.length >= gameConfig.maxPlayers;
+    }
+
+    function startGame() {
+        if (gameState.selectedPlayers.length < gameConfig.minPlayers) return;
+
+        let players = [...gameState.selectedPlayers];
+        if (gameState.randomOrder) {
+            players = players.sort(() => Math.random() - 0.5);
+        }
+
+        // Animation du bouton
+        const button = document.getElementById('startButton');
+        button.innerHTML = '🚀 LAUNCHING... 🚀';
+        button.style.background = 'linear-gradient(135deg, #ff00ff, #00f5ff)';
+
+        setTimeout(() => {
+            alert(`🎮 GAME STARTED! 🎮\n\nJoueurs: ${players.map(p => `${p.icon} ${p.name}`).join(', ')}\nOrdre aléatoire: ${gameState.randomOrder ? 'Oui' : 'Non'}\nBull up: ${gameState.bullUp ? 'Oui' : 'Non'}`);
+
+            // Reset button
+            button.innerHTML = '🎮 START GAME 🎮';
+            button.style.background = 'linear-gradient(135deg, #00ff41, #00ff95)';
+        }, 1500);
+
+        console.log('Game starting with players:', players);
+        console.log('Random order:', gameState.randomOrder);
+        console.log('Bull up:', gameState.bullUp);
+    }
+
+    // Mise à jour automatique du bouton de création
+    document.getElementById('newPlayerName').addEventListener('input', updateUI);
+
+    // Animation des slots lors du survol
+    document.addEventListener('mousemove', function(e) {
+        const slots = document.querySelectorAll('.slot.filled');
+        slots.forEach(slot => {
+            const rect = slot.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const deltaX = (e.clientX - centerX) * 0.02;
+            const deltaY = (e.clientY - centerY) * 0.02;
+
+            slot.style.transform = `translate(${deltaX}px, ${deltaY}px) rotateX(${deltaY}deg) rotateY(${deltaX}deg)`;
+        });
+    });
+
+    // Reset des transformations au survol des autres éléments
+    document.addEventListener('mouseleave', function() {
+        const slots = document.querySelectorAll('.slot.filled');
+        slots.forEach(slot => {
+            slot.style.transform = '';
+        });
+    });
+
+    // Effet de typing pour le titre
+    function typeWriter(element, text, speed = 100) {
+        let i = 0;
+        element.innerHTML = '';
+        function type() {
+            if (i < text.length) {
+                element.innerHTML += text.charAt(i);
+                i++;
+                setTimeout(type, speed);
+            }
+        }
+        type();
+    }
+
+    // Animations supplémentaires au chargement
+    window.addEventListener('load', function() {
+        const title = document.querySelector('.title');
+        const originalText = title.innerHTML;
+        typeWriter(title, originalText, 50);
+
+        // Animation d'apparition progressive des éléments
+        const elements = document.querySelectorAll('.player-slots, .available-players, .options, .start-button');
+        elements.forEach((el, index) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            setTimeout(() => {
+                el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 200 + index * 150);
+        });
+    });
+})();

@@ -1,0 +1,224 @@
+/* Styles spécifiques au jeu Around The Clock */
+#atcGameArea {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #e0e0e0;
+    border: 3px solid #0f4c75;
+    padding: 15px; /* Réduit encore le padding général */
+    margin: 0;
+    border-radius: 0;
+    box-shadow: inset 0 0 50px rgba(0, 200, 255, 0.1), 0 0 30px rgba(0,0,0,0.7);
+    width: 100%;
+    height: 100%;
+    font-family: 'Space Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px; /* Réduit encore l'espacement par défaut */
+    box-sizing: border-box;
+    text-align: center;
+    overflow: hidden;
+}
+
+#atcGameArea h2 {
+    color: #bb86fc;
+    font-size: 2.8em; /* Réduit la taille du titre principal */
+    margin-bottom: 0px; /* Moins de marge en bas */
+    text-shadow: 0 0 10px #bb86fc, 0 0 15px rgba(187, 134, 252, 0.4);
+    letter-spacing: 1px;
+}
+
+.atc-info {
+    font-size: 1.3em; /* Réduit la taille des infos textuelles */
+    font-weight: 500;
+    color: #03dac6;
+    text-shadow: 0 0 6px rgba(3, 218, 198, 0.3);
+    margin-bottom: 5px;
+}
+
+/* Style pour le numéro de cible principal */
+#atcMainTargetDisplay {
+    font-size: 6em; /* Réduit la taille du chiffre principal */
+    font-weight: bold;
+    color: #f1f1f1;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 25px rgba(255, 255, 255, 0.5);
+    margin: 10px 0; /* Ajuste la marge */
+    width: 180px; /* Réduit la taille du cercle */
+    height: 180px;
+    border-radius: 50%;
+    background-color: rgba(60, 179, 113, 0.15);
+    border: 5px solid #03dac6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 0 25px rgba(3, 218, 198, 0.5), 0 0 15px rgba(3, 218, 198, 0.3);
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    flex-shrink: 0;
+}
+
+#atcCurrentPlayer {
+    font-size: 1.5em; /* Réduit la taille du texte du joueur actuel */
+    color: #cf6679;
+    margin-top: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+.atc-button {
+    padding: 10px 25px; /* Réduit le padding des boutons */
+    font-size: 1.1em; /* Réduit la taille de police des boutons */
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+    min-width: 200px; /* Réduit la largeur minimale */
+    flex-shrink: 0;
+}
+
+#atcMakeDartThrow {
+    background-color: #03dac6;
+    color: #121212;
+    margin-bottom: 8px; /* Réduit la marge */
+}
+#atcMakeDartThrow:hover {
+    background-color: #03a08c;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.6);
+}
+#atcMakeDartThrow:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+#atcEndGame {
+    background-color: #cf6679;
+    color: #121212;
+}
+#atcEndGame:hover {
+    background-color: #b0495f;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.6);
+}
+#atcEndGame:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+
+/* Styles pour le tableau des scores */
+#atcScoreboard {
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid #0f4c75;
+    border-radius: 8px;
+    padding: 8px; /* Réduit le padding */
+    margin-top: 10px; /* Réduit la marge */
+    width: 95%; /* Prend un peu plus de largeur */
+    max-width: 320px; /* Limite la largeur sur les grands écrans */
+    box-shadow: inset 0 0 8px rgba(0, 200, 255, 0.05);
+    overflow: hidden;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#atcScoreboard h3 {
+    color: #bb86fc;
+    font-size: 1.2em; /* Réduit la taille du titre du tableau */
+    margin-bottom: 8px; /* Réduit la marge */
+    text-shadow: 0 0 6px rgba(187, 134, 252, 0.3);
+    flex-shrink: 0;
+}
+
+#atcPlayerList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #0f4c75 #1a1a2e;
+}
+
+#atcPlayerList::-webkit-scrollbar {
+    width: 6px;
+}
+#atcPlayerList::-webkit-scrollbar-track {
+    background: #1a1a2e;
+    border-radius: 10px;
+}
+#atcPlayerList::-webkit-scrollbar-thumb {
+    background-color: #0f4c75;
+    border-radius: 10px;
+    border: 1px solid #1a1a2e;
+}
+
+
+.player-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 8px; /* Réduit le padding des items */
+    border-bottom: 1px solid rgba(15, 76, 117, 0.5);
+    font-size: 0.95em; /* Réduit la taille de police des items */
+    transition: background-color 0.2s ease;
+}
+
+.player-item:last-child {
+    border-bottom: none;
+}
+
+.player-item.current-player {
+    background-color: rgba(207, 102, 121, 0.2);
+    font-weight: bold;
+    color: #cf6679;
+    border-color: #cf6679;
+}
+
+.player-name {
+    color: #e0e0e0;
+}
+
+.player-target {
+    color: #03dac6;
+    font-weight: bold;
+}
+
+/* Media Queries pour l'adaptation sur petits écrans (ajustées pour les nouvelles tailles de base) */
+@media (max-height: 600px) { /* Cible spécifiquement les écrans plus courts */
+    #atcGameArea { padding: 10px; gap: 8px; }
+    #atcGameArea h2 { font-size: 2.0em; }
+    .atc-info { font-size: 1.1em; }
+    #atcMainTargetDisplay {
+        font-size: 4.0em; /* Réduit encore la taille du cercle */
+        width: 120px;
+        height: 120px;
+        margin: 8px 0;
+    }
+    #atcCurrentPlayer { font-size: 1.2em; }
+    .atc-button { padding: 7px 18px; font-size: 0.95em; min-width: 150px; }
+    #atcScoreboard { padding: 6px; max-height: 100px; }
+    #atcScoreboard h3 { font-size: 1.0em; }
+    #atcPlayerList { max-height: 70px; }
+    .player-item { padding: 3px 6px; font-size: 0.85em; }
+}
+
+@media (max-width: 450px) { /* Pour les très petits écrans en mode portrait */
+    #atcGameArea { padding: 8px; gap: 6px; }
+    #atcGameArea h2 { font-size: 1.6em; }
+    .atc-info { font-size: 0.9em; }
+    #atcMainTargetDisplay {
+        font-size: 3.0em;
+        width: 90px;
+        height: 90px;
+    }
+    #atcCurrentPlayer { font-size: 1.0em; }
+    .atc-button { padding: 5px 12px; font-size: 0.85em; min-width: 120px; }
+    #atcScoreboard { padding: 5px; width: 100%; max-width: 280px; }
+    #atcScoreboard h3 { font-size: 0.9em; }
+    .player-item { font-size: 0.75em; }
+}

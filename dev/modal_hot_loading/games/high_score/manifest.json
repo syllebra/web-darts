@@ -1,0 +1,24 @@
+{
+  "id": "High Score",
+  "title": "High Score",
+  "description": "Maximum points challenge",
+  "icon": "images/games/high_score.png",
+  "alt": "High Score Game",
+  "variants": [
+    {
+      "name": "3 Darts",
+      "icon": "images/variants/hs_3darts.png",
+      "maxPlayers": 12
+    },
+    {
+      "name": "6 Darts",
+      "icon": "images/variants/hs_6darts.png",
+      "maxPlayers": 8
+    },
+    {
+      "name": "9 Darts",
+      "icon": "images/variants/hs_9darts.png",
+      "maxPlayers": 6
+    }
+  ]
+}

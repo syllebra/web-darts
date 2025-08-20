@@ -1,0 +1,17 @@
+/* Styles spécifiques au jeu Cricket */
+#cricketGameArea {
+    border: 2px solid #0056b3;
+    padding: 20px;
+    background-color: #e0f7fa;
+    border-radius: 10px;
+    margin: 20px auto;
+    max-width: 600px;
+}
+#cricketGameArea h2 {
+    color: #007bff;
+}
+.player-score {
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+/* Ajoutez ici tous les styles de votre tableau de score, des boutons, etc. */

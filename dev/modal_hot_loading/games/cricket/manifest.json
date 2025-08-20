@@ -1,0 +1,30 @@
+{
+  "id": "Cricket",
+  "title": "Cricket",
+  "description": "Strategic battle for key numbers",
+  "icon": "images/games/cricket.png",
+  "alt": "Cricket Game",
+  "variants": [
+    {
+      "name": "Standard",
+      "folder": "cricket/standard",
+      "icon": "images/variants/cricket_standard.png",
+      "minPlayers": 2,
+      "maxPlayers": 4
+    },
+    {
+      "name": "Cut Throat",
+      "folder": "cricket/cut_throat",
+      "icon": "images/variants/cricket_cutthroat.png",
+      "minPlayers": 2,
+      "maxPlayers": 4
+    },
+    {
+      "name": "No Score",
+      "folder": "cricket/no_score",
+      "icon": "images/variants/cricket_noscore.png",
+      "minPlayers": 1,
+      "maxPlayers": 4
+    }
+  ]
+}

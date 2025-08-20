@@ -1,0 +1,29 @@
+{
+  "id": "X01",
+  "title": "X01",
+  "description": "Classic countdown game - reach exactly zero",
+  "icon": "images/games/x01.png",
+  "alt": "X01 Game",
+  "variants": [
+    {
+      "name": "301",
+      "icon": "images/variants/301.png",
+      "maxPlayers": 8
+    },
+    {
+      "name": "501",
+      "icon": "images/variants/501.png",
+      "maxPlayers": 8
+    },
+    {
+      "name": "701",
+      "icon": "images/variants/701.png",
+      "maxPlayers": 6
+    },
+    {
+      "name": "1001",
+      "icon": "images/variants/1001.png",
+      "maxPlayers": 4
+    }
+  ]
+}

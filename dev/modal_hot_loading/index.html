@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeux de Fléchettes</title>
+    <script src="./paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="../../core/Throw.js"></script>
+    <style>
+        /* ... (votre CSS existant pour le corps, les cartes de jeu, la modale) ... */
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        .game-card {
+            display: inline-block;
+            margin: 15px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 200px;
+            vertical-align: top;
+        }
+        .game-card:hover { background-color: #f0f0f0; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 900px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+            animation: fadeIn 0.3s;
+            display: flex;
+            flex-direction: column;
+            height: 90%;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #modalGameContainer {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>Choisissez votre Jeu de Fléchettes</h1>
+
+<div id="gameSelection">
+    <div class="game-card" data-game-id="cricket">
+        <h3>Cricket</h3>
+        <p>Le jeu classique de marquage de nombres.</p>
+    </div>
+    <div class="game-card" data-game-id="around_the_clock">
+        <h3>Around The Clock</h3>
+        <p>Frappez les chiffres de 1 à 20 dans l'ordre, puis le Bullseye.</p>
+    </div>
+</div>
+
+<div id="gameModal" class="modal">
+    <div class="modal-content">
+        <!-- <span class="close-button">&times;</span> -->
+        <div id="modalPreGameSetup">
+            <h2>Options de Jeu</h2>
+            <div id="gameOptions">
+                <p>Chargement des options...</p>
+            </div>
+            <button id="startGameButton">Démarrer le Jeu</button>
+        </div>
+        <div id="modalGameContainer">
+        </div>
+    </div>
+</div>
+
+<script>
+    const gameSelectionDiv = document.getElementById('gameSelection');
+    const gameModal = document.getElementById('gameModal');
+    const closeButton = gameModal.querySelector('.close-button');
+    const modalPreGameSetup = document.getElementById('modalPreGameSetup');
+    const modalGameContainer = document.getElementById('modalGameContainer');
+    const gameOptionsDiv = document.getElementById('gameOptions');
+    const startGameButton = document.getElementById('startGameButton');
+
+    let currentGameId = null;
+    let loadedStyles = [];
+    let loadedScripts = [];
+
+    let mqttClient = null;
+    const mqttServer = 'localhost'; // Ou l'adresse de votre serveur MQTT
+    const mqttPort = 8083; // Généralement 8000 pour WebSockets non chiffrés, 8884 pour SSL
+    const mqttTopic = 'darts/results'; // Le topic où les résultats sont publiés
+    const clientId = 'web_darts_client_' + Math.random().toString(16).substr(2, 8); // ID client unique
+    window.activeGameReceiveMqttMessage = null;
+    // --- FONCTIONS MQTT ---
+
+    // Initialise la connexion MQTT
+    function connectMqtt() {
+        if (mqttClient && mqttClient.isConnected()) {
+            console.log("Déjà connecté au serveur MQTT.");
+            return;
+        }
+
+        mqttClient = new Paho.MQTT.Client(mqttServer, mqttPort, "/mqtt", clientId);
+
+        // Définir les callbacks
+        mqttClient.onConnectionLost = onConnectionLost;
+        mqttClient.onMessageArrived = onMessageArrived;
+
+        // Connexion au broker
+        console.log(`Tentative de connexion à MQTT : ${mqttServer}:${mqttPort}`);
+        mqttClient.connect({
+            onSuccess: onConnect,
+            onFailure: onFailure,
+            useSSL: false // Mettez à true si votre broker utilise SSL (port 8884 souvent)
+        });
+    }
+
+    // Callback en cas de connexion réussie
+    function onConnect() {
+        console.log("Connecté au serveur MQTT !");
+        mqttClient.subscribe(mqttTopic, { qos: 0 }); // S'abonner au topic des résultats
+        console.log(`Abonné au topic : ${mqttTopic}`);
+    }
+
+    // Callback en cas d'échec de connexion
+    function onFailure(responseObject) {
+        console.error("Échec de la connexion MQTT : " + responseObject.errorMessage);
+        // Tenter de se reconnecter après un délai ?
+    }
+
+    // Callback en cas de perte de connexion
+    function onConnectionLost(responseObject) {
+        if (responseObject.errorCode !== 0) {
+            console.log("Connexion MQTT perdue : " + responseObject.errorMessage);
+            // Reconnexion automatique ou manuelle ?
+            // setTimeout(connectMqtt, 5000); // Tenter de reconnecter après 5 secondes
+        }
+    }
+
+    // Callback quand un message arrive
+    function onMessageArrived(message) {
+        console.log(`Message MQTT reçu sur topic '${message.destinationName}' : ${message.payloadString}`);
+        // Transmettre le message au jeu actif si un jeu est en cours
+        if (window.activeGameReceiveMqttMessage && typeof window.activeGameReceiveMqttMessage === 'function') {
+            try {
+                const dartResult = JSON.parse(message.payloadString); // Supposons que le payload est du JSON
+                window.activeGameReceiveMqttMessage(dartResult);
+            } catch (e) {
+                console.error("Erreur lors du parsing du message MQTT ou de la transmission au jeu:", e);
+                window.activeGameReceiveMqttMessage(message.payloadString); // Transmettre brut si pas JSON
+            }
+        }
+    }
+
+    // --- Modifiez la fonction unloadGameResources pour déconnecter MQTT si nécessaire ---
+    function unloadGameResources() {
+        // Appeler la fonction de nettoyage du jeu actuellement actif, si elle existe
+        if (window.currentActiveGameCleanup && typeof window.currentActiveGameCleanup === 'function') {
+            window.currentActiveGameCleanup();
+            window.currentActiveGameCleanup = null;
+        }
+
+        loadedStyles.forEach(link => link.remove());
+        loadedStyles = [];
+
+        loadedScripts.forEach(script => script.remove());
+        loadedScripts = [];
+        window.activeGameReceiveMqttMessage = null;
+        console.log('Ressources du jeu déchargées !');
+        // Optionnel : Si vous voulez déconnecter MQTT quand aucun jeu n'est actif
+        // if (mqttClient && mqttClient.isConnected()) {
+        //     mqttClient.disconnect();
+        //     console.log("Déconnecté du serveur MQTT.");
+        // }
+    }
+
+    // ... (vos écouteurs d'événements existants) ...
+
+    // Connexion MQTT au chargement de la page
+    document.addEventListener('DOMContentLoaded', connectMqtt);
+
+    // Rendre closeGameModal disponible globalement
+    window.closeGameModal = function() {
+        gameModal.style.display = 'none';
+        // Appel de la fonction de déchargement
+        unloadGameResources();
+        modalGameContainer.innerHTML = '';
+        currentGameId = null;
+        // Réactiver le bouton de la page d'accueil pour le jeu précédent si nécessaire
+        // Note: La logique pour un bouton spécifique dans game-card n'était pas dans votre HTML.
+        // Si vous en avez un, il faudrait ajouter un ID ou une classe pour le cibler ici.
+        // Ex: document.getElementById(`btn-${prevGameId}`).disabled = false;
+    };
+
+    function openModal() {
+        gameModal.style.display = 'flex';
+        modalPreGameSetup.style.display = 'block';
+        modalGameContainer.style.display = 'none';
+        gameOptionsDiv.innerHTML = '<p>Chargement des options...</p>';
+        startGameButton.style.display = 'none';
+    }
+
+    async function loadGameResources(gameId) {
+        // Nettoyage du jeu précédent AVANT de charger un nouveau jeu
+        if (currentGameId && currentGameId !== gameId) { // Nettoie seulement si on change de jeu
+            unloadGameResources();
+        }
+
+        currentGameId = gameId; // Met à jour le jeu courant
+
+        // Chargement du CSS
+        const styleLink = document.createElement('link');
+        styleLink.rel = 'stylesheet';
+        styleLink.href = `games/${gameId}/game.css`;
+        document.head.appendChild(styleLink);
+        loadedStyles.push(styleLink);
+
+        // Chargement du HTML des options préliminaires et de son JS
+        try {
+            const response = await fetch(`games/${gameId}/pre_game_options.html`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const htmlContent = await response.text();
+            gameOptionsDiv.innerHTML = htmlContent;
+            startGameButton.style.display = 'block';
+
+            const optionsScript = document.createElement('script');
+            optionsScript.src = `games/${gameId}/pre_game_options.js`;
+            optionsScript.onload = () => console.log(`pre_game_options.js pour ${gameId} chargé.`);
+            optionsScript.onerror = () => console.error(`Erreur chargement pre_game_options.js pour ${gameId}.`);
+            document.body.appendChild(optionsScript);
+            loadedScripts.push(optionsScript);
+
+        } catch (error) {
+            console.error(`Erreur lors du chargement des options HTML/JS pour ${gameId}:`, error);
+            gameOptionsDiv.innerHTML = `<p style="color: red;">Erreur: Impossible de charger les options pour ${gameId}.</p>`;
+        }
+    }
+
+    async function startGame() {
+        if (!currentGameId) return;
+
+        modalPreGameSetup.style.display = 'none';
+        modalGameContainer.style.display = 'flex';
+
+        try {
+            const response = await fetch(`games/${currentGameId}/game.html`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const htmlContent = await response.text();
+            modalGameContainer.innerHTML = htmlContent;
+
+            const gameScript = document.createElement('script');
+            gameScript.src = `games/${currentGameId}/game.js`;
+            gameScript.onload = () => {
+                console.log(`game.js pour ${currentGameId} chargé et démarré !`);
+                // Une fois le game.js chargé et exécuté, il a défini sa propre fonction de réception MQTT.
+                // Nous allons maintenant l'assigner à la variable globale.
+                // Assurez-vous que votre game.js expose une fonction comme window.currentActiveGameReceiveMqttMessage
+                if (window[currentGameId + 'ReceiveMqttMessage'] && typeof window[currentGameId + 'ReceiveMqttMessage'] === 'function') {
+                    window.activeGameReceiveMqttMessage = window[currentGameId + 'ReceiveMqttMessage'];
+                    console.log(`Fonction de réception MQTT du jeu actif définie pour ${currentGameId}.`);
+                } else {
+                    console.warn(`Le jeu ${currentGameId} ne semble pas avoir défini de fonction de réception MQTT.`);
+                    window.activeGameReceiveMqttMessage = null;
+                }
+            };
+            // ... (votre gestion d'erreurs gameScript.onerror) ...
+            document.body.appendChild(gameScript);
+            loadedScripts.push(gameScript);
+
+        } catch (error) {
+            console.error(`Erreur lors du chargement du jeu ${currentGameId}:`, error);
+            modalGameContainer.innerHTML = `<p style="color: red;">Erreur: Impossible de charger le jeu ${currentGameId}.</p>`;
+        }
+    }
+
+    function unloadGameResources() {
+        // Appeler la fonction de nettoyage du jeu actuellement actif, si elle existe
+        if (window.currentActiveGameCleanup && typeof window.currentActiveGameCleanup === 'function') {
+            window.currentActiveGameCleanup(); // Appel du nettoyage du jeu qui vient d'être déchargé
+            window.currentActiveGameCleanup = null; // Réinitialise pour le prochain jeu
+        }
+
+        loadedStyles.forEach(link => link.remove());
+        loadedStyles = [];
+
+        loadedScripts.forEach(script => script.remove());
+        loadedScripts = [];
+
+        console.log('Ressources du jeu déchargées !');
+    }
+
+
+    // Écouteurs d'événements
+    gameSelectionDiv.addEventListener('click', (event) => {
+        const gameCard = event.target.closest('.game-card');
+        if (gameCard) {
+            const gameId = gameCard.dataset.gameId;
+            openModal();
+            loadGameResources(gameId);
+        }
+    });
+
+    // closeButton.addEventListener('click', window.closeGameModal);
+    gameModal.addEventListener('click', (event) => {
+        if (event.target === gameModal) {
+            window.closeGameModal();
+        }
+    });
+
+    startGameButton.addEventListener('click', startGame);
+
+    // Écouteur d'événement personnalisé pour le signal de fin de jeu
+    document.addEventListener('gameEnded', (event) => {
+        console.log("Événement 'gameEnded' reçu, fermeture de la modale.");
+        window.closeGameModal();
+    });
+
+</script>
+
+</body>
+</html>

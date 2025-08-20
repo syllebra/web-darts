@@ -1,0 +1,24 @@
+{
+  "id": "Around the World",
+  "title": "Around the World",
+  "description": "Complete the full circle",
+  "icon": "images/games/round_the_world.png",
+  "alt": "Around the World Game",
+  "variants": [
+    {
+      "name": "Singles",
+      "icon": "images/variants/atw_singles.png",
+      "maxPlayers": 8
+    },
+    {
+      "name": "Doubles",
+      "icon": "images/variants/atw_doubles.png",
+      "maxPlayers": 6
+    },
+    {
+      "name": "Trebles",
+      "icon": "images/variants/atw_trebles.png",
+      "maxPlayers": 4
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "Round the Clock",
+  "title": "Round the Clock",
+  "description": "Sequential number challenge",
+  "icon": "/images/games/round_the_clock.png",
+  "alt": "Round the Clock Game",
+  "variants": [
+    {
+      "name": "1-20",
+      "folder": "round_the_clock/1-20",
+      "icon": "images/variants/rtc_1_20.png",
+      "minPlayers": 1,
+      "maxPlayers": 8
+    },
+    {
+      "name": "20-1",
+      "folder": "round_the_clock/20-1",
+      "icon": "images/variants/rtc_20_1.png",
+      "minPlayers": 1,
+      "maxPlayers": 8
+    },
+    {
+      "name": "1-15",
+      "folder": "round_the_clock/1-15",
+      "icon": "images/variants/rtc_1_15.png",
+      "minPlayers": 5,
+      "maxPlayers": 10
+    }
+  ]
+}

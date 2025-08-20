@@ -254,7 +254,7 @@
     <script src="../utils/sound.js"></script>
     <script src="../core/utils/ColorUtils.js"></script>
     <script>
-        class ArcadeAnimation {
+        class ArcadePlayerRoundAnimation {
             constructor() {
                 this.isAnimating = false;
                 this.diagonalBands = [];
@@ -534,8 +534,24 @@
 
     </script>
     <script>
+        function tickGSAPWhileHidden(value) {
+            if (value === false) {
+                document.removeEventListener("visibilitychange", tickGSAPWhileHidden.fn);
+                return clearInterval(tickGSAPWhileHidden.id);
+            }
+            const onChange = () => {
+                clearInterval(tickGSAPWhileHidden.id);
+                document.hidden && (tickGSAPWhileHidden.id = setInterval(gsap.ticker.tick, 500));
+            };
+            document.addEventListener("visibilitychange", onChange);
+            tickGSAPWhileHidden.fn = onChange;
+            onChange(); // in case the document is currently hidden.
+        }
+        tickGSAPWhileHidden(true);
+        gsap.ticker.lagSmoothing(0);
+
         // Initialize the animation
-        const arcadeAnimation = new ArcadeAnimation();
+        const arcadeAnimation = new ArcadePlayerRoundAnimation();
 
         let currentRound = 1;
         let currentPlayer = 1;

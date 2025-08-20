@@ -333,15 +333,8 @@
             onchange="arcadeAnimation.updateColors()">
     </div>
 
+    <script src="../utils/sound.js"></script>
     <script>
-        // Mock Sound object for demo purposes
-        const Sound = {
-            play: (filename) => {
-                console.log(`Playing sound: ${filename}`);
-                // In real implementation, you would load and play actual sound files
-            }
-        };
-
         class ArcadeAnimation {
             constructor() {
                 this.currentRound = 1;
@@ -487,6 +480,7 @@
 
                 setTimeout(() => { Sound.play("pixabay_free/arcade-ui-30-229499.mp3") }, 300);
                 setTimeout(() => { Sound.play("pixabay_free/arcade-ui-29-229501.mp3") }, 900);
+                //setTimeout(() => { Sound.play("pixabay_free/bonus-points-190035.mp3") }, outDelay*950);
                 
                 if(gsap.utils.random(0,1.0)>0.5)
                     setTimeout(() => { Sound.play("pixabay_free/countdown-sound-effect-8-bit-151797.mp3") }, 1700);
@@ -506,6 +500,8 @@
 
                 tl.to('.main-band', { x: "105vw", duration:0.3}, outDelay);
 
+
+                
                 // Player band sliding in from right
                 tl.to('.secondary-band', {
                     width: '50vw',
@@ -543,6 +539,7 @@
                         duration: 1.3,
                         ease: "power2.out"
                     }, 1.8 + delay);
+
 
                     tl.to(band, {
                         translateX: "100vw",
@@ -594,6 +591,13 @@
                     yoyo: true,
                     ease: "power2.inOut"
                 }, 1.5);
+
+                // // Final glow effect
+                // tl.to(['.main-band', '.secondary-band'], {
+                //     boxShadow: "0 0 80px currentColor, inset 0 0 40px rgba(255, 255, 255, 0.2)",
+                //     duration: 0.3,
+                //     ease: "power2.out"
+                // }, 2);
             }
 
             nextRound() {

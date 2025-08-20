@@ -199,6 +199,7 @@
             onchange="arcadeAnimation.updateColors()">
     </div>
 
+    <script src="../utils/sound.js"></script>
     <script>
         class ArcadeAnimation {
             constructor() {
@@ -343,16 +344,30 @@
                     ease: "power2.inOut"
                 }, 0);
 
+                setTimeout(() => { Sound.play("pixabay_free/arcade-ui-30-229499.mp3") }, 300);
+                setTimeout(() => { Sound.play("pixabay_free/arcade-ui-29-229501.mp3") }, 900);
+                //setTimeout(() => { Sound.play("pixabay_free/bonus-points-190035.mp3") }, outDelay*950);
+                
+                if(gsap.utils.random(0,1.0)>0.5)
+                    setTimeout(() => { Sound.play("pixabay_free/countdown-sound-effect-8-bit-151797.mp3") }, 1700);
+                else
+                    setTimeout(() => { Sound.play("pixabay_free/robotic-countdown-43935.mp3") }, 1700);
+                
+                setTimeout(() => { Sound.play("pixabay_free/get-coin-351945.mp3") }, outDelay * 950);
+                
                 // Main band sliding in from left
-                tl.to('.main-band', {
+                const test = tl.to('.main-band', {
                     width: '90vw',
                     duration: 0.3,
                     ease: "back.out(1.7)"
                 }, 0.2)
+                console.log(test)
                 tl.to('.main-band', { width: "80vw", ease: "elastic.out", duration: 1 }, 0.5);
 
                 tl.to('.main-band', { x: "105vw", duration:0.3}, outDelay);
 
+
+                
                 // Player band sliding in from right
                 tl.to('.player-band', {
                     width: '50vw',
@@ -360,7 +375,7 @@
                     ease: "back.out(1.4)"
                 }, 0.8);
                 tl.to('.player-band', { width: "40vw", ease: "elastic.out", duration: 1 }, 1.0);
-                tl.to('.player-band', { x: "-105vw", duration: 0.3 }, outDelay);
+                tl.to('.player-band', { x: "-110vw", duration: 0.3 }, outDelay);
                 
                 // Avatar space appearing
                 tl.to('.avatar-space', {

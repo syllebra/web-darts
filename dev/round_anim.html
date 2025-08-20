@@ -39,7 +39,7 @@
 
         .main-band {
             position: fixed;
-            height: 160px;
+            height: 20vh;
             width: 0vw;
             background: linear-gradient(45deg, var(--player-color, #ff0080), var(--player-color-dark, #cc0066));
             top: 35%;
@@ -49,7 +49,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 64px;
+            font-size: 12vh;
             font-weight: bold;
             color: white;
             text-shadow: 0 0 30px rgba(255, 255, 255, 1);
@@ -59,20 +59,20 @@
             border: 3px solid rgba(255, 255, 255, 0.5);
             z-index: 9;
             overflow: hidden;
-            border-radius: 10px 60px 10px 10px;
+            border-radius: 2vh 10vh 2vh 2vh;
         }
 
-        .player-band {
+        .secondary-band {
             position: absolute;
-            height: 100px;
+            height: 16VH;
             width: 0vw;
             background: linear-gradient(45deg, var(--player-color-light, #ff4da6), var(--player-color, #ff0080));
-            top: calc(35% + 120px);
+            top: 51vh;
             right: 0px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
+            font-size: 7vh;
             font-weight: bold;
             color: white;
             text-shadow: 0 0 20px rgba(255, 255, 255, 1);
@@ -82,7 +82,7 @@
             border: 2px solid rgba(255, 255, 255, 0.4);
             z-index: 10;
             overflow: hidden;
-            border-radius: 7px 7px 7px 40px;
+            border-radius: 2vh 2vh 2vh 6.9vh;
         }
 
         .diagonal-band {
@@ -183,7 +183,7 @@
         <div class="screen-container">
             <div class="flash-overlay"></div>
             <div class="main-band">ROUND <span id="round-number">1</span></div>
-            <div class="player-band">PLAYER <span id="player-name">1</span></div>
+            <div class="secondary-band">PLAYER <span id="player-name">1</span></div>
             <div class="avatar-space"></div>
         </div>
     </div>
@@ -256,7 +256,7 @@
             resetPositions() {
                 // Reset main elements - make sure it starts COMPLETELY off-screen
                 gsap.set('.main-band', { width: '0vw', x: "-20px" }); // Much further off-screen
-                gsap.set('.player-band', { right: "-40px", x: "-20px", width: '0vw' }); // Start off-screen right, will slide to final position
+                gsap.set('.secondary-band', { right: "-40px", x: "-20px", width: '0vw' }); // Start off-screen right, will slide to final position
                 gsap.set('.avatar-space', { opacity: 0, scale: 0.5 });
                 gsap.set('.flash-overlay', { opacity: 0 });
 
@@ -369,13 +369,13 @@
 
                 
                 // Player band sliding in from right
-                tl.to('.player-band', {
+                tl.to('.secondary-band', {
                     width: '50vw',
                     duration: 0.3,
                     ease: "back.out(1.4)"
                 }, 0.8);
-                tl.to('.player-band', { width: "40vw", ease: "elastic.out", duration: 1 }, 1.0);
-                tl.to('.player-band', { x: "-110vw", duration: 0.3 }, outDelay);
+                tl.to('.secondary-band', { width: "40vw", ease: "elastic.out", duration: 1 }, 1.0);
+                tl.to('.secondary-band', { x: "-110vw", duration: 0.3 }, outDelay);
                 
                 // Avatar space appearing
                 tl.to('.avatar-space', {
@@ -459,7 +459,7 @@
                 }, 1.5);
 
                 // // Final glow effect
-                // tl.to(['.main-band', '.player-band'], {
+                // tl.to(['.main-band', '.secondary-band'], {
                 //     boxShadow: "0 0 80px currentColor, inset 0 0 40px rgba(255, 255, 255, 0.2)",
                 //     duration: 0.3,
                 //     ease: "power2.out"

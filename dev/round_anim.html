@@ -59,6 +59,7 @@
             border: 3px solid rgba(255, 255, 255, 0.5);
             z-index: 9;
             overflow: hidden;
+            border-radius: 10px 60px 10px 10px;
         }
 
         .player-band {
@@ -81,6 +82,7 @@
             border: 2px solid rgba(255, 255, 255, 0.4);
             z-index: 10;
             overflow: hidden;
+            border-radius: 7px 7px 7px 40px;
         }
 
         .diagonal-band {
@@ -441,12 +443,12 @@
                     ease: "power2.inOut"
                 }, 1.5);
 
-                // Final glow effect
-                tl.to(['.main-band', '.player-band'], {
-                    boxShadow: "0 0 80px currentColor, inset 0 0 40px rgba(255, 255, 255, 0.2)",
-                    duration: 0.3,
-                    ease: "power2.out"
-                }, 2);
+                // // Final glow effect
+                // tl.to(['.main-band', '.player-band'], {
+                //     boxShadow: "0 0 80px currentColor, inset 0 0 40px rgba(255, 255, 255, 0.2)",
+                //     duration: 0.3,
+                //     ease: "power2.out"
+                // }, 2);
             }
 
             nextRound() {

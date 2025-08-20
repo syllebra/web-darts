@@ -467,12 +467,12 @@
             }
 
             nextRound() {
-                this.currentRound++;
-                if (this.currentRound > 10) {
-                    this.currentRound = 1;
-                    this.currentPlayer++;
-                    if (this.currentPlayer > 4) this.currentPlayer = 1;
-                }
+                if (this.isAnimating) return;
+                this.currentPlayer++;
+                if (this.currentPlayer > 4) {
+                    this.currentRound++;
+                    this.currentPlayer = 1;    
+                }                
 
                 document.getElementById('round-number').textContent = this.currentRound;
                 document.getElementById('player-name').textContent = this.currentPlayer;

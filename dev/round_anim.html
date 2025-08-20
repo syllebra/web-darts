@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade Round Animation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial Black', Arial, sans-serif;
+            background: radial-gradient(circle, #0a0a0a 0%, #000000 100%);
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        .animation-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-band {
+            position: fixed;
+            height: 160px;
+            width: 0vw;
+            background: linear-gradient(45deg, var(--player-color, #ff0080), var(--player-color-dark, #cc0066));
+            top: 35%;
+            left: -20px;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 64px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 1);
+            box-shadow:
+                0 0 60px var(--player-color, #ff0080),
+                inset 0 0 60px rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            z-index: 9;
+            overflow: hidden;
+        }
+
+        .player-band {
+            position: absolute;
+            height: 100px;
+            width: 0vw;
+            background: linear-gradient(45deg, var(--player-color-light, #ff4da6), var(--player-color, #ff0080));
+            top: calc(35% + 120px);
+            right: 0px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 1);
+            box-shadow:
+                0 0 40px var(--player-color, #ff0080),
+                inset 0 0 40px rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        .diagonal-band {
+            position: absolute;
+            height: 30px;
+            width: 250vh;
+            opacity: 0;
+            transform-origin: left center;
+            background: linear-gradient(90deg,
+                    var(--player-color, #ff0080) 0%,
+                    var(--player-color-light, #ff4da6) 50%,
+                    transparent 100%);
+        }
+
+        .avatar-space {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            right: 60px;
+            top: 40%;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+            box-shadow:
+                0 0 20px rgba(255, 255, 255, 0.3),
+                inset 0 0 15px rgba(255, 255, 255, 0.1);
+            z-index: 11;
+            opacity: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            box-shadow: 0 0 6px white;
+        }
+
+        .flash-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .screen-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #ff0080, #8000ff);
+            border: none;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(255, 0, 128, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 0, 128, 0.8);
+        }
+
+        .color-input {
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff0080;
+            color: white;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="animation-container">
+        <div class="screen-container">
+            <div class="flash-overlay"></div>
+            <div class="main-band">ROUND <span id="round-number">1</span></div>
+            <div class="player-band">PLAYER <span id="player-name">1</span></div>
+            <div class="avatar-space"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="arcadeAnimation.startAnimation()">START ANIMATION</button>
+        <button class="btn" onclick="arcadeAnimation.nextRound()">NEXT ROUND</button>
+        <input type="color" class="color-input" id="primary-color" value="#ff0080"
+            onchange="arcadeAnimation.updateColors()">
+        <input type="color" class="color-input" id="secondary-color" value="#8000ff"
+            onchange="arcadeAnimation.updateColors()">
+        <input type="color" class="color-input" id="accent-color" value="#00ff80"
+            onchange="arcadeAnimation.updateColors()">
+    </div>
+
+    <script>
+        class ArcadeAnimation {
+            constructor() {
+                this.currentRound = 1;
+                this.currentPlayer = 1;
+                this.isAnimating = false;
+                this.playerColors = [
+                    { main: '#20ff00', light: '#a6ff4d', dark: '#26cc00' }, // Green
+                    { main: '#ff0080', light: '#ff4da6', dark: '#cc0066' }, // Pink
+                    { main: '#0080ff', light: '#4da6ff', dark: '#0066cc' }, // Blue
+                    { main: '#ff8000', light: '#ffa64d', dark: '#cc6600' }  // Orange
+                ];
+                this.diagonalBands = [];
+                this.particles = [];
+
+                this.init();
+            }
+
+            init() {
+                this.createDiagonalBands();
+                this.createParticles();
+                this.updateColors();
+                this.resetPositions();
+            }
+
+            createDiagonalBands() {
+                const container = document.querySelector('.screen-container');
+                const bandCount = 30;
+
+                for (let i = 0; i < bandCount; i++) {
+                    const band = document.createElement('div');
+                    band.className = 'diagonal-band';
+
+                    container.appendChild(band);
+                    this.diagonalBands.push({
+                        element: band,
+                        fromTopLeft: i % 2 === 0
+                    });
+                }
+            }
+
+            createParticles() {
+                const container = document.querySelector('.screen-container');
+                const particleCount = 100;
+
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    container.appendChild(particle);
+                    this.particles.push(particle);
+                }
+            }
+
+            resetPositions() {
+                // Reset main elements - make sure it starts COMPLETELY off-screen
+                gsap.set('.main-band', { width: '0vw', x: "-20px" }); // Much further off-screen
+                gsap.set('.player-band', { right: "-40px", x: "-20px", width: '0vw' }); // Start off-screen right, will slide to final position
+                gsap.set('.avatar-space', { opacity: 0, scale: 0.5 });
+                gsap.set('.flash-overlay', { opacity: 0 });
+
+                // Reset diagonal bands with proper CSS positioning
+                this.diagonalBands.forEach((bandData, i) => {
+                    const band = bandData.element;
+                    const fromTopLeft = bandData.fromTopLeft;
+
+                    if (fromTopLeft) {
+                        // Coming from top-left, going to bottom-right
+                        gsap.set(band, {
+                            left: gsap.utils.random(0.4, window.innerWidth*1.5) + 'px',
+                            //top: gsap.utils.random(0, window.innerHeight * 0.4) + 'px',
+                            top: -30+'px',
+                            right: 'auto',
+                            bottom: 'auto',
+                            rotation: 45,
+                            opacity: 0,
+                            scaleX: 0,
+                            translateX:0,
+                            translateY:0,
+                            transformOrigin: 'left center'
+                        });
+                    } else {
+                        // Coming from bottom-right, going to top-left
+                        gsap.set(band, {
+                            left: gsap.utils.random(0.4, window.innerWidth * 1.5) + 'px',
+                            bottom: -30 + 'px',
+                            right: 'auto',
+                            top: 'auto',
+                            rotation: 225,
+                            opacity: 0,
+                            scaleX: 0,
+                            translateX: 0,
+                            translateY: 0,
+                            transformOrigin: 'left center'
+                        });
+                    }
+                });
+
+                // Reset particles
+                this.particles.forEach(particle => {
+                    gsap.set(particle, {
+                        left: gsap.utils.random(0, window.innerWidth) + 'px',
+                        top: gsap.utils.random(0, window.innerHeight) + 'px',
+                        opacity: 0,
+                        scale: gsap.utils.random(0.5, 1.5)
+                    });
+                });
+            }
+
+            startAnimation() {
+                if (this.isAnimating) return;
+                this.isAnimating = true;
+
+                const outDelay = 5.0;
+
+                this.resetPositions();
+
+                const tl = gsap.timeline({
+                    onComplete: () => {
+                        this.isAnimating = false;
+                        setTimeout(() => this.resetPositions(), 1000);
+                    }
+                });
+
+                // Flash effect
+                tl.to('.flash-overlay', {
+                    opacity: 0.3,
+                    duration: 0.1,
+                    ease: "power2.out"
+                })
+                    .to('.flash-overlay', {
+                        opacity: 0,
+                        duration: 0.3,
+                        ease: "power2.out"
+                    });
+
+                // Screen shake (subtle)
+                tl.to('.screen-container', {
+                    x: 2,
+                    duration: 0.05,
+                    repeat: 8,
+                    yoyo: true,
+                    ease: "power2.inOut"
+                }, 0);
+
+                // Main band sliding in from left
+                tl.to('.main-band', {
+                    width: '90vw',
+                    duration: 0.3,
+                    ease: "back.out(1.7)"
+                }, 0.2)
+                tl.to('.main-band', { width: "80vw", ease: "elastic.out", duration: 1 }, 0.5);
+
+                tl.to('.main-band', { x: "105vw", duration:0.3}, outDelay);
+
+                // Player band sliding in from right
+                tl.to('.player-band', {
+                    width: '50vw',
+                    duration: 0.3,
+                    ease: "back.out(1.4)"
+                }, 0.8);
+                tl.to('.player-band', { width: "40vw", ease: "elastic.out", duration: 1 }, 1.0);
+                tl.to('.player-band', { x: "-105vw", duration: 0.3 }, outDelay);
+                
+                // Avatar space appearing
+                tl.to('.avatar-space', {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 0.4,
+                    ease: "back.out(2)"
+                }, 1.2);
+
+                // Diagonal bands animation - spikes sliding in at 45 degrees
+                this.diagonalBands.forEach((bandData, i) => {
+                    const band = bandData.element;
+                    const fromTopLeft = bandData.fromTopLeft;
+                    const delay = i * 0.08;
+
+                    // Fade in and scale in along the band length
+                    tl.to(band, {
+                        opacity: gsap.utils.random(0.05, 0.4),
+                        scaleX: gsap.utils.random(0.2, 0.6),
+                        duration: 1.4,
+                        ease: "power2.out"
+                    }, 0.8 + delay);
+
+                    // Fade out
+                    tl.to(band, {
+                        opacity: 0,
+                        duration: 1.3,
+                        ease: "power2.out"
+                    }, 1.8 + delay);
+
+
+                    tl.to(band, {
+                        translateX: "100vw",
+                        translateY: "100vw",
+                        duration: 0.8,
+                    }, outDelay-0.7+ delay*0.4)
+                });
+
+                // Particles burst
+                this.particles.forEach((particle, i) => {
+                    const delay = gsap.utils.random(0.6, outDelay-0.6);
+                    const targetX = gsap.utils.random(-100, window.innerWidth + 100);
+                    const targetY = gsap.utils.random(-100, window.innerHeight + 100);
+
+                    const targetXout = targetX < window.innerWidth *0.5 ? targetX - window.innerWidth * 0.7 : targetX + window.innerWidth * 0.7;
+                    const targetYout = targetY < window.innerHeight * 0.5 ? targetY - window.innerHeight * gsap.utils.random(0., 0.8) : targetY + window.innerHeight * gsap.utils.random(0., 0.8);
+
+                    tl.to(particle, {
+                        opacity: 1,
+                        duration: 0.1,
+                        ease: "power2.out"
+                    }, delay);
+
+                    tl.to(particle, {
+                        left: targetX + 'px',
+                        top: targetY + 'px',
+                        duration: 2.5,
+                        ease: "power2.out"
+                    }, delay);
+
+                    tl.to(particle, {
+                        opacity: 0,
+                        duration: 0.5,
+                        ease: "power2.out",
+                    }, delay + 1.5);
+
+                    tl.to(particle, {
+                        left: targetXout + 'px',
+                        top: targetYout + 'px',
+                        duration: 1.0,
+                    }, outDelay);                    
+                });
+
+                // Avatar pulse effect
+                tl.to('.avatar-space', {
+                    scale: 1.3,
+                    duration: 0.2,
+                    repeat: 3,
+                    yoyo: true,
+                    ease: "power2.inOut"
+                }, 1.5);
+
+                // Final glow effect
+                tl.to(['.main-band', '.player-band'], {
+                    boxShadow: "0 0 80px currentColor, inset 0 0 40px rgba(255, 255, 255, 0.2)",
+                    duration: 0.3,
+                    ease: "power2.out"
+                }, 2);
+            }
+
+            nextRound() {
+                this.currentRound++;
+                if (this.currentRound > 10) {
+                    this.currentRound = 1;
+                    this.currentPlayer++;
+                    if (this.currentPlayer > 4) this.currentPlayer = 1;
+                }
+
+                document.getElementById('round-number').textContent = this.currentRound;
+                document.getElementById('player-name').textContent = this.currentPlayer;
+
+                this.updateColors();
+                this.startAnimation();
+            }
+
+            updateColors() {
+                const playerColor = this.playerColors[(this.currentPlayer - 1) % this.playerColors.length];
+
+                document.documentElement.style.setProperty('--player-color', playerColor.main);
+                document.documentElement.style.setProperty('--player-color-light', playerColor.light);
+                document.documentElement.style.setProperty('--player-color-dark', playerColor.dark);
+
+                // Update color inputs to match current player
+                document.getElementById('primary-color').value = playerColor.main;
+                document.getElementById('secondary-color').value = playerColor.light;
+                document.getElementById('accent-color').value = playerColor.dark;
+            }
+        }
+
+        // Initialize the animation
+        const arcadeAnimation = new ArcadeAnimation();
+
+        // Auto-start animation on load
+        window.addEventListener('load', () => {
+            setTimeout(() => arcadeAnimation.startAnimation(), 500);
+        });
+    </script>
+</body>
+
+</html>

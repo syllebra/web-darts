@@ -7,28 +7,21 @@
     <title>Arcade Round Animation</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
-        html,
-        body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        html,
         body {
-            font-family: 'Arial Black', Arial, sans-serif;
-            background: radial-gradient(circle, #0a0a0a 0%, #000000 100%);
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            height: 100vh;
-            position: relative;
+            background-image: url("../images/backdrops/background_pdc_01.jpg");
+            background-size: cover;
         }
+
 
         .animation-container {
             width: 100vw;
@@ -64,7 +57,7 @@
 
         .secondary-band {
             position: absolute;
-            height: 16VH;
+            height: 16vh;
             width: 0vw;
             background: linear-gradient(45deg, var(--player-color-light, #ff4da6), var(--player-color, #ff0080));
             top: 51vh;
@@ -93,29 +86,18 @@
                 padding: 0 2vw;
                 white-space: nowrap;
             }
-            
+
             .secondary-band {
                 font-size: clamp(3vh, 6vw, 7vh);
                 height: 14vh;
                 padding: 0 2vw;
                 white-space: nowrap;
             }
-            
+
             .avatar-space {
                 width: 60px;
                 height: 60px;
                 right: 40px;
-            }
-            
-            .controls {
-                bottom: 10px;
-                left: 10px;
-                gap: 5px;
-            }
-            
-            .btn {
-                padding: 8px 15px;
-                font-size: 12px;
             }
         }
 
@@ -126,13 +108,13 @@
                 height: 16vh;
                 padding: 0 3vw;
             }
-            
+
             .secondary-band {
                 font-size: clamp(2.5vh, 5vw, 6vh);
                 height: 12vh;
                 padding: 0 3vw;
             }
-            
+
             .avatar-space {
                 width: 50px;
                 height: 50px;
@@ -148,7 +130,7 @@
                 height: 20vh;
                 line-height: 1;
             }
-            
+
             .secondary-band {
                 font-size: clamp(2vh, 4.5vw, 5vh);
                 flex-direction: column;
@@ -159,7 +141,7 @@
 
         .diagonal-band {
             position: absolute;
-            height: 30px;
+            height: calc(min(4.5vh, 4.5vw));
             width: 250vh;
             opacity: 0;
             transform-origin: left center;
@@ -201,7 +183,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.6), transparent);
             opacity: 0;
             pointer-events: none;
             z-index: 20;
@@ -211,70 +193,11 @@
             width: 100%;
             height: 100%;
             position: relative;
+            background-color: #000000bb;
+            opacity: 1;
         }
-
-        /* Mobile vertical orientation responsive text sizing */
-        @media screen and (max-width: 768px) and (orientation: portrait) {
-            .main-band {
-                font-size: clamp(4vh, 8vw, 10vh);
-                height: 18vh;
-                padding: 0 2vw;
-                white-space: nowrap;
-            }
-            
-            .secondary-band {
-                font-size: clamp(3vh, 6vw, 7vh);
-                height: 14vh;
-                padding: 0 2vw;
-                white-space: nowrap;
-            }
-            
-            .avatar-space {
-                width: 60px;
-                height: 60px;
-                right: 40px;
-            }
-        }
-
-        /* Extra small mobile screens */
-        @media screen and (max-width: 480px) and (orientation: portrait) {
-            .main-band {
-                font-size: clamp(3vh, 7vw, 8vh);
-                height: 16vh;
-                padding: 0 3vw;
-            }
-            
-            .secondary-band {
-                font-size: clamp(2.5vh, 5vw, 6vh);
-                height: 12vh;
-                padding: 0 3vw;
-            }
-            
-            .avatar-space {
-                width: 50px;
-                height: 50px;
-                right: 30px;
-            }
-        }
-
-        /* Very narrow screens - stack text if needed */
-        @media screen and (max-width: 360px) and (orientation: portrait) {
-            .main-band {
-                font-size: clamp(2.5vh, 6vw, 7vh);
-                flex-direction: column;
-                height: 20vh;
-                line-height: 1;
-            }
-            
-            .secondary-band {
-                font-size: clamp(2vh, 4.5vw, 5vh);
-                flex-direction: column;
-                height: 16vh;
-                line-height: 1;
-            }
-        }
-
-
+    </style>
+    <style>
         .controls {
             position: absolute;
             bottom: 20px;
@@ -393,6 +316,7 @@
                 gsap.set('.secondary-band', { right: "-40px", x: "-20px", width: '0vw' }); // Start off-screen right, will slide to final position
                 gsap.set('.avatar-space', { opacity: 0, scale: 0.5 });
                 gsap.set('.flash-overlay', { opacity: 0 });
+                gsap.set('.screen-container', { opacity: 0 });
 
                 // Reset diagonal bands with proper CSS positioning
                 this.diagonalBands.forEach((bandData, i) => {
@@ -402,16 +326,16 @@
                     if (fromTopLeft) {
                         // Coming from top-left, going to bottom-right
                         gsap.set(band, {
-                            left: gsap.utils.random(0.4, window.innerWidth*1.5) + 'px',
+                            left: gsap.utils.random(0.4, window.innerWidth * 1.5) + 'px',
                             //top: gsap.utils.random(0, window.innerHeight * 0.4) + 'px',
-                            top: -30+'px',
+                            top: -30 + 'px',
                             right: 'auto',
                             bottom: 'auto',
                             rotation: 45,
                             opacity: 0,
                             scaleX: 0,
-                            translateX:0,
-                            translateY:0,
+                            translateX: 0,
+                            translateY: 0,
                             transformOrigin: 'left center'
                         });
                     } else {
@@ -460,7 +384,7 @@
                 // Flash effect
                 tl.to('.flash-overlay', {
                     opacity: 0.3,
-                    duration: 0.1,
+                    duration: 0.4,
                     ease: "power2.out"
                 })
                     .to('.flash-overlay', {
@@ -478,17 +402,25 @@
                     ease: "power2.inOut"
                 }, 0);
 
+                tl.to('.screen-container', {
+                    opacity: 1.0,
+                    duration: 0.2,
+                    ease: "power2.inOut"
+                }, 0);
+
+                tl.to('.screen-container', { opacity: 0, duration: 0.3 }, outDelay);     
+
                 setTimeout(() => { Sound.play("pixabay_free/arcade-ui-30-229499.mp3") }, 300);
                 setTimeout(() => { Sound.play("pixabay_free/arcade-ui-29-229501.mp3") }, 900);
                 //setTimeout(() => { Sound.play("pixabay_free/bonus-points-190035.mp3") }, outDelay*950);
-                
-                if(gsap.utils.random(0,1.0)>0.5)
+
+                if (gsap.utils.random(0, 1.0) > 0.5)
                     setTimeout(() => { Sound.play("pixabay_free/countdown-sound-effect-8-bit-151797.mp3") }, 1700);
                 else
                     setTimeout(() => { Sound.play("pixabay_free/robotic-countdown-43935.mp3") }, 1700);
-                
+
                 setTimeout(() => { Sound.play("pixabay_free/get-coin-351945.mp3") }, outDelay * 950);
-                
+
                 // Main band sliding in from left
                 const test = tl.to('.main-band', {
                     width: '90vw',
@@ -498,10 +430,10 @@
                 console.log(test)
                 tl.to('.main-band', { width: "80vw", ease: "elastic.out", duration: 1 }, 0.5);
 
-                tl.to('.main-band', { x: "105vw", duration:0.3}, outDelay);
+                tl.to('.main-band', { x: "105vw", duration: 0.3 }, outDelay);
 
 
-                
+
                 // Player band sliding in from right
                 tl.to('.secondary-band', {
                     width: '50vw',
@@ -510,7 +442,7 @@
                 }, 0.8);
                 tl.to('.secondary-band', { width: "40vw", ease: "elastic.out", duration: 1 }, 1.0);
                 tl.to('.secondary-band', { x: "-110vw", duration: 0.3 }, outDelay);
-                
+
                 // Avatar space appearing
                 tl.to('.avatar-space', {
                     opacity: 1,
@@ -545,16 +477,16 @@
                         translateX: "100vw",
                         translateY: "100vw",
                         duration: 0.8,
-                    }, outDelay-0.7+ delay*0.4)
+                    }, outDelay - 0.7 + delay * 0.4)
                 });
 
                 // Particles burst
                 this.particles.forEach((particle, i) => {
-                    const delay = gsap.utils.random(0.6, outDelay-0.6);
+                    const delay = gsap.utils.random(0.6, outDelay - 0.6);
                     const targetX = gsap.utils.random(-100, window.innerWidth + 100);
                     const targetY = gsap.utils.random(-100, window.innerHeight + 100);
 
-                    const targetXout = targetX < window.innerWidth *0.5 ? targetX - window.innerWidth * 0.7 : targetX + window.innerWidth * 0.7;
+                    const targetXout = targetX < window.innerWidth * 0.5 ? targetX - window.innerWidth * 0.7 : targetX + window.innerWidth * 0.7;
                     const targetYout = targetY < window.innerHeight * 0.5 ? targetY - window.innerHeight * gsap.utils.random(0., 0.8) : targetY + window.innerHeight * gsap.utils.random(0., 0.8);
 
                     tl.to(particle, {
@@ -580,7 +512,7 @@
                         left: targetXout + 'px',
                         top: targetYout + 'px',
                         duration: 1.0,
-                    }, outDelay);                    
+                    }, outDelay);
                 });
 
                 // Avatar pulse effect
@@ -598,6 +530,7 @@
                 //     duration: 0.3,
                 //     ease: "power2.out"
                 // }, 2);
+           
             }
 
             nextRound() {
@@ -605,8 +538,8 @@
                 this.currentPlayer++;
                 if (this.currentPlayer > 4) {
                     this.currentRound++;
-                    this.currentPlayer = 1;    
-                }                
+                    this.currentPlayer = 1;
+                }
 
                 document.getElementById('round-number').textContent = this.currentRound;
                 document.getElementById('player-name').textContent = this.currentPlayer;
@@ -618,9 +551,9 @@
             updateColors() {
                 const playerColor = this.playerColors[(this.currentPlayer - 1) % this.playerColors.length];
 
-                document.documentElement.style.setProperty('--player-color', playerColor.main);
-                document.documentElement.style.setProperty('--player-color-light', playerColor.light);
-                document.documentElement.style.setProperty('--player-color-dark', playerColor.dark);
+                document.documentElement.style.setProperty('--player-color', playerColor.main+"dd");
+                document.documentElement.style.setProperty('--player-color-light', playerColor.light+"dd");
+                document.documentElement.style.setProperty('--player-color-dark', playerColor.dark+"dd");
 
                 // Update color inputs to match current player
                 document.getElementById('primary-color').value = playerColor.main;

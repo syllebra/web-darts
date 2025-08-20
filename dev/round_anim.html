@@ -239,36 +239,24 @@
     <div class="animation-container">
         <div class="screen-container">
             <div class="flash-overlay"></div>
-            <div class="main-band">ROUND <span id="round-number">1</span></div>
-            <div class="secondary-band">PLAYER <span id="player-name">1</span></div>
+            <div class="main-band" id="animRoundMainText"></div>
+            <div class="secondary-band" id="animRoundSecondaryText"></div>
             <div class="avatar-space"></div>
         </div>
     </div>
 
     <div class="controls">
-        <button class="btn" onclick="arcadeAnimation.startAnimation()">START ANIMATION</button>
-        <button class="btn" onclick="arcadeAnimation.nextRound()">NEXT ROUND</button>
-        <input type="color" class="color-input" id="primary-color" value="#ff0080"
-            onchange="arcadeAnimation.updateColors()">
-        <input type="color" class="color-input" id="secondary-color" value="#8000ff"
-            onchange="arcadeAnimation.updateColors()">
-        <input type="color" class="color-input" id="accent-color" value="#00ff80"
-            onchange="arcadeAnimation.updateColors()">
+        <button class="btn" onclick="startAnim()">START ANIMATION</button>
+        <button class="btn" onclick="nextRound()">NEXT ROUND</button>
+        <input type="color" class="color-input" id="primary-color" value="#ff0080">
     </div>
 
     <script src="../utils/sound.js"></script>
+    <script src="../core/utils/ColorUtils.js"></script>
     <script>
         class ArcadeAnimation {
             constructor() {
-                this.currentRound = 1;
-                this.currentPlayer = 1;
                 this.isAnimating = false;
-                this.playerColors = [
-                    { main: '#20ff00', light: '#a6ff4d', dark: '#26cc00' }, // Green
-                    { main: '#ff0080', light: '#ff4da6', dark: '#cc0066' }, // Pink
-                    { main: '#0080ff', light: '#4da6ff', dark: '#0066cc' }, // Blue
-                    { main: '#ff8000', light: '#ffa64d', dark: '#cc6600' }  // Orange
-                ];
                 this.diagonalBands = [];
                 this.particles = [];
 
@@ -278,7 +266,6 @@
             init() {
                 this.createDiagonalBands();
                 this.createParticles();
-                this.updateColors();
                 this.resetPositions();
             }
 
@@ -366,8 +353,19 @@
                 });
             }
 
-            startAnimation() {
+            startAnimation(baseColor="#0080ff", mainText = "PLAYER", secondaryText = "ROUND") {
                 if (this.isAnimating) return;
+
+                const palette = ColorUtils.generateColorPalette(baseColor);
+
+                document.documentElement.style.setProperty("--player-color", palette.main + "dd");
+                document.documentElement.style.setProperty("--player-color-light", palette.light + "dd");
+                document.documentElement.style.setProperty("--player-color-dark", palette.dark + "dd");
+
+
+                document.getElementById('animRoundMainText').textContent = mainText;
+                document.getElementById('animRoundSecondaryText').textContent = secondaryText;
+
                 this.isAnimating = true;
 
                 const outDelay = 5.0;
@@ -532,42 +530,41 @@
                 // }, 2);
            
             }
-
-            nextRound() {
-                if (this.isAnimating) return;
-                this.currentPlayer++;
-                if (this.currentPlayer > 4) {
-                    this.currentRound++;
-                    this.currentPlayer = 1;
-                }
-
-                document.getElementById('round-number').textContent = this.currentRound;
-                document.getElementById('player-name').textContent = this.currentPlayer;
-
-                this.updateColors();
-                this.startAnimation();
-            }
-
-            updateColors() {
-                const playerColor = this.playerColors[(this.currentPlayer - 1) % this.playerColors.length];
-
-                document.documentElement.style.setProperty('--player-color', playerColor.main+"dd");
-                document.documentElement.style.setProperty('--player-color-light', playerColor.light+"dd");
-                document.documentElement.style.setProperty('--player-color-dark', playerColor.dark+"dd");
-
-                // Update color inputs to match current player
-                document.getElementById('primary-color').value = playerColor.main;
-                document.getElementById('secondary-color').value = playerColor.light;
-                document.getElementById('accent-color').value = playerColor.dark;
-            }
         }
 
+    </script>
+    <script>
         // Initialize the animation
         const arcadeAnimation = new ArcadeAnimation();
 
+        let currentRound = 1;
+        let currentPlayer = 1;
+        let basePlayerColors = [
+                "#20ff00", // Green
+                "#ff0080", // Pink
+                "#0080ff", // Blue
+                "#ff8000", // Orange
+            ];
+
+        function nextRound() {
+            if (arcadeAnimation.isAnimating) return;
+            currentPlayer++;
+            if (currentPlayer > 4) {
+                currentRound++;
+                currentPlayer = 1;
+            }
+            startAnim();
+        }
+
+        function startAnim() {
+            const playerColor = basePlayerColors[(currentPlayer - 1) % basePlayerColors.length];
+            document.getElementById('primary-color').value = playerColor;
+            arcadeAnimation.startAnimation(playerColor, "PLAYER "+currentPlayer, "ROUND "+currentRound);
+        }
+        
         // Auto-start animation on load
         window.addEventListener('load', () => {
-            setTimeout(() => arcadeAnimation.startAnimation(), 500);
+            setTimeout(() => startAnim(), 500);
         });
     </script>
 </body>

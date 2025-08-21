@@ -13,9 +13,23 @@ class ArcadePlayerRoundAnimation {
             .arcade-animation-container {
                 width: 100vw;
                 height: 100vh;
-                position: relative;
+                position: absolute;
+                top:0px;
+                left: 0px;
                 overflow: hidden;
+                z-index: 1000;
+                display:none;
             }
+
+
+            .arcade-screen-container {
+                width: 100%;
+                height: 100%;
+                position: relative;
+                background-color: #000000bb;
+                opacity: 1;
+            }
+
 
             .arcade-main-band {
                 position: fixed;
@@ -37,7 +51,7 @@ class ArcadePlayerRoundAnimation {
                     0 0 60px var(--arcade-player-color, #ff0080),
                     inset 0 0 60px rgba(255, 255, 255, 0.2);
                 border: 3px solid rgba(255, 255, 255, 0.5);
-                z-index: 9;
+                z-index: 1009;
                 overflow: hidden;
                 border-radius: 2vh 10vh 2vh 2vh;
             }
@@ -60,7 +74,7 @@ class ArcadePlayerRoundAnimation {
                     0 0 40px var(--arcade-player-color, #ff0080),
                     inset 0 0 40px rgba(255, 255, 255, 0.2);
                 border: 2px solid rgba(255, 255, 255, 0.4);
-                z-index: 10;
+                z-index: 1010;
                 overflow: hidden;
                 border-radius: 2vh 2vh 2vh 6.9vh;
             }
@@ -89,7 +103,7 @@ class ArcadePlayerRoundAnimation {
                 box-shadow:
                     0 0 20px rgba(255, 255, 255, 0.3),
                     inset 0 0 15px rgba(255, 255, 255, 0.1);
-                z-index: 11;
+                z-index: 1011;
                 opacity: 0;
             }
 
@@ -112,15 +126,7 @@ class ArcadePlayerRoundAnimation {
                 background: radial-gradient(circle, rgba(255, 255, 255, 0.6), transparent);
                 opacity: 0;
                 pointer-events: none;
-                z-index: 20;
-            }
-
-            .arcade-screen-container {
-                width: 100%;
-                height: 100%;
-                position: relative;
-                background-color: #000000bb;
-                opacity: 1;
+                z-index: 2020;
             }
 
             /* Mobile vertical orientation responsive text sizing */
@@ -392,6 +398,8 @@ class ArcadePlayerRoundAnimation {
 
     this.isAnimating = true;
 
+    this.animationContainer.style.display = "block";
+
     const outDelay = 5.0;
 
     this.resetPositions();
@@ -400,6 +408,7 @@ class ArcadePlayerRoundAnimation {
       onComplete: () => {
         this.isAnimating = false;
         //setTimeout(() => this.resetPositions(), 1000);
+        this.animationContainer.style.display = "none";
         this.resetPositions();
         if (onComplete && typeof onComplete === "function") {
           onComplete();

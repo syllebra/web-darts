@@ -296,26 +296,6 @@
             transform: translateX(50px);
         }
 
-        .countdown-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .countdown-number {
-            font-size: 15rem;
-            font-weight: 900;
-            color: #ff0080;
-            text-shadow: 0 0 80px #ff0080;
-        }
-
         .controls {
             position: fixed;
             bottom: 20px;
@@ -474,9 +454,6 @@
         </div>
         </div>
     </div>
-    <div class="countdown-overlay" id="countdownOverlay">
-        <div class="countdown-number" id="countdownNumber">3</div>
-    </div>
 
     <div class="controls">
         <button class="btn-neon" onclick="simulateScore()">Simulate Score</button>
@@ -484,10 +461,30 @@
         <button class="btn-neon" onclick="connectMQTT()">Connect MQTT</button>
     </div>
 
-    <script src="../utils/sound_effects.js"></script>
+    <script src="../core/utils/ColorUtils.js"></script>
     <script src="../core/Throw.js"></script>
+    <script src="../utils/sound_effects.js"></script>
+    <script src="../utils/sound.js"></script>
+    <script src="../ui/ArcadePlayerRoundAnimation.js"></script>
     <script>
-
+            // GSAP ticker helper function
+            function tickGSAPWhileHidden(value) {
+                if (value === false) {
+                    document.removeEventListener("visibilitychange", tickGSAPWhileHidden.fn);
+                    return clearInterval(tickGSAPWhileHidden.id);
+                }
+                const onChange = () => {
+                    clearInterval(tickGSAPWhileHidden.id);
+                    document.hidden && (tickGSAPWhileHidden.id = setInterval(gsap.ticker.tick, 500));
+                };
+                document.addEventListener("visibilitychange", onChange);
+                tickGSAPWhileHidden.fn = onChange;
+                onChange();
+            }
+            tickGSAPWhileHidden(true);
+            gsap.ticker.lagSmoothing(0);
+    </script>
+    <script>
         let checkoutRoutes = {};
 
         fetch('main_checkouts_double_out.json') // adjust path if needed
@@ -522,17 +519,19 @@
                     dartCounter: document.getElementById('dartCounter'),
                     incomingScore: document.getElementById('incomingScore'),
                     status: document.getElementById('status'),
-                    countdownOverlay: document.getElementById('countdownOverlay'),
-                    countdownNumber: document.getElementById('countdownNumber'),
                     playerSwitch: document.getElementById('playerSwitch'),
                     dartHistory: document.getElementById('dartHistory'),
                     checkoutSuggestions: document.getElementById('checkoutSuggestions'),
                 };
 
+                this.arcadeAnimation = new ArcadePlayerRoundAnimation();
+
                 this.initGSAP();
                 this.updateDisplay();
                 this.updatePlayersList();
                 this.createFloatingParticles();
+
+                this.newRound();
             }
 
             connectMQTT() {
@@ -990,69 +989,35 @@
                 });
             }
 
+            newRound() {
+                const playerColor = "#FF0000";//basePlayerColors[(currentPlayer - 1) % basePlayerColors.length];
+                this.arcadeAnimation.startAnimation(
+                    playerColor, 
+                    "PLAYER " + (this.currentPlayer+1), 
+                    "ROUND " + (this.currentRound+1),
+                    () => {
+                        console.log(`Animation completed for Player ${this.currentPlayer}, Round ${this.currentRound}`);
+                    }
+                );
+            }
+
             endRound() {
                 // Reset round totals for both players
                 this.players.forEach(player => player.roundTotal = 0);
                 this.currentRoundDarts = [];
 
-                // Wait 2 seconds before switching player and starting countdown
+                // Wait 2 seconds before switching player
                 setTimeout(() => {
-                    const overlay = this.elements.countdownOverlay;
-                    overlay.style.display = 'flex';
                     this.switchPlayer();
                     if (this.currentPlayer == 0)
                         this.currentRound++;
 
-                    // Wait another 1 second before countdown
-                    setTimeout(() => {
-                        this.showCountdown(() => {
-                            this.currentDart = 1;
-                            this.updateDisplay();
-                            this.updateDartHistory();
-                        });
-                    }, 1000);
+                    this.currentDart = 1;
+                    this.updateDisplay();
+                    this.updateDartHistory();
+
+                    this.newRound();
                 }, 2000);
-            }
-
-            showCountdown(callback) {
-                const overlay = this.elements.countdownOverlay;
-                const number = this.elements.countdownNumber;
-                number.style.display = 'none'
-                let count = 3;
-                
-
-                const countdownInterval = setInterval(() => {
-                    number.textContent = count;
-                    number.style.display = 'block'
-
-                    // Play countdown sound FIRST
-                    soundEffects.playModernSound('countdown', { count });
-
-                    // GSAP countdown animation
-                    gsap.timeline()
-                        .set(number, { scale: 0, rotation: -180, opacity: 0 })
-                        .to(number, {
-                            scale: 1.3,
-                            rotation: 10,
-                            opacity: 1,
-                            duration: 0.5,
-                            ease: "back.out(1.7)"
-                        })
-                        .to(number, {
-                            scale: 1,
-                            rotation: 0,
-                            duration: 0.5,
-                            ease: "power2.out"
-                        });
-
-                    count--;
-
-                    if (count < 0) {
-                        clearInterval(countdownInterval);
-                        overlay.style.display = 'none';
-                        callback();
-                    }
-                }, 1000);
             }
 
             createExplosionParticles(score) {

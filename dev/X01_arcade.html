@@ -86,6 +86,7 @@
 
         .neon-panel--secondary {
             border: 2px solid rgba(0, 255, 255, 0.5);
+            margin-block: 15px;
         }
 
         .game-container {
@@ -161,6 +162,7 @@
             border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 10px;
             transition: all 0.3s ease;
+            margin-block: 15px;
         }
 
         .player-item.active {
@@ -385,7 +387,7 @@
             }
 
             .checkout-section {
-                margin-top: 10px;
+                margin-block: 15px;
             }
 
             .checkout-suggestions {
@@ -420,7 +422,6 @@
     <div class="floating-particles"></div>
     <div class="neon-grid"></div>
     <div class="status-indicator" id="status">MQTT: DISCONNECTED</div>
-    <div class="player-switch" id="playerSwitch">PLAYER 2 TURN!</div>
 
     <div class="game-container">
         <div class="top-bar neon-panel neon-panel--primary">
@@ -519,7 +520,6 @@
                     dartCounter: document.getElementById('dartCounter'),
                     incomingScore: document.getElementById('incomingScore'),
                     status: document.getElementById('status'),
-                    playerSwitch: document.getElementById('playerSwitch'),
                     dartHistory: document.getElementById('dartHistory'),
                     checkoutSuggestions: document.getElementById('checkoutSuggestions'),
                 };
@@ -902,31 +902,6 @@
 
             switchPlayer() {
                 this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
-
-                // Animate player switch
-                this.elements.playerSwitch.textContent = `${this.players[this.currentPlayer].name} TURN!`;
-
-                gsap.timeline()
-                    .set(this.elements.playerSwitch, { opacity: 0, scale: 0.5, rotation: -10 })
-                    .to(this.elements.playerSwitch, {
-                        opacity: 1,
-                        scale: 1.2,
-                        rotation: 5,
-                        duration: 0.6,
-                        ease: "back.out(1.7)"
-                    })
-                    .to(this.elements.playerSwitch, {
-                        scale: 1,
-                        rotation: 0,
-                        duration: 0.4
-                    })
-                    .to(this.elements.playerSwitch, {
-                        opacity: 0,
-                        scale: 0.8,
-                        duration: 0.5,
-                        delay: 0.5
-                    });
-
                 soundEffects.playModernSound('switch');
                 this.updateDisplay();
                 this.updatePlayersList();

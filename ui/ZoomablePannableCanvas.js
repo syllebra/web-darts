@@ -2,7 +2,7 @@ class ZoomablePannableCanvas {
   constructor(canvasId, containerId, overlayCanvasId = null) {
     this.canvas = document.getElementById(canvasId);
     this.container = document.getElementById(containerId);
-    this.ctx = this.canvas.getContext("2d");
+    this.ctx = this.canvas?.getContext("2d");
 
     // Overlay canvas setup
     this.overlayCanvas = overlayCanvasId ? document.getElementById(overlayCanvasId) : null;
@@ -121,6 +121,7 @@ class ZoomablePannableCanvas {
 
   // Enhanced mouse handling with overlay element interaction
   handleMouseDown(e) {
+    console.log(e);
     const rect = this.canvas.getBoundingClientRect();
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
@@ -129,7 +130,8 @@ class ZoomablePannableCanvas {
     // Check if clicking on an overlay element
     const hitElement = this.getOverlayElementAt(worldCoords.x, worldCoords.y);
 
-    if (hitElement) {
+    // Not pick using middle mouse (reserved for canvas drag only)
+    if (hitElement && e.button != 1) {
       this.selectedOverlayElement = hitElement.id;
       this.isDraggingOverlayElement = true;
       this.isDragging = false; // Don't drag canvas when dragging element

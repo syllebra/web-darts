@@ -121,7 +121,6 @@ class ZoomablePannableCanvas {
 
   // Enhanced mouse handling with overlay element interaction
   handleMouseDown(e) {
-    console.log(e);
     const rect = this.canvas.getBoundingClientRect();
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;

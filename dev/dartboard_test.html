@@ -9,13 +9,16 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script crossorigin="anonymous"
         src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
+        
         body,
         html {
             margin: 0;
             padding: 0;
             height: 100vh;
             overflow: hidden;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         }
 
         #canvasContainer {
@@ -23,7 +26,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background: #ffffff;
+            background-color: #00000088
         }
 
 
@@ -595,6 +598,57 @@
         }
     );
 
+    const nbThrows = 3;
+    for (let i = 0; i < nbThrows; i++) {
+        // Add interactive elements
+        zoomableCanvas.addOverlayElement(
+            `throw${i}`,
+            { num: i, x: 100 + i * 20, y: -150, pt_radius: 2, circle_radius: 14, color: "#00FFFF",
+                opacity: 0.0, hit: null, animation:null,
+                setThrow(thr) {
+                    this.hit = thr;
+                    const pt = this.hit.getCartesianCoordinates(dartboardRenderer.ringRadii.doubleOuter* dartboardRenderer.radius);
+                    this.x = pt.x;
+                    this.y = pt.y;
+                    if (this.animation) {
+                        this.animation.pause();
+                    }
+                    this.circle_radius = 50;
+                    this.opacity = 0;
+                    this.animation = gsap.to(this, {
+                        circle_radius:14,
+                        duration: 2,
+                        opacity:1,
+                        ease: "elastic.out"
+                    });
+            } },
+            // Draw callback
+            (ctx, element, isSelected) => {
+                if(!element.hit) return;
+                ctx.shadowBlur = element.circle_radius*2 / (zoomableCanvas.scale);
+                ctx.shadowColor = `rgba(255,255,255,${element.opacity})`;
+
+                ctx.fillStyle = isSelected ? `rgba(255,255,0,${element.opacity})` : `rgba(0,255,255,${element.opacity})`;;
+                ctx.beginPath();
+                ctx.arc(element.x, element.y, element.pt_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.strokeStyle = ctx.fillStyle;
+                ctx.lineWidth = (element.num == 0 ? 4 : 2) / zoomableCanvas.scale;
+                ctx.beginPath();
+                ctx.arc(element.x, element.y, element.circle_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
+                ctx.stroke();
+            },
+            // Hit test callback (optional - defaults to circular)
+            (element, worldX, worldY) => {
+                if (!element.hit) return false;
+                const dx = worldX - element.x;
+                const dy = worldY - element.y;
+                return Math.sqrt(dx * dx + dy * dy) <= element.circle_radius / zoomableCanvas.scale;
+            }
+        );
+    }
+
     // Set up event callbacks
     zoomableCanvas.setOnElementSelected((id, element) => {
         console.debug(`Selected element: ${id}`, element);
@@ -610,8 +664,8 @@
 
     zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
         if (id == "Dartboard") {
-            const thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
-            console.log(thr);
+            let thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
+            zoomableCanvas.getOverlayElement("throw0").setThrow(thr);
         }
     });
 </script>

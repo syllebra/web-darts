@@ -566,7 +566,7 @@ function initZoomableCanvasUI() {
       (element, worldX, worldY) => {
         const dx = worldX - element.x;
         const dy = worldY - element.y;
-        return Math.sqrt(dx * dx + dy * dy) <= element.circle_radius;
+        return Math.sqrt(dx * dx + dy * dy) <= element.circle_radius / zoomableCanvas.scale;
       }
     );
   }

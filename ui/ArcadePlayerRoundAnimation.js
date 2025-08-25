@@ -35,7 +35,7 @@ class ArcadePlayerRoundAnimation {
                 position: fixed;
                 height: 20vh;
                 width: 0vw;
-                background: linear-gradient(45deg, var(--arcade-player-color, #ff0080), var(--arcade-player-color-dark, #cc0066));
+                background: linear-gradient(45deg, rgba(var(--arcade-player-color), 0.8), rgba(var(--arcade-player-color-dark), 0.8));
                 top: 35%;
                 left: -20px;
                 margin: 0;
@@ -48,7 +48,7 @@ class ArcadePlayerRoundAnimation {
                 color: white;
                 text-shadow: 0 0 30px rgba(255, 255, 255, 1);
                 box-shadow:
-                    0 0 60px var(--arcade-player-color, #ff0080),
+                    0 0 60px rgb(var(--arcade-player-color)),
                     inset 0 0 60px rgba(255, 255, 255, 0.2);
                 border: 3px solid rgba(255, 255, 255, 0.5);
                 z-index: 1009;
@@ -60,7 +60,7 @@ class ArcadePlayerRoundAnimation {
                 position: absolute;
                 height: 16vh;
                 width: 0vw;
-                background: linear-gradient(45deg, var(--arcade-player-color-light, #ff4da6), var(--arcade-player-color, #ff0080));
+                background: linear-gradient(45deg, rgba(var(--arcade-player-color-light), 0.8), rgba(var(--arcade-player-color), 0.8));
                 top: 51vh;
                 right: 0px;
                 display: flex;
@@ -71,7 +71,7 @@ class ArcadePlayerRoundAnimation {
                 color: white;
                 text-shadow: 0 0 20px rgba(255, 255, 255, 1);
                 box-shadow:
-                    0 0 40px var(--arcade-player-color, #ff0080),
+                    0 0 40px rgba(var(--arcade-player-color), 0.8),
                     inset 0 0 40px rgba(255, 255, 255, 0.2);
                 border: 2px solid rgba(255, 255, 255, 0.4);
                 z-index: 1010;
@@ -86,8 +86,8 @@ class ArcadePlayerRoundAnimation {
                 opacity: 0;
                 transform-origin: left center;
                 background: linear-gradient(90deg,
-                        var(--arcade-player-color, #ff0080) 0%,
-                        var(--arcade-player-color-light, #ff4da6) 50%,
+                        rgba(var(--arcade-player-color), 0.8) 0%,
+                        rgba(var(--arcade-player-color-light), 0.8) 50%,
                         transparent 100%);
             }
 
@@ -260,63 +260,6 @@ class ArcadePlayerRoundAnimation {
     }
   }
 
-  generateColorPalette(baseColor) {
-    // Simple color palette generation
-    const hexToHsl = (hex) => {
-      const r = parseInt(hex.slice(1, 3), 16) / 255;
-      const g = parseInt(hex.slice(3, 5), 16) / 255;
-      const b = parseInt(hex.slice(5, 7), 16) / 255;
-
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      let h,
-        s,
-        l = (max + min) / 2;
-
-      if (max === min) {
-        h = s = 0;
-      } else {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-          case r:
-            h = (g - b) / d + (g < b ? 6 : 0);
-            break;
-          case g:
-            h = (b - r) / d + 2;
-            break;
-          case b:
-            h = (r - g) / d + 4;
-            break;
-        }
-        h /= 6;
-      }
-
-      return [h * 360, s * 100, l * 100];
-    };
-
-    const hslToHex = (h, s, l) => {
-      l /= 100;
-      const a = (s * Math.min(l, 1 - l)) / 100;
-      const f = (n) => {
-        const k = (n + h / 30) % 12;
-        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color)
-          .toString(16)
-          .padStart(2, "0");
-      };
-      return `#${f(0)}${f(8)}${f(4)}`;
-    };
-
-    const [h, s, l] = hexToHsl(baseColor);
-
-    return {
-      main: baseColor,
-      light: hslToHex(h, s, Math.min(l + 20, 100)),
-      dark: hslToHex(h, s, Math.max(l - 20, 0)),
-    };
-  }
-
   resetPositions() {
     if (!window.gsap) {
       console.warn("GSAP is required for ArcadePlayerRoundAnimation");
@@ -386,12 +329,13 @@ class ArcadePlayerRoundAnimation {
   startAnimation(baseColor = "#0080ff", mainText = "PLAYER", secondaryText = "ROUND", onComplete = null) {
     if (this.isAnimating || !window.gsap) return;
 
-    const palette = this.generateColorPalette(baseColor);
+    const palette = ColorUtils.generateColorPalette(baseColor);
 
+    console.warn(palette);
     // Set CSS custom properties
-    document.documentElement.style.setProperty("--arcade-player-color", palette.main + "dd");
-    document.documentElement.style.setProperty("--arcade-player-color-light", palette.light + "dd");
-    document.documentElement.style.setProperty("--arcade-player-color-dark", palette.dark + "dd");
+    document.documentElement.style.setProperty("--arcade-player-color", palette.main);
+    document.documentElement.style.setProperty("--arcade-player-color-light", palette.light);
+    document.documentElement.style.setProperty("--arcade-player-color-dark", palette.dark);
 
     this.mainBand.textContent = mainText;
     this.secondaryBand.textContent = secondaryText;

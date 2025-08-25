@@ -17,6 +17,13 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --arcade-player-color: 0, 255, 255;
+            --arcade-player-color-light: 0, 40, 40;
+            --arcade-player-color-dark: 0, 20, 20;
+            --main-text-color: rgba(240,255,240,0.8);
+        }
+
         body {
             font-family: 'Orbitron', monospace;
             background: radial-gradient(circle at center, #0a0a0a, #1a1a2e, #16213e);
@@ -33,8 +40,8 @@
             width: 100%;
             height: 100%;
             background-image:
-                linear-gradient(rgba(0, 255, 255, 0.15) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 255, 0.15) 1px, transparent 1px),
+                linear-gradient(rgba(var(--arcade-player-color-light), 0.8) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(var(--arcade-player-color-light), 0.7) 1px, transparent 1px),
                 linear-gradient(45deg, rgba(255, 0, 128, 0.05) 1px, transparent 1px);
             background-size: 40px 40px, 40px 40px, 80px 80px;
             z-index: 1;
@@ -54,7 +61,7 @@
             position: absolute;
             width: 3px;
             height: 3px;
-            background: #00ffff;
+            background:  rgba(var(--arcade-player-color),0.8);
             border-radius: 50%;
         }
 
@@ -80,12 +87,12 @@
         }
 
         .neon-panel--primary {
-            border: 3px solid #00ffff;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            border: 3px solid rgba(var(--arcade-player-color), 0.8);
+            box-shadow: 0 0 30px rgba(var(--arcade-player-color-dark), 0.8);
         }
 
         .neon-panel--secondary {
-            border: 2px solid rgba(0, 255, 255, 0.5);
+            border: 2px solid rgba(var(--arcade-player-color), 0.8);
             margin-block: 15px;
         }
 
@@ -113,8 +120,8 @@
         .game-title {
             font-size: 2.5rem;
             font-weight: 900;
-            color: #00ffff;
-            text-shadow: 0 0 30px #00ffff;
+            color: rgba(var(--arcade-player-color), 0.8);
+            text-shadow: 0 0 30px rgba(var(--arcade-player-color), 0.8);
         }
 
         .round-info {
@@ -145,11 +152,11 @@
 
         .players-header {
             font-size: 1.5rem;
-            color: #00ffff;
-            text-shadow: 0 0 20px #00ffff;
+            color:var(--main-text-color);
+            text-shadow: 0 0 20px var(--main-text-color);
             text-align: center;
             margin-bottom: 10px;
-            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            border-bottom: 2px solid rgba(var(--arcade-player-color-dark), 0.8);
             padding-bottom: 10px;
         }
 
@@ -166,21 +173,21 @@
         }
 
         .player-item.active {
-            background: rgba(0, 255, 255, 0.15);
-            border-color: #00ffff;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            background: rgba(var(--arcade-player-color-light), 0.2);
+            border-color: rgba(var(--arcade-player-color), 0.8);
+            box-shadow: 0 0 20px rgba(var(--arcade-player-color-dark), 0.8);
         }
 
         .player-item-name {
             font-size: 1.3rem;
             font-weight: 700;
-            color: #ff0080;
-            text-shadow: 0 0 15px #ff0080;
+            color: var(--main-text-color);
+            text-shadow: 0 0 15px var(--main-text-color);
         }
 
         .player-item.active .player-item-name {
-            color: #00ffff;
-            text-shadow: 0 0 20px #00ffff;
+            color: rgba(var(--arcade-player-color), 0.8);
+            text-shadow: 0 0 20px rgba(var(--arcade-player-color), 0.8);
         }
 
         .player-item-score {
@@ -228,8 +235,8 @@
         .player-name {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #ff0080;
-            text-shadow: 0 0 20px #ff0080;
+            color: var(--main-text-color);
+            text-shadow: 0 0 20px var(--main-text-color);
             margin-bottom: 20px;
         }
 
@@ -272,10 +279,10 @@
 
         .history-title {
             font-size: 1.2rem;
-            color: #00ffff;
+            color: var(--main-text-color);
             margin-bottom: 20px;
             text-align: center;
-            text-shadow: 0 0 10px #00ffff;
+            text-shadow: 0 0 10px var(--main-text-color);
         }
 
         .dart-scores {
@@ -308,9 +315,9 @@
         }
 
         .btn-neon {
-            background: rgba(0, 255, 255, 0.2);
-            border: 2px solid #00ffff;
-            color: #00ffff;
+            background: rgba(var(--arcade-player-color-light), 0.2);
+            border: 2px solid rgba(var(--arcade-player-color), 0.8);
+            color: var(--main-text-color);
             padding: 12px 24px;
             font-family: 'Orbitron', monospace;
             font-weight: 700;
@@ -321,8 +328,8 @@
         }
 
         .btn-neon:hover {
-            background: rgba(0, 255, 255, 0.4);
-            box-shadow: 0 0 30px #00ffff;
+            background: rgba(var(--arcade-player-color-dark), 0.8);
+            box-shadow: 0 0 30px rgba(var(--arcade-player-color),0.8);
             transform: translateY(-3px) scale(1.05);
         }
 
@@ -965,7 +972,14 @@
             }
 
             newRound() {
-                const playerColor = "#FF0000";//basePlayerColors[(currentPlayer - 1) % basePlayerColors.length];
+            let basePlayerColors = [
+                        "#20ff00", // Green
+                        "#ff0080", // Pink
+                        "#0080ff", // Blue
+                        "#ff8000", // Orange
+                    ];
+
+                const playerColor = basePlayerColors[this.currentPlayer];//basePlayerColors[(currentPlayer - 1) % basePlayerColors.length];
                 this.arcadeAnimation.startAnimation(
                     playerColor, 
                     "PLAYER " + (this.currentPlayer+1), 

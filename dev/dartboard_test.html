@@ -49,6 +49,18 @@
         #videoElement {
             display: none;
         }
+
+        #zoomCanvas {
+            height: 15vh;
+            width: 15vh;
+            position: absolute;
+            z-index: 12;
+            top: 10px;
+            left: 10px;
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+        0 15px 35px rgba(0, 0, 0, 0.1);
+
+        }
     </style>
 </head>
 
@@ -59,6 +71,7 @@
         <canvas id="overlayCanvas"></canvas>
         <video id="videoElement" autoplay muted controls width="1920" height="1080"></video>
     </div>
+    <canvas id="zoomCanvas"></canvas>
 </body>
 <script src="../core/global.js"></script>
 <script src="../ui/ZoomablePannableCanvas.js"></script>
@@ -91,6 +104,7 @@
 
             // Animation variables
             this.particles = [];
+            this.renderHover = true;
             this.hoverInfo = null;
             this.numberOrder = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
             this.sectorCount = 20;
@@ -256,7 +270,7 @@
             this.ctx.arc(center, center, inner * radius, endAngle, startAngle, true);
             this.ctx.closePath();
 
-            if (this.hoverInfo && this.hoverInfo.index === index && this.hoverInfo.ring === ringType) {
+            if (this.renderHover && this.hoverInfo && this.hoverInfo.index === index && this.hoverInfo.ring === ringType) {
                 this.ctx.shadowBlur =
                     ringType === "bull"
                         ? 30
@@ -291,7 +305,7 @@
             this.ctx.beginPath();
             this.ctx.arc(center, center, this.ringRadii[type] * radius, 0, 2 * Math.PI);
 
-            if (this.hoverInfo && this.hoverInfo.ring === type) {
+            if (this.renderHover && this.hoverInfo && this.hoverInfo.ring === type) {
                 this.ctx.shadowBlur = type === "bull" ? 30 : 25;
                 this.ctx.shadowColor = "rgba(255,255,0,0.7)";
                 this.ctx.fillStyle = "rgba(255,255,0,0.6)";
@@ -578,6 +592,54 @@
 
     const dartboardRenderer = new DartboardRenderer(document.getElementById("videoCanvas"));
 
+    const zoomCanvas = document.getElementById("zoomCanvas");
+    const zoomCtx = zoomCanvas.getContext("2d");
+    function updateZoom(x,y, scale=3) {
+        const zoom = Math.max(scale, scale * zoomableCanvas.scale);
+        dartboardRenderer.renderHover = false;
+        var rect = zoomCanvas.getBoundingClientRect();
+        zoomCanvas.width = rect.width;
+        zoomCanvas.height = rect.height;
+        zoomCtx.clearRect(0, 0, rect.width, rect.height);        
+        zoomCtx.save();
+        zoomCtx.translate(rect.width*0.5, rect.height*0.5);
+        zoomCtx.scale(zoom, zoom);
+        zoomCtx.translate(-x, -y);
+        
+        const saved = dartboardRenderer.renderHover;
+        dartboardRenderer.drawBoard(zoomCtx);
+        dartboardRenderer.useHover = saved;
+        
+        zoomCtx.restore();
+
+        x = zoomCanvas.width * 0.5;
+        y = zoomCanvas.height * 0.5;
+
+        zoomCtx.shadowColor = `rgba(0,0,0,1.0)`;
+        zoomCtx.shadowBlur = 6;
+        zoomCtx.fillStyle = "rgba(255, 200, 60, 0.8)";
+        zoomCtx.lineWidth = 2;
+        zoomCtx.beginPath();
+        zoomCtx.arc(x, y, 2, 0, Math.PI * 2.0);
+        zoomCtx.fill();
+
+        zoomCtx.strokeStyle = zoomCtx.fillStyle;
+        zoomCtx.beginPath();
+        const dec = 5;
+        zoomCtx.moveTo(x, y - dec);
+        zoomCtx.lineTo(x, y - dec * 3);
+        zoomCtx.moveTo(x, y + dec);
+        zoomCtx.lineTo(x, y + dec * 3);
+        zoomCtx.moveTo(x - dec, y);
+        zoomCtx.lineTo(x - dec * 3, y);
+        zoomCtx.moveTo(x + dec, y);
+        zoomCtx.lineTo(x + dec * 3, y);
+        zoomCtx.stroke();
+
+
+    }
+    updateZoom(0,0);
+
     zoomableCanvas.addOverlayElement(
         `Dartboard`,
         { dbr: dartboardRenderer, x: 0, y: 0, color: "#FF0000" },
@@ -593,6 +655,7 @@
             const ret = Math.sqrt(dx * dx + dy * dy) <= element.dbr.radius;
             if (ret) {
                 element.dbr.handleMouseMove(dx, dy);
+                updateZoom(dx, dy);
             }
             return ret;
         }
@@ -603,7 +666,7 @@
         // Add interactive elements
         zoomableCanvas.addOverlayElement(
             `throw${i}`,
-            { num: i, x: 100 + i * 20, y: -150, pt_radius: 2, circle_radius: 14, color: "#00FFFF",
+            { num: i, x: 100 + i * 20, y: -150, pt_radius: 2, circle_radius: 25, color: "#00FFFF",
                 opacity: 0.0, hit: null, animation:null,
                 setThrow(thr) {
                     this.hit = thr;
@@ -616,7 +679,7 @@
                     this.circle_radius = 50;
                     this.opacity = 0;
                     this.animation = gsap.to(this, {
-                        circle_radius:14,
+                        circle_radius:25,
                         duration: 2,
                         opacity:1,
                         ease: "elastic.out"
@@ -634,7 +697,7 @@
                 ctx.fill();
 
                 ctx.strokeStyle = ctx.fillStyle;
-                ctx.lineWidth = (element.num == 0 ? 4 : 2) / zoomableCanvas.scale;
+                ctx.lineWidth = 4 / zoomableCanvas.scale;
                 ctx.beginPath();
                 ctx.arc(element.x, element.y, element.circle_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
                 ctx.stroke();
@@ -652,6 +715,11 @@
     // Set up event callbacks
     zoomableCanvas.setOnElementSelected((id, element) => {
         console.debug(`Selected element: ${id}`, element);
+        if (id == "Dartboard") {
+            updateZoom(worldCoords.x, worldCoords.y);
+        }
+        else
+            updateZoom(element.x, element.y);        
     });
 
     zoomableCanvas.setOnElementDrag((id, element, worldCoords) => {
@@ -659,13 +727,22 @@
 
         if (id == "Dartboard") {
             element.dbr.handleMouseMove(worldCoords.x, worldCoords.y);
+            updateZoom(worldCoords.x, worldCoords.y);
         }
+        else
+            updateZoom(element.x, element.y);
     });
 
+    let nextHit = 0;
     zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
         if (id == "Dartboard") {
             let thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
-            zoomableCanvas.getOverlayElement("throw0").setThrow(thr);
+            zoomableCanvas.getOverlayElement(`throw${nextHit}`).setThrow(thr);
+            nextHit = (nextHit+1)% nbThrows;
+            updateZoom(worldCoords.x, worldCoords.y);
         }
+        else
+            updateZoom(element.x, element.y);     
+
     });
 </script>

@@ -104,7 +104,6 @@
 
             // Animation variables
             this.particles = [];
-            this.renderHover = true;
             this.hoverInfo = null;
             this.numberOrder = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
             this.sectorCount = 20;
@@ -173,7 +172,7 @@
         }
 
 
-        drawBoard(ctx) {
+        drawBoard(ctx, renderHover = true) {
             this.ctx = ctx;
             const center = 0;
             const radius = 500;
@@ -189,12 +188,12 @@
 
             // Draw sectors
             for (let i = 0; i < this.sectorCount; i++) {
-                this.drawSector(i, center, radius);
+                this.drawSector(i, center, radius, renderHover);
             }
 
             // Draw bulls
-            this.drawBull(center, radius, "outerBull");
-            this.drawBull(center, radius, "bull");
+            this.drawBull(center, radius, "outerBull", renderHover);
+            this.drawBull(center, radius, "bull", renderHover);
 
             // Draw wires on top of everything else
             this.drawWires(ctx, center, radius);
@@ -203,7 +202,7 @@
             this.drawParticles();
         }
 
-        drawSector(i, center, radius) {
+        drawSector(i, center, radius, renderHover = true) {
             const startAngle = this.angleOffset + i * this.sectorAngle;
             const endAngle = startAngle + this.sectorAngle;
             const color = i % 2 === 0 ? this.COLORS.LIGHT : this.COLORS.DARK;
@@ -218,7 +217,8 @@
                 this.ringRadii.innerSingle,
                 color,
                 i,
-                "innerSingle"
+                "innerSingle",
+                renderHover
             );
 
             // Draw outer single area
@@ -231,7 +231,8 @@
                 this.ringRadii.doubleInner,
                 color,
                 i,
-                "outerSingle"
+                "outerSingle",
+                renderHover
             );
 
             // Draw triple ring
@@ -244,7 +245,8 @@
                 this.ringRadii.tripleOuter,
                 i % 2 === 0 ? this.COLORS.RED : this.COLORS.GREEN,
                 i,
-                "triple"
+                "triple",
+                renderHover
             );
 
             // Draw double ring
@@ -257,20 +259,21 @@
                 this.ringRadii.doubleOuter,
                 i % 2 === 0 ? this.COLORS.RED : this.COLORS.GREEN,
                 i,
-                "double"
+                "double",
+                renderHover
             );
 
             // Draw number labels
             this.drawNumber(i, center, radius, startAngle);
         }
 
-        drawRing(center, radius, startAngle, endAngle, inner, outer, color, index, ringType) {
+        drawRing(center, radius, startAngle, endAngle, inner, outer, color, index, ringType, renderHover = true) {
             this.ctx.beginPath();
             this.ctx.arc(center, center, outer * radius, startAngle, endAngle);
             this.ctx.arc(center, center, inner * radius, endAngle, startAngle, true);
             this.ctx.closePath();
 
-            if (this.renderHover && this.hoverInfo && this.hoverInfo.index === index && this.hoverInfo.ring === ringType) {
+            if (renderHover && this.hoverInfo && this.hoverInfo.index === index && this.hoverInfo.ring === ringType) {
                 this.ctx.shadowBlur =
                     ringType === "bull"
                         ? 30
@@ -301,11 +304,11 @@
             this.ctx.fill();
         }
 
-        drawBull(center, radius, type) {
+        drawBull(center, radius, type, renderHover = true) {
             this.ctx.beginPath();
             this.ctx.arc(center, center, this.ringRadii[type] * radius, 0, 2 * Math.PI);
 
-            if (this.renderHover && this.hoverInfo && this.hoverInfo.ring === type) {
+            if (renderHover && this.hoverInfo && this.hoverInfo.ring === type) {
                 this.ctx.shadowBlur = type === "bull" ? 30 : 25;
                 this.ctx.shadowColor = "rgba(255,255,0,0.7)";
                 this.ctx.fillStyle = "rgba(255,255,0,0.6)";
@@ -595,8 +598,8 @@
     const zoomCanvas = document.getElementById("zoomCanvas");
     const zoomCtx = zoomCanvas.getContext("2d");
     function updateZoom(x,y, scale=3) {
+        dartboardRenderer.handleMouseMove(x, y);
         const zoom = Math.max(scale, scale * zoomableCanvas.scale);
-        dartboardRenderer.renderHover = false;
         var rect = zoomCanvas.getBoundingClientRect();
         zoomCanvas.width = rect.width;
         zoomCanvas.height = rect.height;
@@ -606,10 +609,8 @@
         zoomCtx.scale(zoom, zoom);
         zoomCtx.translate(-x, -y);
         
-        const saved = dartboardRenderer.renderHover;
-        dartboardRenderer.drawBoard(zoomCtx);
-        dartboardRenderer.useHover = saved;
-        
+        dartboardRenderer.drawBoard(zoomCtx, false);
+                
         zoomCtx.restore();
 
         x = zoomCanvas.width * 0.5;
@@ -654,7 +655,6 @@
             const dy = worldY;//- element.y;
             const ret = Math.sqrt(dx * dx + dy * dy) <= element.dbr.radius;
             if (ret) {
-                element.dbr.handleMouseMove(dx, dy);
                 updateZoom(dx, dy);
             }
             return ret;

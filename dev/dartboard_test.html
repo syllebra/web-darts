@@ -11,7 +11,6 @@
         src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
-        
         body,
         html {
             margin: 0;
@@ -50,16 +49,50 @@
             display: none;
         }
 
-        #zoomCanvas {
-            height: 15vh;
-            width: 15vh;
+        #zoomContainer {
             position: absolute;
-            z-index: 12;
             top: 10px;
             left: 10px;
-        box-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
-        0 15px 35px rgba(0, 0, 0, 0.1);
+            z-index: 12;
+            width: 15vh;
+            height: auto;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                0 15px 35px rgba(0, 0, 0, 0.1);
+            margin: 0px;
+            padding: 0;
+            border-radius: 8px;
+            /* Add this to round the container */
+            overflow: hidden;
+            /* Add this to ensure clean edges */
+        }
 
+        #zoomCanvas {
+            width: 100%;
+            height: 15vh;
+            display: block;
+            /* Add this - removes default inline spacing */
+            margin: 0;
+            /* Add this */
+            padding: 0;
+            /* Add this */
+        }
+
+        #zoneDisplay {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 12px;
+            border-radius: 0 0 8px 8px;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(5px);
+            text-align: center;
+            width: 100%;
+            margin: 0;
+            /* Add this */
+            box-sizing: border-box;
+            /* Add this to include padding in width calculation */
         }
     </style>
 </head>
@@ -71,7 +104,12 @@
         <canvas id="overlayCanvas"></canvas>
         <video id="videoElement" autoplay muted controls width="1920" height="1080"></video>
     </div>
-    <canvas id="zoomCanvas"></canvas>
+    <div id="zoomContainer">
+        <canvas id="zoomCanvas"></canvas>
+        <div id="zoneDisplay" class="badge">
+            ZONE
+        </div>
+    </div>
 </body>
 <script src="../core/global.js"></script>
 <script src="../ui/ZoomablePannableCanvas.js"></script>
@@ -493,17 +531,30 @@
             const index = Math.floor(angle / this.sectorAngle);
             const baseScore = this.numberOrder[index];
 
-            if (dist <= this.ringRadii.bull) return { score: 50, index, label: "Inner Bull", ring: "bull" };
-            if (dist <= this.ringRadii.outerBull) return { score: 25, index, label: "Outer Bull", ring: "outerBull" };
+            if (dist <= this.ringRadii.bull) return { score: 50, index, label: "Inner Bull", ring: "bull", short: "DB" };
+            if (dist <= this.ringRadii.outerBull)
+                return { score: 25, index, label: "Outer Bull", ring: "outerBull", short: "SB" };
             if (dist >= this.ringRadii.tripleInner && dist <= this.ringRadii.tripleOuter)
-                return { score: baseScore * 3, index, label: "Treble " + baseScore, ring: "triple" };
+                return { score: baseScore * 3, index, label: "Treble " + baseScore, ring: "triple", short: "T" + baseScore };
             if (dist >= this.ringRadii.doubleInner && dist <= this.ringRadii.doubleOuter)
-                return { score: baseScore * 2, index, label: "Double " + baseScore, ring: "double" };
+                return { score: baseScore * 2, index, label: "Double " + baseScore, ring: "double", short: "D" + baseScore };
             if (dist > this.ringRadii.outerBull && dist < this.ringRadii.tripleInner)
-                return { score: baseScore, index, label: baseScore.toString(), ring: "innerSingle" };
+                return {
+                    score: baseScore,
+                    index,
+                    label: baseScore.toString(),
+                    ring: "innerSingle",
+                    short: "S" + baseScore + "IN",
+                };
             if (dist > this.ringRadii.tripleOuter && dist < this.ringRadii.doubleInner)
-                return { score: baseScore, index, label: baseScore.toString(), ring: "outerSingle" };
-            return { score: 0, index: null, label: "Miss", ring: null };
+                return {
+                    score: baseScore,
+                    index,
+                    label: baseScore.toString(),
+                    ring: "outerSingle",
+                    short: "S" + baseScore + "OUT",
+                };
+            return { score: 0, index: null, label: "Miss", ring: null, short: "OUT" };
         }
 
         getThrowFromClick(x, y) {
@@ -597,24 +648,25 @@
 
     const zoomCanvas = document.getElementById("zoomCanvas");
     const zoomCtx = zoomCanvas.getContext("2d");
-    function updateZoom(x,y, scale=3) {
-        dartboardRenderer.handleMouseMove(x, y);
+
+    function updateZoom(xx, yy, scale = 3) {
+        dartboardRenderer.handleMouseMove(xx, yy);
         const zoom = Math.max(scale, scale * zoomableCanvas.scale);
         var rect = zoomCanvas.getBoundingClientRect();
         zoomCanvas.width = rect.width;
         zoomCanvas.height = rect.height;
-        zoomCtx.clearRect(0, 0, rect.width, rect.height);        
+        zoomCtx.clearRect(0, 0, rect.width, rect.height);
         zoomCtx.save();
-        zoomCtx.translate(rect.width*0.5, rect.height*0.5);
+        zoomCtx.translate(rect.width * 0.5, rect.height * 0.5);
         zoomCtx.scale(zoom, zoom);
-        zoomCtx.translate(-x, -y);
-        
+        zoomCtx.translate(-xx, -yy);
+
         dartboardRenderer.drawBoard(zoomCtx, false);
-                
+
         zoomCtx.restore();
 
-        x = zoomCanvas.width * 0.5;
-        y = zoomCanvas.height * 0.5;
+        let x = zoomCanvas.width * 0.5;
+        let y = zoomCanvas.height * 0.5;
 
         zoomCtx.shadowColor = `rgba(0,0,0,1.0)`;
         zoomCtx.shadowBlur = 6;
@@ -638,8 +690,12 @@
         zoomCtx.stroke();
 
 
+        const score = dartboardRenderer.getScoreInfo(xx, yy);
+        console.log(score);
+        document.getElementById("zoneDisplay").innerText = score.short;
+
     }
-    updateZoom(0,0);
+    updateZoom(0, 0);
 
     zoomableCanvas.addOverlayElement(
         `Dartboard`,
@@ -666,11 +722,12 @@
         // Add interactive elements
         zoomableCanvas.addOverlayElement(
             `throw${i}`,
-            { num: i, x: 100 + i * 20, y: -150, pt_radius: 2, circle_radius: 25, color: "#00FFFF",
-                opacity: 0.0, hit: null, animation:null,
+            {
+                num: i, x: 100 + i * 20, y: -150, pt_radius: 2, circle_radius: 25, color: "#00FFFF",
+                opacity: 0.0, hit: null, animation: null,
                 setThrow(thr) {
                     this.hit = thr;
-                    const pt = this.hit.getCartesianCoordinates(dartboardRenderer.ringRadii.doubleOuter* dartboardRenderer.radius);
+                    const pt = this.hit.getCartesianCoordinates(dartboardRenderer.ringRadii.doubleOuter * dartboardRenderer.radius);
                     this.x = pt.x;
                     this.y = pt.y;
                     if (this.animation) {
@@ -679,16 +736,17 @@
                     this.circle_radius = 50;
                     this.opacity = 0;
                     this.animation = gsap.to(this, {
-                        circle_radius:25,
+                        circle_radius: 25,
                         duration: 2,
-                        opacity:1,
+                        opacity: 1,
                         ease: "elastic.out"
                     });
-            } },
+                }
+            },
             // Draw callback
             (ctx, element, isSelected) => {
-                if(!element.hit) return;
-                ctx.shadowBlur = element.circle_radius*2 / (zoomableCanvas.scale);
+                if (!element.hit) return;
+                ctx.shadowBlur = element.circle_radius * 2 / (zoomableCanvas.scale);
                 ctx.shadowColor = `rgba(255,255,255,${element.opacity})`;
 
                 ctx.fillStyle = isSelected ? `rgba(255,255,0,${element.opacity})` : `rgba(0,255,255,${element.opacity})`;;
@@ -716,7 +774,7 @@
     zoomableCanvas.setOnElementSelected((id, element) => {
         console.debug(`Selected element: ${id}`, element);
         if (id != "Dartboard")
-            updateZoom(element.x, element.y);        
+            updateZoom(element.x, element.y);
     });
 
     zoomableCanvas.setOnElementDrag((id, element, worldCoords) => {
@@ -735,11 +793,11 @@
         if (id == "Dartboard") {
             let thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
             zoomableCanvas.getOverlayElement(`throw${nextHit}`).setThrow(thr);
-            nextHit = (nextHit+1)% nbThrows;
+            nextHit = (nextHit + 1) % nbThrows;
             updateZoom(worldCoords.x, worldCoords.y);
         }
         else
-            updateZoom(element.x, element.y);     
+            updateZoom(element.x, element.y);
 
     });
 </script>

@@ -265,17 +265,30 @@ class DartboardRenderer {
     const index = Math.floor(angle / this.sectorAngle);
     const baseScore = this.numberOrder[index];
 
-    if (dist <= this.ringRadii.bull) return { score: 50, index, label: "Inner Bull", ring: "bull" };
-    if (dist <= this.ringRadii.outerBull) return { score: 25, index, label: "Outer Bull", ring: "outerBull" };
+    if (dist <= this.ringRadii.bull) return { score: 50, index, label: "Inner Bull", ring: "bull", short: "DB" };
+    if (dist <= this.ringRadii.outerBull)
+      return { score: 25, index, label: "Outer Bull", ring: "outerBull", short: "SB" };
     if (dist >= this.ringRadii.tripleInner && dist <= this.ringRadii.tripleOuter)
-      return { score: baseScore * 3, index, label: "Treble " + baseScore, ring: "triple" };
+      return { score: baseScore * 3, index, label: "Treble " + baseScore, ring: "triple", short: "T" + baseScore };
     if (dist >= this.ringRadii.doubleInner && dist <= this.ringRadii.doubleOuter)
-      return { score: baseScore * 2, index, label: "Double " + baseScore, ring: "double" };
+      return { score: baseScore * 2, index, label: "Double " + baseScore, ring: "double", short: "D" + baseScore };
     if (dist > this.ringRadii.outerBull && dist < this.ringRadii.tripleInner)
-      return { score: baseScore, index, label: baseScore.toString(), ring: "innerSingle" };
+      return {
+        score: baseScore,
+        index,
+        label: baseScore.toString(),
+        ring: "innerSingle",
+        short: "S" + baseScore + "IN",
+      };
     if (dist > this.ringRadii.tripleOuter && dist < this.ringRadii.doubleInner)
-      return { score: baseScore, index, label: baseScore.toString(), ring: "outerSingle" };
-    return { score: 0, index: null, label: "Miss", ring: null };
+      return {
+        score: baseScore,
+        index,
+        label: baseScore.toString(),
+        ring: "outerSingle",
+        short: "S" + baseScore + "OUT",
+      };
+    return { score: 0, index: null, label: "Miss", ring: null, short: "OUT" };
   }
 
   getThrowFromClick(x, y) {

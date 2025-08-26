@@ -34,6 +34,13 @@ class ZoomablePannableCanvas {
     // Touch handling
     this.touches = [];
     this.lastTouchDistance = 0;
+    this.multiTouchStartTime = 0;
+    this.multiTouchThreshold = 150; // ms to wait before deciding gesture type
+    this.multiTouchStartDistance = 0;
+    this.multiTouchStartCenter = { x: 0, y: 0 };
+    this.isMultiTouchGesture = false;
+    this.multiTouchGestureType = null; // 'zoom' or 'pan'
+    this.multiTouchDistanceThreshold = 20; // pixels movement to determine zoom vs pan
 
     // Animation optimization
     this.needsRedraw = false;
@@ -226,12 +233,15 @@ class ZoomablePannableCanvas {
     this.zoomAt(mouseX, mouseY, wheel);
   }
 
-  // Touch handling with overlay element support
   handleTouchStart(e) {
     e.preventDefault();
     this.touches = Array.from(e.touches);
 
     if (this.touches.length === 1) {
+      // Single finger - same as before but reset multi-touch flags
+      this.isMultiTouchGesture = false;
+      this.multiTouchGestureType = null;
+
       const rect = this.canvas.getBoundingClientRect();
       const canvasX = this.touches[0].clientX - rect.left;
       const canvasY = this.touches[0].clientY - rect.top;
@@ -266,9 +276,27 @@ class ZoomablePannableCanvas {
       this.lastX = this.touches[0].clientX;
       this.lastY = this.touches[0].clientY;
     } else if (this.touches.length === 2) {
+      // Multi-touch started - initialize gesture detection
       this.isDragging = false;
       this.isDraggingOverlayElement = false;
-      this.lastTouchDistance = this.getTouchDistance(this.touches[0], this.touches[1]);
+      this.isMultiTouchGesture = true;
+      this.multiTouchGestureType = null; // Will be determined in handleTouchMove
+      this.multiTouchStartTime = Date.now();
+
+      // Store initial state for gesture detection
+      this.multiTouchStartDistance = this.getTouchDistance(this.touches[0], this.touches[1]);
+      this.multiTouchStartCenter = {
+        x: (this.touches[0].clientX + this.touches[1].clientX) / 2,
+        y: (this.touches[0].clientY + this.touches[1].clientY) / 2,
+      };
+
+      this.lastTouchDistance = this.multiTouchStartDistance;
+    } else {
+      // 3+ fingers - treat as multi-touch gesture
+      this.isDragging = false;
+      this.isDraggingOverlayElement = false;
+      this.isMultiTouchGesture = true;
+      this.multiTouchGestureType = "pan"; // Default to pan for 3+ fingers
     }
   }
 
@@ -276,8 +304,9 @@ class ZoomablePannableCanvas {
     e.preventDefault();
     this.touches = Array.from(e.touches);
 
-    if (this.touches.length === 1) {
-      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
+    if (this.touches.length === 1 && !this.isMultiTouchGesture) {
+      // Single finger movement - same as before
+      const rect = this.canvas.getBoundingClientRect();
       const canvasX = this.touches[0].clientX - rect.left;
       const canvasY = this.touches[0].clientY - rect.top;
       const worldCoords = this.canvasToWorld(canvasX, canvasY);
@@ -309,65 +338,156 @@ class ZoomablePannableCanvas {
       this.lastX = this.touches[0].clientX;
       this.lastY = this.touches[0].clientY;
     } else if (this.touches.length === 2) {
+      // Two finger gesture - determine if zoom or pan
       const currentDistance = this.getTouchDistance(this.touches[0], this.touches[1]);
-      const scale = currentDistance / this.lastTouchDistance;
+      const currentCenter = {
+        x: (this.touches[0].clientX + this.touches[1].clientX) / 2,
+        y: (this.touches[0].clientY + this.touches[1].clientY) / 2,
+      };
 
-      const centerX = (this.touches[0].clientX + this.touches[1].clientX) / 2;
-      const centerY = (this.touches[0].clientY + this.touches[1].clientY) / 2;
+      if (this.multiTouchGestureType === null) {
+        // Determine gesture type based on movement
+        const distanceChange = Math.abs(currentDistance - this.multiTouchStartDistance);
+        const centerMovement = Math.sqrt(
+          Math.pow(currentCenter.x - this.multiTouchStartCenter.x, 2) +
+            Math.pow(currentCenter.y - this.multiTouchStartCenter.y, 2)
+        );
 
-      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
-      const canvasX = centerX - rect.left;
-      const canvasY = centerY - rect.top;
+        // If distance changed more than threshold, it's a zoom
+        // If center moved more than threshold with minimal distance change, it's a pan
+        if (distanceChange > this.multiTouchDistanceThreshold) {
+          this.multiTouchGestureType = "zoom";
+        } else if (centerMovement > this.multiTouchDistanceThreshold) {
+          this.multiTouchGestureType = "pan";
+        }
+        // If neither threshold is met, keep waiting
+      }
 
-      this.zoomAt(canvasX, canvasY, scale);
-      this.lastTouchDistance = currentDistance;
+      // Execute the determined gesture
+      if (this.multiTouchGestureType === "zoom") {
+        // Zoom gesture
+        const scale = currentDistance / this.lastTouchDistance;
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = currentCenter.x - rect.left;
+        const canvasY = currentCenter.y - rect.top;
+
+        this.zoomAt(canvasX, canvasY, scale);
+        this.lastTouchDistance = currentDistance;
+      } else if (this.multiTouchGestureType === "pan") {
+        // Pan gesture - move canvas based on center movement
+        const deltaX = currentCenter.x - this.multiTouchStartCenter.x;
+        const deltaY = currentCenter.y - this.multiTouchStartCenter.y;
+
+        // Apply the pan movement (reset to start center to avoid accumulation)
+        this.translateX += deltaX;
+        this.translateY += deltaY;
+
+        // Update start center to current for next movement
+        this.multiTouchStartCenter = currentCenter;
+        this.requestRedraw();
+      }
+    } else if (this.touches.length > 2) {
+      // 3+ finger pan
+      const currentCenter = {
+        x: this.touches.reduce((sum, touch) => sum + touch.clientX, 0) / this.touches.length,
+        y: this.touches.reduce((sum, touch) => sum + touch.clientY, 0) / this.touches.length,
+      };
+
+      if (this.multiTouchStartCenter) {
+        const deltaX = currentCenter.x - this.multiTouchStartCenter.x;
+        const deltaY = currentCenter.y - this.multiTouchStartCenter.y;
+
+        this.translateX += deltaX;
+        this.translateY += deltaY;
+        this.requestRedraw();
+      }
+
+      this.multiTouchStartCenter = currentCenter;
     }
   }
 
   handleTouchEnd(e) {
     e.preventDefault();
 
-    if (this.isDraggingOverlayElement && this.selectedOverlayElement) {
-      const element = this.overlayElements.get(this.selectedOverlayElement);
-      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
-      // Use last known touch position
-      const worldCoords = this.canvasToWorld(this.lastX - rect.left, this.lastY - rect.top);
-
-      if (this.onElementDragEnd) {
-        this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
-      }
-    }
-
+    const prevTouchCount = this.touches.length;
     this.touches = Array.from(e.touches);
 
-    if (this.touches.length === 0) {
+    // If we were in a multi-touch gesture and now have 0 or 1 fingers, end the gesture
+    if (this.isMultiTouchGesture && this.touches.length <= 1) {
+      // End multi-touch gesture
+      if (this.isDraggingOverlayElement && this.selectedOverlayElement) {
+        // Only trigger drag end if we were actually dragging an overlay element
+        // before the multi-touch started (this shouldn't happen in current logic,
+        // but keeping for safety)
+        const element = this.overlayElements.get(this.selectedOverlayElement);
+        if (this.onElementDragEnd && element) {
+          // Use last known position
+          const rect = this.canvas.getBoundingClientRect();
+          const worldCoords = this.canvasToWorld(this.lastX - rect.left, this.lastY - rect.top);
+          this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
+        }
+      }
+
+      // Reset all gesture states
+      this.isMultiTouchGesture = false;
+      this.multiTouchGestureType = null;
       this.isDragging = false;
       this.isDraggingOverlayElement = false;
-    } else if (this.touches.length === 1) {
-      // Check if remaining touch is on overlay element
-      const rect = (this.overlayCanvas || this.canvas).getBoundingClientRect();
-      const canvasX = this.touches[0].clientX - rect.left;
-      const canvasY = this.touches[0].clientY - rect.top;
-      const worldCoords = this.canvasToWorld(canvasX, canvasY);
-      const hitElement = this.getOverlayElementAt(worldCoords.x, worldCoords.y);
+      this.selectedOverlayElement = null;
 
-      if (hitElement) {
-        this.selectedOverlayElement = hitElement.id;
-        this.isDraggingOverlayElement = true;
-        this.isDragging = false;
+      // If we still have one finger down, check what's under it but DON'T start dragging
+      // This prevents the "phantom click" issue you mentioned
+      if (this.touches.length === 1) {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = this.touches[0].clientX - rect.left;
+        const canvasY = this.touches[0].clientY - rect.top;
 
-        const element = this.overlayElements.get(hitElement.id);
-        this.overlayElementOffset = {
-          x: worldCoords.x - element.x,
-          y: worldCoords.y - element.y,
-        };
-      } else {
-        this.isDragging = true;
-        this.isDraggingOverlayElement = false;
+        this.lastX = this.touches[0].clientX;
+        this.lastY = this.touches[0].clientY;
+
+        // Don't start any new interaction - user needs to lift and tap again
+        // This prevents the unwanted single-finger behavior after multi-touch
       }
+    } else if (this.touches.length === 0) {
+      // All fingers lifted
+      if (this.isDraggingOverlayElement && this.selectedOverlayElement && !this.isMultiTouchGesture) {
+        // Only trigger drag end for single-finger overlay dragging
+        const element = this.overlayElements.get(this.selectedOverlayElement);
+        const rect = this.canvas.getBoundingClientRect();
+        const worldCoords = this.canvasToWorld(this.lastX - rect.left, this.lastY - rect.top);
+
+        if (this.onElementDragEnd) {
+          this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
+        }
+      }
+
+      // Reset all states
+      this.isDragging = false;
+      this.isDraggingOverlayElement = false;
+      this.isMultiTouchGesture = false;
+      this.multiTouchGestureType = null;
+      this.selectedOverlayElement = null;
+    } else if (this.touches.length === 1 && prevTouchCount > 1) {
+      // Went from multi-touch to single finger
+      // Reset multi-touch state but don't start new single-finger interaction
+      this.isMultiTouchGesture = false;
+      this.multiTouchGestureType = null;
 
       this.lastX = this.touches[0].clientX;
       this.lastY = this.touches[0].clientY;
+
+      // Important: Don't start dragging here - this prevents phantom interactions
+      // User must lift finger completely and tap again for new interaction
+    } else if (this.touches.length === 2 && prevTouchCount > 2) {
+      // Went from 3+ fingers to 2 fingers - switch to 2-finger gesture detection
+      this.multiTouchGestureType = null; // Reset to re-detect
+      this.multiTouchStartTime = Date.now();
+      this.multiTouchStartDistance = this.getTouchDistance(this.touches[0], this.touches[1]);
+      this.multiTouchStartCenter = {
+        x: (this.touches[0].clientX + this.touches[1].clientX) / 2,
+        y: (this.touches[0].clientY + this.touches[1].clientY) / 2,
+      };
+      this.lastTouchDistance = this.multiTouchStartDistance;
     }
   }
 

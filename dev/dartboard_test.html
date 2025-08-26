@@ -715,10 +715,7 @@
     // Set up event callbacks
     zoomableCanvas.setOnElementSelected((id, element) => {
         console.debug(`Selected element: ${id}`, element);
-        if (id == "Dartboard") {
-            updateZoom(worldCoords.x, worldCoords.y);
-        }
-        else
+        if (id != "Dartboard")
             updateZoom(element.x, element.y);        
     });
 

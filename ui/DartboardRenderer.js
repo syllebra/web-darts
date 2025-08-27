@@ -1,5 +1,5 @@
 class DartboardRenderer {
-  constructor(canvas) {
+  constructor() {
     // Color constants
     this.COLORS = {
       LIGHT: "#fff6d5",
@@ -9,17 +9,9 @@ class DartboardRenderer {
       WHITE: "#ffffff",
     };
 
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
-    this.canvas.classList.add("dartboard");
-
-    // Make canvas responsive
-    this.resizeCanvas();
-    window.addEventListener("resize", () => this.resizeCanvas());
-
-    this.centerX = canvas.width / 2;
-    this.centerY = canvas.height / 2;
-    this.radius = Math.min(canvas.width, canvas.height) / 2 - 10; // Add padding
+    this.centerX = 0;
+    this.centerY = 0;
+    this.radius = 500; // Add padding
 
     // Create message element
     this.message = document.createElement("div");
@@ -34,116 +26,131 @@ class DartboardRenderer {
     this.sectorAngle = (2 * Math.PI) / this.sectorCount;
     this.angleOffset = -Math.PI / 2 - this.sectorAngle / 2;
 
-    // this.ringRadii = {
-    //   bull: 0.024,
-    //   outerBull: 0.06,
-    //   innerSingle: 0.4,
-    //   tripleInner: 0.4,
-    //   tripleOuter: 0.44,
-    //   outerSingle: 0.72,
-    //   doubleInner: 0.72,
-    //   doubleOuter: 0.76,
-    //   board: 0.76,
-    // };
-
-    // Bigger radii for tactile (TODO: detect tactile)
+    const ratio = 1 / 0.2255;
     this.ringRadii = {
-      bull: 0.1,
-      outerBull: 0.2,
-      innerSingle: 0.4,
-      tripleInner: 0.4,
-      tripleOuter: 0.5,
-      outerSingle: 0.65,
-      doubleInner: 0.65,
-      doubleOuter: 0.76,
-      board: 0.76,
+      bull: 0.00635 * ratio,
+      outerBull: 0.0159 * ratio,
+      innerSingle: 0.0974 * ratio,
+      tripleInner: 0.0974 * ratio,
+      tripleOuter: 0.1074 * ratio,
+      outerSingle: 0.15 * ratio,
+      doubleInner: 0.16 * ratio,
+      doubleOuter: 0.17 * ratio,
+      board: 0.2255 * ratio,
     };
 
-    // Setup event listeners
-    canvas.addEventListener("mousemove", (e) => this.handleMouseMove(e));
-    canvas.addEventListener("mouseleave", () => this.handleMouseLeave());
+    //"r_board": 0.2255, "r_double": 0.17, "r_treble": 0.1074, "r_outer_bull": 0.0159, "r_inner_bull": 0.00635, "w_double_treble": 0.01
 
-    // Start animation loop
-    this.animate();
+    // Bigger radii for tactile (TODO: detect tactile)
+    // this.ringRadii = {
+    //     bull: 0.1,
+    //     outerBull: 0.2,
+    //     innerSingle: 0.4,
+    //     tripleInner: 0.4,
+    //     tripleOuter: 0.5,
+    //     outerSingle: 0.65,
+    //     doubleInner: 0.65,
+    //     doubleOuter: 0.76,
+    //     board: 0.76,
+    // };
+
+    // Wire configuration parameters
+    this.wireConfig = {
+      enabled: true,
+      width: 1.2, // Base wire width in pixels
+      color: "#C0C0C0", // Silver/metallic color
+      shadowColor: "#000000",
+      shadowBlur: 5,
+      shadowOffset: 1,
+      opacity: 0.9,
+
+      // Wire specific settings
+      radial: {
+        enabled: true,
+        width: 1.2,
+        segments: 20, // Number of radial wires (sector dividers)
+      },
+
+      circular: {
+        enabled: true,
+        width: 0.8,
+        rings: ["outerBull", "tripleInner", "tripleOuter", "doubleInner", "doubleOuter"],
+      },
+
+      // Advanced rendering options
+      antiAlias: true,
+      metallic: {
+        enabled: true,
+        highlightColor: "#F8F8F8",
+        highlightWidth: 0.3, // Fraction of wire width for highlight
+      },
+    };
   }
 
-  resizeCanvas() {
-    // Get the container size
-    const container = this.canvas.parentElement;
-    const containerRect = container.getBoundingClientRect();
+  drawBoard(ctx, renderHover = true) {
+    this.ctx = ctx;
+    const center = 0;
+    const radius = 500;
 
-    // Calculate optimal size based on viewport and container
-    const maxSize = Math.min(
-      window.innerWidth * 0.8,
-      window.innerHeight * 0.8,
-      containerRect.width,
-      containerRect.height
-    );
-
-    // Set canvas size
-    this.canvas.width = maxSize;
-    this.canvas.height = maxSize;
-
-    // Update center and radius
-    this.centerX = this.canvas.width / 2;
-    this.centerY = this.canvas.height / 2;
-    this.radius = Math.min(this.canvas.width, this.canvas.height) / 2 - 10;
-  }
-
-  animate() {
-    this.updateParticles();
-    this.drawBoard();
-    requestAnimationFrame(() => this.animate());
-  }
-
-  drawBoard() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const center = this.canvas.width / 2;
-    const radius = center;
+    // Draw board background
+    this.ctx.shadowBlur = 120;
+    this.ctx.shadowColor = "rgba(0,0,0,0.7)";
+    this.ctx.fillStyle = this.COLORS.DARK;
+    this.ctx.beginPath();
+    this.ctx.arc(center, center, radius, 0, Math.PI * 2);
+    this.ctx.closePath();
+    this.ctx.fill();
 
     // Draw sectors
     for (let i = 0; i < this.sectorCount; i++) {
-      this.drawSector(i, center, radius);
+      this.drawSector(i, center, radius, renderHover);
     }
 
     // Draw bulls
-    this.drawBull(center, radius, "outerBull");
-    this.drawBull(center, radius, "bull");
+    this.drawBull(center, radius, "outerBull", renderHover);
+    this.drawBull(center, radius, "bull", renderHover);
+
+    // Draw wires on top of everything else
+    this.drawWires(ctx, center, radius);
 
     // Draw particles
     this.drawParticles();
   }
 
-  drawSector(i, center, radius) {
+  drawSector(i, center, radius, renderHover = true) {
     const startAngle = this.angleOffset + i * this.sectorAngle;
     const endAngle = startAngle + this.sectorAngle;
     const color = i % 2 === 0 ? this.COLORS.LIGHT : this.COLORS.DARK;
 
-    // Draw inner single area
-    this.drawRing(
-      center,
-      radius,
-      startAngle,
-      endAngle,
-      this.ringRadii.outerBull,
-      this.ringRadii.innerSingle,
-      color,
-      i,
-      "innerSingle"
-    );
+    if (i % 2 === 0) {
+      // Draw inner single area
+      this.drawRing(
+        center,
+        radius,
+        startAngle,
+        endAngle,
+        this.ringRadii.outerBull,
+        this.ringRadii.innerSingle,
+        color,
+        i,
+        "innerSingle",
+        renderHover
+      );
 
-    // Draw outer single area
-    this.drawRing(
-      center,
-      radius,
-      startAngle,
-      endAngle,
-      this.ringRadii.tripleOuter,
-      this.ringRadii.doubleInner,
-      color,
-      i,
-      "outerSingle"
-    );
+      // Draw outer single area
+      this.drawRing(
+        center,
+        radius,
+        startAngle,
+        endAngle,
+        this.ringRadii.tripleOuter,
+        this.ringRadii.doubleInner,
+        color,
+        i,
+        "outerSingle",
+        renderHover
+      );
+    }
 
     // Draw triple ring
     this.drawRing(
@@ -155,7 +162,8 @@ class DartboardRenderer {
       this.ringRadii.tripleOuter,
       i % 2 === 0 ? this.COLORS.RED : this.COLORS.GREEN,
       i,
-      "triple"
+      "triple",
+      renderHover
     );
 
     // Draw double ring
@@ -168,20 +176,21 @@ class DartboardRenderer {
       this.ringRadii.doubleOuter,
       i % 2 === 0 ? this.COLORS.RED : this.COLORS.GREEN,
       i,
-      "double"
+      "double",
+      renderHover
     );
 
     // Draw number labels
     this.drawNumber(i, center, radius, startAngle);
   }
 
-  drawRing(center, radius, startAngle, endAngle, inner, outer, color, index, ringType) {
+  drawRing(center, radius, startAngle, endAngle, inner, outer, color, index, ringType, renderHover = true) {
     this.ctx.beginPath();
     this.ctx.arc(center, center, outer * radius, startAngle, endAngle);
     this.ctx.arc(center, center, inner * radius, endAngle, startAngle, true);
     this.ctx.closePath();
 
-    if (this.hoverInfo && this.hoverInfo.index === index && this.hoverInfo.ring === ringType) {
+    if (renderHover && this.hoverInfo && this.hoverInfo.index === index && this.hoverInfo.ring === ringType) {
       this.ctx.shadowBlur =
         ringType === "bull"
           ? 30
@@ -212,11 +221,11 @@ class DartboardRenderer {
     this.ctx.fill();
   }
 
-  drawBull(center, radius, type) {
+  drawBull(center, radius, type, renderHover = true) {
     this.ctx.beginPath();
     this.ctx.arc(center, center, this.ringRadii[type] * radius, 0, 2 * Math.PI);
 
-    if (this.hoverInfo && this.hoverInfo.ring === type) {
+    if (renderHover && this.hoverInfo && this.hoverInfo.ring === type) {
       this.ctx.shadowBlur = type === "bull" ? 30 : 25;
       this.ctx.shadowColor = "rgba(255,255,0,0.7)";
       this.ctx.fillStyle = "rgba(255,255,0,0.6)";
@@ -230,7 +239,7 @@ class DartboardRenderer {
 
   drawNumber(i, center, radius, startAngle) {
     const angle = startAngle + this.sectorAngle / 2;
-    let d = (this.ringRadii.doubleOuter + 0.1) * radius;
+    let d = (this.ringRadii.doubleOuter + 0.11) * radius;
     if (i >= 6 && i <= 14) d = (this.ringRadii.doubleOuter + 0.13) * radius;
 
     const x = center + Math.cos(angle) * d;
@@ -242,7 +251,7 @@ class DartboardRenderer {
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
     this.ctx.fillStyle = "white";
-    const sz = this.canvas.width * 0.07;
+    const sz = this.radius * 2 * 0.05;
     this.ctx.font = `bold ${sz}px "Shadows Into Light Two", cursive`;
 
     if (i >= 6 && i <= 14) {
@@ -254,6 +263,139 @@ class DartboardRenderer {
       this.ctx.fillText(this.numberOrder[i], 0, 0);
     }
     this.ctx.restore();
+  }
+
+  // Add this method to draw all wires
+  drawWires(ctx, center, radius) {
+    if (!this.wireConfig.enabled) return;
+
+    ctx.save();
+
+    // Set up wire rendering context
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    if (this.wireConfig.antiAlias) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+    }
+
+    // Draw circular wires first (behind radial wires)
+    if (this.wireConfig.circular.enabled) {
+      this.drawCircularWires(ctx, center, radius);
+    }
+
+    // Draw radial wires
+    if (this.wireConfig.radial.enabled) {
+      this.drawRadialWires(ctx, center, radius);
+    }
+
+    ctx.restore();
+  }
+
+  // Draw the circular ring wires
+  drawCircularWires(ctx, center, radius) {
+    const rings = this.wireConfig.circular.rings;
+
+    rings.forEach((ringName) => {
+      if (this.ringRadii[ringName]) {
+        this.drawCircularWire(ctx, center, radius, this.ringRadii[ringName]);
+      }
+    });
+  }
+
+  // Draw a single circular wire
+  drawCircularWire(ctx, center, radius, ringRadius) {
+    const actualRadius = ringRadius * radius;
+    const wireWidth = this.wireConfig.circular.width;
+
+    // Draw wire shadow
+    ctx.save();
+    ctx.shadowColor = this.wireConfig.shadowColor;
+    ctx.shadowBlur = this.wireConfig.shadowBlur;
+    ctx.shadowOffsetX = this.wireConfig.shadowOffset;
+    ctx.shadowOffsetY = this.wireConfig.shadowOffset;
+
+    ctx.globalAlpha = this.wireConfig.opacity;
+    ctx.strokeStyle = this.wireConfig.color;
+    ctx.lineWidth = wireWidth;
+
+    ctx.beginPath();
+    ctx.arc(center, center, actualRadius, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Draw metallic highlight if enabled
+    if (this.wireConfig.metallic.enabled) {
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
+      ctx.strokeStyle = this.wireConfig.metallic.highlightColor;
+      ctx.lineWidth = wireWidth * this.wireConfig.metallic.highlightWidth;
+
+      ctx.beginPath();
+      ctx.arc(center, center, actualRadius, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // Draw the radial sector divider wires
+  drawRadialWires(ctx, center, radius) {
+    const wireWidth = this.wireConfig.radial.width;
+    const segments = this.wireConfig.radial.segments;
+
+    for (let i = 0; i < segments; i++) {
+      const angle = this.angleOffset + i * this.sectorAngle;
+      this.drawRadialWire(ctx, center, radius, angle, wireWidth);
+    }
+  }
+
+  // Draw a single radial wire
+  drawRadialWire(ctx, center, radius, angle, wireWidth) {
+    const startRadius = this.ringRadii.outerBull * radius;
+    const endRadius = this.ringRadii.doubleOuter * radius;
+
+    const startX = center + Math.cos(angle) * startRadius;
+    const startY = center + Math.sin(angle) * startRadius;
+    const endX = center + Math.cos(angle) * endRadius;
+    const endY = center + Math.sin(angle) * endRadius;
+
+    // Draw wire shadow
+    ctx.save();
+    ctx.shadowColor = this.wireConfig.shadowColor;
+    ctx.shadowBlur = this.wireConfig.shadowBlur;
+    ctx.shadowOffsetX = this.wireConfig.shadowOffset * Math.cos(angle + Math.PI / 4);
+    ctx.shadowOffsetY = this.wireConfig.shadowOffset * Math.sin(angle + Math.PI / 4);
+
+    ctx.globalAlpha = this.wireConfig.opacity;
+    ctx.strokeStyle = this.wireConfig.color;
+    ctx.lineWidth = wireWidth;
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    // Draw metallic highlight if enabled
+    if (this.wireConfig.metallic.enabled) {
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
+      ctx.strokeStyle = this.wireConfig.metallic.highlightColor;
+      ctx.lineWidth = wireWidth * this.wireConfig.metallic.highlightWidth;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   getScoreInfo(x, y) {
@@ -292,10 +434,9 @@ class DartboardRenderer {
   }
 
   getThrowFromClick(x, y) {
-    const rect = this.canvas.getBoundingClientRect();
-    const clickX = x - rect.left - this.centerX;
-    const clickY = y - rect.top - this.centerY;
-    const info = this.getScoreInfo(x - rect.left, y - rect.top);
+    const clickX = x;
+    const clickY = y;
+    const info = this.getScoreInfo(x, y);
 
     // Add particles for visual feedback
     const color =
@@ -306,7 +447,7 @@ class DartboardRenderer {
         : info.ring === "triple" || info.ring === "double"
         ? "#ffff00"
         : "#ffffff";
-    this.createParticles(x - rect.left, y - rect.top, color);
+    this.createParticles(x, y, color);
 
     // Convert cartesian coordinates to normalized angular coordinates
     const d = Math.sqrt(clickX * clickX + clickY * clickY) / (this.radius * this.ringRadii.doubleOuter);
@@ -334,10 +475,7 @@ class DartboardRenderer {
     return new Throw(alpha, d, zone);
   }
 
-  handleMouseMove(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  handleMouseMove(x, y) {
     this.hoverInfo = this.getScoreInfo(x, y);
   }
 

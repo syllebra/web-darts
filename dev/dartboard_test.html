@@ -218,7 +218,7 @@
             // Draw board background
             this.ctx.shadowBlur = 120;
             this.ctx.shadowColor = "rgba(0,0,0,0.7)";
-            this.ctx.fillStyle = "#000000"
+            this.ctx.fillStyle = this.COLORS.DARK;
             this.ctx.beginPath();
             this.ctx.arc(center, center, radius, 0, Math.PI * 2);
             this.ctx.closePath();
@@ -244,6 +244,8 @@
             const startAngle = this.angleOffset + i * this.sectorAngle;
             const endAngle = startAngle + this.sectorAngle;
             const color = i % 2 === 0 ? this.COLORS.LIGHT : this.COLORS.DARK;
+            
+            if(i%2 === 0) {
 
             // Draw inner single area
             this.drawRing(
@@ -272,6 +274,7 @@
                 "outerSingle",
                 renderHover
             );
+            }
 
             // Draw triple ring
             this.drawRing(
@@ -738,7 +741,7 @@
                     this.animation = gsap.to(this, {
                         circle_radius: 25,
                         duration: 2,
-                        opacity: 1,
+                        opacity: 0.4,
                         ease: "elastic.out"
                     });
                 }
@@ -746,16 +749,34 @@
             // Draw callback
             (ctx, element, isSelected) => {
                 if (!element.hit) return;
-                ctx.shadowBlur = element.circle_radius * 2 / (zoomableCanvas.scale);
-                ctx.shadowColor = `rgba(255,255,255,${element.opacity})`;
+                ctx.shadowBlur = 20 / (zoomableCanvas.scale);
+                ctx.shadowColor = `rgba(0,0,0,1)`;
+               
+                ctx.fillStyle = `rgba(0,0,0,${element.opacity*0.75})`;
+                ctx.beginPath();
+                ctx.arc(element.x, element.y, element.circle_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
+                ctx.fill();
 
-                ctx.fillStyle = isSelected ? `rgba(255,255,0,${element.opacity})` : `rgba(0,255,255,${element.opacity})`;;
+                const gap = 5 * element.circle_radius/ (25*zoomableCanvas.scale);
+                ctx.fillStyle = isSelected ? `rgba(255,255,0,1.0)` : `rgba(0,255,255,1.0)`;;
                 ctx.beginPath();
                 ctx.arc(element.x, element.y, element.pt_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
                 ctx.fill();
-
                 ctx.strokeStyle = ctx.fillStyle;
-                ctx.lineWidth = 4 / zoomableCanvas.scale;
+                ctx.lineWidth = 1.5 / zoomableCanvas.scale;
+                ctx.beginPath();
+                ctx.moveTo(element.x - gap, element.y);
+                ctx.lineTo(element.x - gap*3, element.y)
+                ctx.moveTo(element.x + gap, element.y);
+                ctx.lineTo(element.x + gap*3, element.y)
+                ctx.moveTo(element.x, element.y - gap);
+                ctx.lineTo(element.x , element.y- gap*3)
+                ctx.moveTo(element.x, element.y + gap);
+                ctx.lineTo(element.x , element.y+ gap*3)
+                ctx.stroke();
+
+                ctx.strokeStyle = isSelected ? `rgba(255,255,0,${element.opacity})` : `rgba(0,255,255,${element.opacity})`;;
+                ctx.lineWidth = 2 / zoomableCanvas.scale;
                 ctx.beginPath();
                 ctx.arc(element.x, element.y, element.circle_radius / zoomableCanvas.scale, 0, 2 * Math.PI);
                 ctx.stroke();

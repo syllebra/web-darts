@@ -27,28 +27,28 @@ class Throw {
   }
 
   // Helper method to parse zone information
-  parseZone() {
-    if (this.zone === "OUT") {
+  static parseZoneStr(zone) {
+    if (zone === "OUT") {
       return { type: "out", sector: null, multiplier: 0 };
     }
-    if (this.zone === "DB") {
+    if (zone === "DB") {
       return { type: "bull", sector: 25, multiplier: 2 };
     }
-    if (this.zone === "B" || this.zone === "SB") {
+    if (zone === "B" || zone === "SB") {
       return { type: "bull", sector: 25, multiplier: 1 };
     }
 
-    const firstChar = this.zone.charAt(0);
+    const firstChar = zone.charAt(0);
     if (firstChar === "T") {
-      const sector = parseInt(this.zone.substring(1));
+      const sector = parseInt(zone.substring(1));
       return { type: "treble", sector: sector, multiplier: 3 };
     }
     if (firstChar === "D") {
-      const sector = parseInt(this.zone.substring(1));
+      const sector = parseInt(zone.substring(1));
       return { type: "double", sector: sector, multiplier: 2 };
     }
     if (firstChar === "S") {
-      const match = this.zone.match(/^S(\d+)(IN|OUT)$/);
+      const match = zone.match(/^S(\d+)(IN|OUT)$/);
       if (match) {
         const sector = parseInt(match[1]);
         const region = match[2];
@@ -63,6 +63,10 @@ class Throw {
 
     // Invalid zone format
     return { type: "invalid", sector: null, multiplier: 0 };
+  }
+
+  parseZone() {
+    return this.parseZoneStr(this.zone);
   }
 
   // Helper method to get cartesian coordinates from angular coordinates

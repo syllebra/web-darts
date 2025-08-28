@@ -22,6 +22,7 @@ class DartboardRenderer {
     this.particles = [];
     this.hoverInfo = null;
     this.numberOrder = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+    this.numberOrderInv = this.numberOrder.reduce((inv, val, i) => ((inv[val] = i), inv), []);
     this.sectorCount = 20;
     this.sectorAngle = (2 * Math.PI) / this.sectorCount;
     this.angleOffset = -Math.PI / 2 - this.sectorAngle / 2;
@@ -90,151 +91,123 @@ class DartboardRenderer {
   drawBoard(ctx, renderHover = true) {
     this.ctx = ctx;
     const center = 0;
-    const radius = 500;
 
     // Draw board background
     this.ctx.shadowBlur = 120;
     this.ctx.shadowColor = "rgba(0,0,0,0.7)";
     this.ctx.fillStyle = this.COLORS.DARK;
     this.ctx.beginPath();
-    this.ctx.arc(center, center, radius, 0, Math.PI * 2);
+    this.ctx.arc(center, center, this.radius, 0, Math.PI * 2);
     this.ctx.closePath();
     this.ctx.fill();
 
     // Draw sectors
     for (let i = 0; i < this.sectorCount; i++) {
-      this.drawSector(i, center, radius, renderHover);
+      this.drawSector(i, center, this.radius);
     }
 
-    // Draw bulls
-    this.drawBull(center, radius, "outerBull", renderHover);
-    this.drawBull(center, radius, "bull", renderHover);
+    this.ctx.shadowBlur = 10;
+    this.ctx.shadowColor = "rgba(0,255,0,0.5)";
+    this.ctx.fillStyle = "#008000";
+    this.drawBull(center, this.radius, "outerBull");
+    this.ctx.shadowBlur = 15;
+    this.ctx.shadowColor = "rgba(255,0,0,0.5)";
+    this.ctx.fillStyle = "#ff0000";
+    this.drawBull(center, this.radius, "bull");
 
     // Draw wires on top of everything else
-    this.drawWires(ctx, center, radius);
+    this.drawWires(ctx, center, this.radius);
 
     // Draw particles
     this.drawParticles();
+    if (renderHover && this.hoverInfo) this.enlightZone(this.hoverInfo.short); //, "rgba(0,255,255,0.8)", "rgba(0,255,255,1.0)");
   }
 
-  drawSector(i, center, radius, renderHover = true) {
+  drawSector(i, center, radius) {
     const startAngle = this.angleOffset + i * this.sectorAngle;
     const endAngle = startAngle + this.sectorAngle;
     const color = i % 2 === 0 ? this.COLORS.LIGHT : this.COLORS.DARK;
 
+    // Draw inner single area
     if (i % 2 === 0) {
-      // Draw inner single area
-      this.drawRing(
-        center,
-        radius,
-        startAngle,
-        endAngle,
-        this.ringRadii.outerBull,
-        this.ringRadii.innerSingle,
-        color,
-        i,
-        "innerSingle",
-        renderHover
-      );
+      // Dark is already underlying color of the board
+      this.ctx.fillStyle = color;
+      this.ctx.shadowBlur = 0;
+      this.ctx.shadowColor = "transparent";
+      this.drawRing(center, radius, startAngle, endAngle, this.ringRadii.outerBull, this.ringRadii.innerSingle);
 
       // Draw outer single area
-      this.drawRing(
-        center,
-        radius,
-        startAngle,
-        endAngle,
-        this.ringRadii.tripleOuter,
-        this.ringRadii.doubleInner,
-        color,
-        i,
-        "outerSingle",
-        renderHover
-      );
+      this.drawRing(center, radius, startAngle, endAngle, this.ringRadii.tripleOuter, this.ringRadii.doubleInner);
     }
-
+    this.ctx.fillStyle = i % 2 === 0 ? this.COLORS.RED : this.COLORS.GREEN;
+    this.ctx.shadowBlur = 50;
+    this.ctx.shadowColor = i % 2 === 0 ? "rgba(255,0,0,0.5)" : "rgba(0,255,0,0.5)";
     // Draw triple ring
-    this.drawRing(
-      center,
-      radius,
-      startAngle,
-      endAngle,
-      this.ringRadii.tripleInner,
-      this.ringRadii.tripleOuter,
-      i % 2 === 0 ? this.COLORS.RED : this.COLORS.GREEN,
-      i,
-      "triple",
-      renderHover
-    );
+    this.drawRing(center, radius, startAngle, endAngle, this.ringRadii.tripleInner, this.ringRadii.tripleOuter);
 
     // Draw double ring
-    this.drawRing(
-      center,
-      radius,
-      startAngle,
-      endAngle,
-      this.ringRadii.doubleInner,
-      this.ringRadii.doubleOuter,
-      i % 2 === 0 ? this.COLORS.RED : this.COLORS.GREEN,
-      i,
-      "double",
-      renderHover
-    );
+    this.drawRing(center, radius, startAngle, endAngle, this.ringRadii.doubleInner, this.ringRadii.doubleOuter);
 
     // Draw number labels
     this.drawNumber(i, center, radius, startAngle);
   }
 
-  drawRing(center, radius, startAngle, endAngle, inner, outer, color, index, ringType, renderHover = true) {
+  drawRing(center, radius, startAngle, endAngle, inner, outer) {
     this.ctx.beginPath();
     this.ctx.arc(center, center, outer * radius, startAngle, endAngle);
     this.ctx.arc(center, center, inner * radius, endAngle, startAngle, true);
     this.ctx.closePath();
-
-    if (renderHover && this.hoverInfo && this.hoverInfo.index === index && this.hoverInfo.ring === ringType) {
-      this.ctx.shadowBlur =
-        ringType === "bull"
-          ? 30
-          : ringType === "outerBull"
-          ? 25
-          : ringType === "triple" || ringType === "double"
-          ? 20
-          : 15;
-      this.ctx.shadowColor = "rgba(255,255,0,0.7)";
-      this.ctx.fillStyle = "rgba(255,255,0,0.6)";
-    } else {
-      this.ctx.shadowBlur =
-        ringType === "bull"
-          ? 15
-          : ringType === "outerBull"
-          ? 10
-          : ringType === "triple" || ringType === "double"
-          ? 5
-          : 0;
-      this.ctx.shadowColor =
-        color === this.COLORS.RED
-          ? "rgba(255,0,0,0.5)"
-          : color === this.COLORS.GREEN
-          ? "rgba(0,255,0,0.5)"
-          : "transparent";
-      this.ctx.fillStyle = color;
-    }
     this.ctx.fill();
   }
 
-  drawBull(center, radius, type, renderHover = true) {
+  drawBull(center, radius, type) {
     this.ctx.beginPath();
     this.ctx.arc(center, center, this.ringRadii[type] * radius, 0, 2 * Math.PI);
-
-    if (renderHover && this.hoverInfo && this.hoverInfo.ring === type) {
-      this.ctx.shadowBlur = type === "bull" ? 30 : 25;
-      this.ctx.shadowColor = "rgba(255,255,0,0.7)";
-      this.ctx.fillStyle = "rgba(255,255,0,0.6)";
-    } else {
-      this.ctx.shadowBlur = type === "bull" ? 15 : 10;
-      this.ctx.shadowColor = type === "bull" ? "rgba(255,0,0,0.5)" : "rgba(0,255,0,0.5)";
-      this.ctx.fillStyle = type === "bull" ? "#ff0000" : "#008000";
-    }
     this.ctx.fill();
+  }
+
+  enlightZone(zoneStr, fillColor = "rgba(255,255,0,0.6)", glowColor = "rgba(255,255,0,0.7)", glowRadiusMult = 3.0) {
+    const zoneInfos = Throw.parseZoneStr(zoneStr);
+
+    const sector = this.numberOrderInv[zoneInfos.sector];
+    console.log(zoneInfos);
+
+    let startAngle = this.angleOffset + sector * this.sectorAngle;
+    let endAngle = startAngle + this.sectorAngle;
+
+    let startD = this.ringRadii.outerBull;
+    let endD = this.ringRadii.innerSingle;
+
+    switch (zoneInfos.type) {
+      case "bull":
+        startD = zoneInfos.multiplier == 2 ? 0 : this.ringRadii.bull;
+        endD = zoneInfos.multiplier == 2 ? this.ringRadii.bull : this.ringRadii.outerBull;
+        startAngle = 0;
+        endAngle = Math.PI * 2;
+        break;
+      case "treble":
+        startD = this.ringRadii.tripleInner;
+        endD = this.ringRadii.tripleOuter;
+        break;
+      case "double":
+        startD = this.ringRadii.doubleInner;
+        endD = this.ringRadii.doubleOuter;
+        break;
+      case "single":
+        startD = zoneInfos.region.toLowerCase() == "out" ? this.ringRadii.tripleOuter : this.ringRadii.outerBull;
+        endD = zoneInfos.region.toLowerCase() == "out" ? this.ringRadii.doubleInner : this.ringRadii.tripleInner;
+        break;
+    }
+
+    this.ctx.shadowBlur = 0;
+    this.ctx.shadowColor = "transparent";
+    this.ctx.fillStyle = "black";
+    this.drawRing(0, this.radius, startAngle, endAngle, startD, endD);
+    if (zoneInfos.type === "bull") this.ctx.shadowBlur = (zoneInfos.multiplier == 2 ? 25 : 30) * glowRadiusMult;
+    else this.ctx.shadowBlur = (zoneInfos.type === "treble" || zoneInfos.type === "double" ? 20 : 15) * glowRadiusMult;
+    this.ctx.shadowColor = glowColor;
+    this.ctx.fillStyle = fillColor;
+    this.drawRing(0, this.radius, startAngle, endAngle, startD, endD);
   }
 
   drawNumber(i, center, radius, startAngle) {

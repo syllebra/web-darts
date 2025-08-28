@@ -10,7 +10,7 @@ class DartboardLayer {
     );
     this.zoomableCanvas.isPlaying = true;
     this.zoomableCanvas.startAnimation();
-    this.zoomableCanvas.autoZoomVideo(20, true, [-500, -500, 500, 500]);
+    this.zoomableCanvas.autoZoomVideo(20, false, [-500, -500, 500, 500]);
 
     this.dartboardRenderer = new DartboardRenderer(document.getElementById("dartboardVideoCanvas"));
 

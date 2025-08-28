@@ -40,9 +40,9 @@
             width: 100%;
             height: 100%;
             background-image:
-                linear-gradient(rgba(var(--arcade-player-color-light), 0.8) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(var(--arcade-player-color-light), 0.7) 1px, transparent 1px),
-                linear-gradient(45deg, rgba(255, 0, 128, 0.05) 1px, transparent 1px);
+                linear-gradient(rgba(var(--arcade-player-color-light), 0.8) 1px, rgba(var(--arcade-player-color-dark),0.1) 1px),
+                linear-gradient(90deg, rgba(var(--arcade-player-color-light), 0.7) 1px, rgba(var(--arcade-player-color-dark),0.1) 1px),
+                linear-gradient(45deg, rgba(255, 0, 128, 0.05) 1px, rgba(var(--arcade-player-color-dark),0.1) 1px);
             background-size: 40px 40px, 40px 40px, 80px 80px;
             z-index: 1;
             pointer-events: none;
@@ -473,10 +473,28 @@
         gsap.ticker.lagSmoothing(0);
     </script>
     <script>
+
         const dartboardLayer = new DartboardLayer();//document.getElementsByClassName("game-container")[0]);
+        dartboardLayer.zoomableCanvas.autoZoomVideo(20, false, [-100,-450,450,100])
 
-
+        const dartboardInitPos = {
+            x: dartboardLayer.zoomableCanvas.translateX,
+            y: dartboardLayer.zoomableCanvas.translateY,
+            scale:dartboardLayer.zoomableCanvas.scale
+        }
         
+        function gentleDartboardAnimation() {
+            return gsap.to(dartboardLayer.zoomableCanvas, {
+                translateX: () => dartboardInitPos.x+gsap.utils.random(-50, 50),
+                translateY: () => dartboardInitPos.y+gsap.utils.random(-50, 50),
+                scale: () => dartboardInitPos.scale*gsap.utils.random(0.9, 1.1),
+                duration: 15,
+                ease:"none",
+                repeat: -1,yoyo:false, repeatRefresh:true
+            })
+        }
+        let dartboardFloatAnim = gentleDartboardAnimation();
+
 
         let checkoutRoutes = {};
 
@@ -484,7 +502,7 @@
             .then(res => res.json())
             .then(data => {
                 checkoutRoutes = data;
-                console.log("Checkout routes loaded:", checkoutRoutes);
+                console.log("Checkout routes loaded.");//, checkoutRoutes);
             })
             .catch(err => console.error("Failed to load checkout routes", err));
 
@@ -1332,23 +1350,25 @@
                 game.audioContext.resume();
             }
         }, { once: true });
-    </script>
-    <script>
+
          // Handle keyboard shortcuts
         document.addEventListener("keydown", (e) => {
             if (e.key === "d") {
                 console.log("Test");
                 const el = document.getElementById("dartboardCanvasContainer");
                 
+                if(el.style.zIndex != 101)
+                    dartboardFloatAnim.pause();
+                    
                 gsap.to(el, { opacity: 0, duration:0.3,
                     // onComplete: () => { el.style.zIndex = el.style.zIndex == 101 ? "auto" : 101;
                     // gsap.to(el, { opacity: 0.5, duration:1.0
                 //}});//.to(el, { opacity: 1, duration:1.0})
                 }).then(() => { el.style.zIndex = el.style.zIndex == 101 ? "auto" : 101
                     gsap.to(el, { opacity: 1, duration:0.3});
+                    if(el.style.zIndex != 101)
+                        dartboardFloatAnim.play();
                 })
-                
-
             }
         });
 

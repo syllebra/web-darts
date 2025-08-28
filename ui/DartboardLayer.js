@@ -1,7 +1,7 @@
 class DartboardLayer {
-  constructor() {
-    this.createStyles();
-    this.createDomElements();
+  constructor(container = document.body) {
+    this.injectCSS();
+    this.createDomElements(container);
 
     this.zoomableCanvas = new ZoomablePannableCanvas(
       "dartboardVideoCanvas",
@@ -22,9 +22,104 @@ class DartboardLayer {
     this.updateZoom(0, 0);
   }
 
-  createStyles() {}
+  injectCSS() {
+    const css = `
+          #dartboardCanvasContainer {
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100vw;
+              height: 100vh;
+              overflow: hidden;
+              background-color: #00000088
+          }
 
-  createDomElements() {}
+
+          #dartboardVideoCanvas,
+          #dartboardOverlayCanvas {
+              position: absolute;
+              cursor: grab;
+          }
+
+          #videoCanvas:active,
+          #dartboardOverlayCanvas:active {
+              cursor: grabbing;
+          }
+
+          #dartboardOverlayCanvas {
+              pointer-events: none;
+          }
+
+          #dartboardZoomContainer {
+              position: absolute;
+              top: 10px;
+              left: 10px;
+              width: 15vh;
+              height: auto;
+              box-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                  0 15px 35px rgba(0, 0, 0, 0.1);
+              margin: 0px;
+              padding: 0;
+              border-radius: 8px;
+              /* Add this to round the container */
+              overflow: hidden;
+              /* Add this to ensure clean edges */
+          }
+
+          #dartboardZoomCanvas {
+              width: 100%;
+              height: 15vh;
+              display: block;
+              /* Add this - removes default inline spacing */
+              margin: 0;
+              /* Add this */
+              padding: 0;
+              /* Add this */
+          }
+
+          #dartboardZoneDisplay {
+              background: rgba(0, 0, 0, 0.8);
+              padding: 8px 12px;
+              border-radius: 0 0 8px 8px;
+              font-family: 'Arial', sans-serif;
+              font-weight: bold;
+              font-size: 14px;
+              color: #ffffff;
+              text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+              backdrop-filter: blur(5px);
+              text-align: center;
+              width: 100%;
+              margin: 0;
+              /* Add this */
+              box-sizing: border-box;
+              /* Add this to include padding in width calculation */
+          }
+        `;
+
+    // Check if styles already exist
+    if (!document.getElementById("dartboard-layer-styles")) {
+      const styleElement = document.createElement("style");
+      styleElement.id = "dartboard-layer-styles";
+      styleElement.textContent = css;
+      document.head.appendChild(styleElement);
+    }
+  }
+
+  createDomElements(container) {
+    container.innerHTML =
+      `
+    <div id="dartboardCanvasContainer">
+      <canvas id="dartboardVideoCanvas"></canvas>
+      <canvas id="dartboardOverlayCanvas"></canvas>
+      <div id="dartboardZoomContainer">
+        <canvas id="dartboardZoomCanvas"></canvas>
+        <div id="dartboardZoneDisplay" class="badge">
+          ZONE
+        </div>
+      </div>
+    </div>
+    ` + container.innerHTML;
+  }
 
   initInteractivity() {
     const dartboardRenderer = this.dartboardRenderer;

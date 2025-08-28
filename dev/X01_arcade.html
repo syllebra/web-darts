@@ -26,7 +26,7 @@
 
         body {
             font-family: 'Orbitron', monospace;
-            background: radial-gradient(circle at center, #0a0a0a, #1a1a2e, #16213e);
+            background: radial-gradient(circle at center, #0a0a0a, #414172, #334985);
             color: #fff;
             overflow: hidden;
             height: 100vh;
@@ -45,6 +45,8 @@
                 linear-gradient(45deg, rgba(255, 0, 128, 0.05) 1px, transparent 1px);
             background-size: 40px 40px, 40px 40px, 80px 80px;
             z-index: 1;
+            pointer-events: none;
+            mix-blend-mode: exclusion;
         }
 
         .floating-particles {
@@ -65,23 +67,11 @@
             border-radius: 50%;
         }
 
-        .game-container {
-            position: relative;
-            z-index: 10;
-            height: 100vh;
-            display: grid;
-            grid-template-rows: auto 1fr;
-            grid-template-columns: 1fr 2fr 1fr;
-            grid-template-areas:
-                "header header header"
-                "left center right";
-            gap: 20px;
-            padding: 20px;
-        }
+        
 
         /* Factored common panel styles */
         .neon-panel {
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.8);
             border-radius: 15px;
             padding: 20px;
         }
@@ -108,6 +98,7 @@
                 "left center right";
             gap: 20px;
             padding: 20px;
+            pointer-events: none;
         }
 
         .top-bar {
@@ -347,20 +338,6 @@
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
         }
 
-        .player-switch {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 3rem;
-            font-weight: 900;
-            color: #ffff00;
-            text-shadow: 0 0 40px #ffff00;
-            z-index: 2000;
-            opacity: 0;
-            pointer-events: none;
-        }
-
         .explosion-particle {
             position: absolute;
             width: 6px;
@@ -474,25 +451,33 @@
     <script src="../utils/sound_effects.js"></script>
     <script src="../utils/sound.js"></script>
     <script src="../ui/ArcadePlayerRoundAnimation.js"></script>
+    <script src="../ui/ZoomablePannableCanvas.js"></script>
+    <script src="../ui/DartboardRenderer.js"></script>
+    <script src="../ui/DartboardLayer.js"></script>
     <script>
-            // GSAP ticker helper function
-            function tickGSAPWhileHidden(value) {
-                if (value === false) {
-                    document.removeEventListener("visibilitychange", tickGSAPWhileHidden.fn);
-                    return clearInterval(tickGSAPWhileHidden.id);
-                }
-                const onChange = () => {
-                    clearInterval(tickGSAPWhileHidden.id);
-                    document.hidden && (tickGSAPWhileHidden.id = setInterval(gsap.ticker.tick, 500));
-                };
-                document.addEventListener("visibilitychange", onChange);
-                tickGSAPWhileHidden.fn = onChange;
-                onChange();
+        // GSAP ticker helper function
+        function tickGSAPWhileHidden(value) {
+            if (value === false) {
+                document.removeEventListener("visibilitychange", tickGSAPWhileHidden.fn);
+                return clearInterval(tickGSAPWhileHidden.id);
             }
-            tickGSAPWhileHidden(true);
-            gsap.ticker.lagSmoothing(0);
+            const onChange = () => {
+                clearInterval(tickGSAPWhileHidden.id);
+                document.hidden && (tickGSAPWhileHidden.id = setInterval(gsap.ticker.tick, 500));
+            };
+            document.addEventListener("visibilitychange", onChange);
+            tickGSAPWhileHidden.fn = onChange;
+            onChange();
+        }
+        tickGSAPWhileHidden(true);
+        gsap.ticker.lagSmoothing(0);
     </script>
     <script>
+        const dartboardLayer = new DartboardLayer();//document.getElementsByClassName("game-container")[0]);
+
+
+        
+
         let checkoutRoutes = {};
 
         fetch('main_checkouts_double_out.json') // adjust path if needed
@@ -1348,6 +1333,26 @@
             }
         }, { once: true });
     </script>
+    <script>
+         // Handle keyboard shortcuts
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "d") {
+                console.log("Test");
+                const el = document.getElementById("dartboardCanvasContainer");
+                
+                gsap.to(el, { opacity: 0, duration:0.3,
+                    // onComplete: () => { el.style.zIndex = el.style.zIndex == 101 ? "auto" : 101;
+                    // gsap.to(el, { opacity: 0.5, duration:1.0
+                //}});//.to(el, { opacity: 1, duration:1.0})
+                }).then(() => { el.style.zIndex = el.style.zIndex == 101 ? "auto" : 101
+                    gsap.to(el, { opacity: 1, duration:0.3});
+                })
+                
+
+            }
+        });
+
+   </script>
 </body>
 
 </html>

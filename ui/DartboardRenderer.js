@@ -9,6 +9,8 @@ class DartboardRenderer {
       WHITE: "#ffffff",
     };
 
+    this.extraRenderingFunctions = [];
+
     this.centerX = 0;
     this.centerY = 0;
     this.radius = 500; // Add padding
@@ -120,7 +122,10 @@ class DartboardRenderer {
 
     // Draw particles
     this.drawParticles();
-    if (renderHover && this.hoverInfo) this.enlightZone(this.hoverInfo.short); //, "rgba(0,255,255,0.8)", "rgba(0,255,255,1.0)");
+
+    if (renderHover && this.hoverInfo) this.enlightZone(this.hoverInfo.short, true);
+
+    this.extraRenderingFunctions.forEach((f) => f());
   }
 
   drawSector(i, center, radius) {
@@ -166,11 +171,16 @@ class DartboardRenderer {
     this.ctx.fill();
   }
 
-  enlightZone(zoneStr, fillColor = "rgba(255,255,0,0.6)", glowColor = "rgba(255,255,0,0.7)", glowRadiusMult = 3.0) {
+  enlightZone(
+    zoneStr,
+    refillUnder = false,
+    fillColor = "rgba(255,255,0,0.6)",
+    glowColor = "rgba(255,255,0,0.7)",
+    glowRadiusMult = 3.0
+  ) {
     const zoneInfos = Throw.parseZoneStr(zoneStr);
 
     const sector = this.numberOrderInv[zoneInfos.sector];
-    console.log(zoneInfos);
 
     let startAngle = this.angleOffset + sector * this.sectorAngle;
     let endAngle = startAngle + this.sectorAngle;
@@ -199,10 +209,12 @@ class DartboardRenderer {
         break;
     }
 
-    this.ctx.shadowBlur = 0;
-    this.ctx.shadowColor = "transparent";
-    this.ctx.fillStyle = "black";
-    this.drawRing(0, this.radius, startAngle, endAngle, startD, endD);
+    if (refillUnder) {
+      this.ctx.shadowBlur = 0;
+      this.ctx.shadowColor = "transparent";
+      this.ctx.fillStyle = "black";
+      this.drawRing(0, this.radius, startAngle, endAngle, startD, endD);
+    }
     if (zoneInfos.type === "bull") this.ctx.shadowBlur = (zoneInfos.multiplier == 2 ? 25 : 30) * glowRadiusMult;
     else this.ctx.shadowBlur = (zoneInfos.type === "treble" || zoneInfos.type === "double" ? 20 : 15) * glowRadiusMult;
     this.ctx.shadowColor = glowColor;

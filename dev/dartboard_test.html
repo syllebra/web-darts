@@ -69,27 +69,30 @@
         console.log(thr)
         // Immediately publish - gets queued if not connected yet
           mqtt.publish('dartnet/hit', thr);
+          console.log(mqtt.messageQueue)
 
         flickZone(thr.zone);
       }
     });
 
+    const mqtt = new MQTTClient('192.168.31.120', 8083, {
+        clientId: "Dartboard_test_"+location.origin,
+        username: 'user',
+        password: 'pass',
+        onConnected: () => console.log('Connected!'),
+        onDisconnected: () => console.log('Disconnected!'),
+        onError: (err) => console.error('Error:', err)
+    });
 
-    const mqtt = new MQTTClient('192.168.10.25', 8083, 'myClient');
+    // Immediately subscribe - connection happens automatically
+    mqtt.subscribe('dartnet/hit', (data, topic) => {
+        console.log(`${topic}:`, data, data.value);
+    });
 
-        // Immediately subscribe - connection happens automatically
-        mqtt.subscribeJson('dartnet/hit', (topic, data) => {
-            console.log(`${topic}:`, data);
-        });
-
-        // Immediately publish - gets queued if not connected yet
-        mqtt.publish('dartnet/hit', {
-            temperature: 23.5,
-            humidity: 60
-        });
-
-        // Optional: Listen to connection events
-        mqtt.on('onConnect', () => console.log('Connected!'));
-
+    // Immediately publish - gets queued if not connected yet
+    mqtt.publish('dartnet/hit', {
+        temperature: 23.5,
+        humidity: 60
+    });
     
 </script>

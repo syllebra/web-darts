@@ -391,12 +391,12 @@ function initializeHardwareUI() {
   });
 }
 
-function onDartnetUIMessage(message) {
-  const topic = message.destinationName;
-  const payload = message.payloadString;
-  console.log(`MQTT DartNet UI: ${topic} - ${payload}`);
-  if (payload == "calibrate camera") calibrateCamAndUpdateUI();
-}
+// function onDartnetUIMessage(message) {
+//   const topic = message.destinationName;
+//   const payload = message.payloadString;
+//   console.log(`MQTT DartNet UI: ${topic} - ${payload}`);
+//   if (payload == "calibrate camera") calibrateCamAndUpdateUI();
+// }
 
 function initializeMqttUI() {
   // MQTT Connection Status Management
@@ -429,12 +429,23 @@ function initializeMqttUI() {
   // Initialize with disconnected status
   updateMqttStatus("disconnected");
 
-  dartnet.mqttStatusCallback = updateMqttStatus;
+  const mqttBroker = settingsManager.getSetting("mqtt", "brokerIP");
+  const mqttPort = settingsManager.getSetting("mqtt", "port");
+  const clientId = "DARTNET_" + Math.random().toString(16).substr(2, 8);
 
-  dartnet.mqttBroker = settingsManager.getSetting("mqtt", "brokerIP");
-  dartnet.mqttPort = settingsManager.getSetting("mqtt", "port");
-
-  dartnet.initMqtt(onDartnetUIMessage);
+  dartnet.mqttClient = new MQTTClient(mqttBroker, mqttPort, {
+    clientId: clientId,
+    // username: "user",
+    // password: "pass",
+    //autoReconnect:false,
+    onConnected: () => updateMqttStatus("connected"),
+    onDisconnected: () => updateMqttStatus("disconnected"),
+    onConnectionLost: () => updateMqttStatus("disconnected"),
+    onConnecting: () => updateMqttStatus("connecting"),
+    onError: (err) => {
+      console.error("Error:", err), updateMqttStatus("error");
+    },
+  });
 }
 
 function initializeDartDetectionUI() {

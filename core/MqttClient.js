@@ -1,281 +1,147 @@
 class MQTTClient {
-  constructor(brokerUrl, port, clientId, options = {}) {
-    this.brokerUrl = brokerUrl;
-    this.port = port;
-    this.clientId = clientId || "mqtt_client_" + Math.random().toString(36).substr(2, 9);
+  constructor(brokerHost, brokerPort = 8000, options = {}) {
+    this.brokerHost = brokerHost;
+    this.brokerPort = brokerPort;
+    this.clientId = options.clientId || `mqtt_client_${Math.random().toString(36).substr(2, 9)}`;
+    this.username = options.username || null;
+    this.password = options.password || null;
+    this.useSSL = options.useSSL || false;
+    this.keepAliveInterval = options.keepAliveInterval || 60;
+    this.cleanSession = options.cleanSession !== false;
+    this.reconnectDelay = options.reconnectDelay || 3000;
+    this.maxReconnectAttempts = options.maxReconnectAttempts || -1; // -1 for infinite
 
-    // Configuration options
-    this.options = {
-      useSSL: options.useSSL || false,
-      keepAliveInterval: options.keepAliveInterval || 60,
-      cleanSession: options.cleanSession !== false,
-      timeout: options.timeout || 3,
-      userName: options.userName || null,
-      password: options.password || null,
-      reconnectInterval: options.reconnectInterval || 5000,
-      maxReconnectAttempts: options.maxReconnectAttempts || -1, // -1 for infinite
-      autoConnect: options.autoConnect !== false, // Default to true
-      ...options,
-    };
-
-    // State management
     this.client = null;
     this.isConnected = false;
     this.isConnecting = false;
     this.reconnectAttempts = 0;
     this.reconnectTimer = null;
+    this.subscriptions = new Map(); // topic -> callback
+    this.messageQueue = []; // Queue for messages to send when disconnected
+    this.autoReconnect = options.autoReconnect !== false;
 
-    // Topic subscriptions with callbacks
-    this.subscriptions = new Map(); // topic -> Set of callbacks
-    this.qosLevels = new Map(); // topic -> qos level
+    // Event callbacks
+    this.onConnected = options.onConnected || (() => {});
+    this.onDisconnected = options.onDisconnected || (() => {});
+    this.onConnectionLost = options.onConnectionLost || (() => {});
+    this.onConnecting = options.onConnecting || (() => {});
+    this.onError = options.onError || ((error) => console.error("MQTT Error:", error));
 
-    // Message queues for offline scenarios
-    this.messageQueue = [];
-    this.subscriptionQueue = [];
-
-    // Event handlers
-    this.eventHandlers = {
-      onConnect: [],
-      onDisconnect: [],
-      onError: [],
-      onReconnect: [],
-    };
-
-    this._createClient();
-
-    // Auto-connect if enabled
-    if (this.options.autoConnect) {
-      this.connect().catch((error) => {
-        // Initial connection failure will trigger retry mechanism
-        console.log("Initial connection failed, retry mechanism will handle reconnection");
-      });
-    }
+    this._initializeClient();
+    this._connect();
   }
 
-  _createClient() {
-    try {
-      this.client = new Paho.MQTT.Client(this.brokerUrl, this.port, this.clientId);
-      this._setupEventHandlers();
-    } catch (error) {
-      this._handleError("Failed to create MQTT client", error);
-    }
-  }
+  _initializeClient() {
+    this.client = new Paho.MQTT.Client(this.brokerHost, Number(this.brokerPort), this.clientId);
 
-  _setupEventHandlers() {
     this.client.onConnectionLost = (responseObject) => {
       this.isConnected = false;
-      this._handleDisconnection(responseObject);
+      this.isConnecting = false;
+      console.warn("MQTT Connection Lost:", responseObject.errorMessage);
+      this.onConnectionLost(responseObject);
+
+      if (this.autoReconnect && responseObject.errorCode !== 0) {
+        this._scheduleReconnect();
+      }
     };
 
     this.client.onMessageArrived = (message) => {
       this._handleMessage(message);
     };
-
-    this.client.onConnected = () => {
-      this.isConnected = true;
-      this.isConnecting = false;
-      this.reconnectAttempts = 0;
-      this._clearReconnectTimer();
-      this._processQueues();
-      this._triggerEvent("onConnect");
-    };
   }
 
-  connect() {
+  _connect() {
     if (this.isConnected || this.isConnecting) {
-      return Promise.resolve();
+      return;
     }
 
-    return new Promise((resolve, reject) => {
-      this.isConnecting = true;
+    this.isConnecting = true;
+    this.onConnecting();
 
-      const connectOptions = {
-        timeout: this.options.timeout,
-        keepAliveInterval: this.options.keepAliveInterval,
-        cleanSession: this.options.cleanSession,
-        useSSL: this.options.useSSL,
-        onSuccess: () => {
-          resolve();
-        },
-        onFailure: (error) => {
-          this.isConnecting = false;
-          this._handleError("Connection failed", error);
-          // Trigger reconnection if autoConnect is enabled
-          if (this.options.autoConnect) {
-            this._attemptReconnection();
-          }
-          reject(error);
-        },
-      };
-
-      if (this.options.userName) {
-        connectOptions.userName = this.options.userName;
-      }
-      if (this.options.password) {
-        connectOptions.password = this.options.password;
-      }
-
-      try {
-        this.client.connect(connectOptions);
-      } catch (error) {
+    const connectOptions = {
+      onSuccess: () => {
+        this.isConnected = true;
         this.isConnecting = false;
-        if (this.options.autoConnect) {
-          this._attemptReconnection();
+        this.reconnectAttempts = 0;
+        console.log("MQTT Connected successfully");
+        this.onConnected();
+        this._resubscribeAll();
+        this._flushMessageQueue();
+      },
+      onFailure: (error) => {
+        this.isConnected = false;
+        this.isConnecting = false;
+        console.error("MQTT Connection failed:", error.errorMessage);
+        this.onError(error);
+
+        if (this.autoReconnect) {
+          this._scheduleReconnect();
         }
-        reject(error);
-      }
-    });
-  }
+      },
+      keepAliveInterval: this.keepAliveInterval,
+      cleanSession: this.cleanSession,
+      useSSL: this.useSSL,
+    };
 
-  disconnect() {
-    this._clearReconnectTimer();
-    if (this.client && this.isConnected) {
-      this.client.disconnect();
+    if (this.username) {
+      connectOptions.userName = this.username;
     }
-    this.isConnected = false;
-    this.isConnecting = false;
-  }
-
-  publish(topic, payload, qos = 0, retained = false) {
-    // Auto-serialize objects and arrays to JSON
-    let processedPayload = payload;
-    if (typeof payload === "object" && payload !== null) {
-      processedPayload = JSON.stringify(payload);
+    if (this.password) {
+      connectOptions.password = this.password;
     }
 
-    const message = new Paho.MQTT.Message(processedPayload);
-    message.destinationName = topic;
-    message.qos = qos;
-    message.retained = retained;
-
-    if (this.isConnected) {
-      try {
-        this.client.send(message);
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(error);
+    try {
+      this.client.connect(connectOptions);
+    } catch (error) {
+      this.isConnecting = false;
+      console.error("MQTT Connection error:", error);
+      this.onError(error);
+      if (this.autoReconnect) {
+        this._scheduleReconnect();
       }
-    } else {
-      // Queue message for later delivery
-      this.messageQueue.push(message);
-      // If autoConnect is enabled and not already connecting, start connection
-      if (this.options.autoConnect && !this.isConnecting) {
-        this.connect().catch(() => {
-          // Connection failure will be handled by retry mechanism
-        });
-      }
-      return Promise.resolve(); // Return success since it's queued
     }
   }
 
-  subscribe(topic, callback, qos = 0) {
-    if (typeof callback !== "function") {
-      throw new Error("Callback must be a function");
+  _scheduleReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
     }
 
-    // Store subscription
-    if (!this.subscriptions.has(topic)) {
-      this.subscriptions.set(topic, new Set());
+    if (this.maxReconnectAttempts > 0 && this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error("Max reconnection attempts reached");
+      return;
     }
-    this.subscriptions.get(topic).add({ callback, parseJson: false });
-    this.qosLevels.set(topic, qos);
 
-    if (this.isConnected) {
-      return this._performSubscription(topic, qos);
-    } else {
-      // Queue subscription for later
-      this.subscriptionQueue.push({ topic, qos });
-      // If autoConnect is enabled and not already connecting, start connection
-      if (this.options.autoConnect && !this.isConnecting) {
-        this.connect().catch(() => {
-          // Connection failure will be handled by retry mechanism
-        });
-      }
-      return Promise.resolve(); // Return success since it's queued
+    this.reconnectAttempts++;
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
+
+    console.log(`Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
+
+    this.reconnectTimer = setTimeout(() => {
+      console.log(`Reconnection attempt ${this.reconnectAttempts}`);
+      this._connect();
+    }, delay);
+  }
+
+  _resubscribeAll() {
+    for (const [topic, callback] of this.subscriptions) {
+      this._doSubscribe(topic, callback);
     }
   }
 
-  subscribeJson(topic, callback, qos = 0) {
-    if (typeof callback !== "function") {
-      throw new Error("Callback must be a function");
+  _doSubscribe(topic, callback) {
+    if (!this.isConnected) {
+      return;
     }
 
-    // Store subscription with JSON parsing flag
-    if (!this.subscriptions.has(topic)) {
-      this.subscriptions.set(topic, new Set());
-    }
-    this.subscriptions.get(topic).add({ callback, parseJson: true });
-    this.qosLevels.set(topic, qos);
-
-    if (this.isConnected) {
-      return this._performSubscription(topic, qos);
-    } else {
-      // Queue subscription for later
-      this.subscriptionQueue.push({ topic, qos });
-      // If autoConnect is enabled and not already connecting, start connection
-      if (this.options.autoConnect && !this.isConnecting) {
-        this.connect().catch(() => {
-          // Connection failure will be handled by retry mechanism
-        });
-      }
-      return Promise.resolve(); // Return success since it's queued
-    }
-  }
-
-  unsubscribe(topic, callback = null) {
-    if (callback) {
-      // Remove specific callback
-      if (this.subscriptions.has(topic)) {
-        const subscriptionSet = this.subscriptions.get(topic);
-        for (const sub of subscriptionSet) {
-          if (sub.callback === callback || sub === callback) {
-            subscriptionSet.delete(sub);
-            break;
-          }
-        }
-        if (subscriptionSet.size === 0) {
-          this.subscriptions.delete(topic);
-          this.qosLevels.delete(topic);
-          if (this.isConnected) {
-            return this._performUnsubscription(topic);
-          }
-        }
-      }
-    } else {
-      // Remove all callbacks for topic
-      this.subscriptions.delete(topic);
-      this.qosLevels.delete(topic);
-      if (this.isConnected) {
-        return this._performUnsubscription(topic);
-      }
-    }
-    return Promise.resolve();
-  }
-
-  _performSubscription(topic, qos) {
-    return new Promise((resolve, reject) => {
-      try {
-        this.client.subscribe(topic, {
-          qos: qos,
-          onSuccess: () => resolve(),
-          onFailure: (error) => reject(error),
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
-  _performUnsubscription(topic) {
-    return new Promise((resolve, reject) => {
-      try {
-        this.client.unsubscribe(topic, {
-          onSuccess: () => resolve(),
-          onFailure: (error) => reject(error),
-        });
-      } catch (error) {
-        reject(error);
-      }
+    this.client.subscribe(topic, {
+      onSuccess: () => {
+        console.log(`Successfully subscribed to topic: ${topic}`);
+      },
+      onFailure: (error) => {
+        console.error(`Failed to subscribe to topic ${topic}:`, error);
+        this.onError(error);
+      },
     });
   }
 
@@ -283,168 +149,173 @@ class MQTTClient {
     const topic = message.destinationName;
     const payload = message.payloadString;
 
-    // Find matching subscriptions (support wildcards)
-    for (const [subscribedTopic, subscriptionSet] of this.subscriptions) {
-      if (this._topicMatches(subscribedTopic, topic)) {
-        subscriptionSet.forEach((subscription) => {
+    // Find matching subscription
+    for (const [subscribedTopic, callback] of this.subscriptions) {
+      if (this._topicMatches(topic, subscribedTopic)) {
+        try {
+          // Try to parse as JSON first
+          let data;
           try {
-            let processedPayload = payload;
-
-            // Parse JSON if requested
-            if (subscription.parseJson) {
-              try {
-                processedPayload = JSON.parse(payload);
-              } catch (jsonError) {
-                console.error(`Failed to parse JSON for topic ${topic}:`, jsonError);
-                // Still call callback with original payload and error info
-                subscription.callback(topic, payload, message, {
-                  jsonParseError: jsonError,
-                });
-                return;
-              }
-            }
-
-            // Call the callback with processed payload
-            subscription.callback(topic, processedPayload, message);
-          } catch (error) {
-            console.error("Error in message callback:", error);
+            data = JSON.parse(payload);
+          } catch (e) {
+            // If JSON parsing fails, use raw string
+            data = payload;
           }
-        });
+
+          callback(data, topic, message);
+        } catch (error) {
+          console.error(`Error in message callback for topic ${topic}:`, error);
+          this.onError(error);
+        }
       }
     }
   }
 
-  _topicMatches(pattern, topic) {
-    // Convert MQTT wildcards to regex
-    const regexPattern = pattern.replace(/\+/g, "[^/]+").replace(/#$/, ".*").replace(/\//g, "\\/");
+  _topicMatches(actualTopic, subscribedTopic) {
+    // Handle MQTT wildcards
+    const actualParts = actualTopic.split("/");
+    const subscribedParts = subscribedTopic.split("/");
 
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(topic);
+    // Handle # wildcard
+    if (subscribedParts[subscribedParts.length - 1] === "#") {
+      const baseSubscribed = subscribedParts.slice(0, -1);
+      const baseActual = actualParts.slice(0, baseSubscribed.length);
+      return (
+        baseSubscribed.every((part, i) => part === "+" || part === baseActual[i]) &&
+        actualParts.length >= baseSubscribed.length
+      );
+    }
+
+    // Handle exact match and + wildcards
+    if (actualParts.length !== subscribedParts.length) {
+      return false;
+    }
+
+    return subscribedParts.every((part, i) => part === "+" || part === actualParts[i]);
   }
 
-  _handleDisconnection(responseObject) {
-    this.isConnected = false;
-    this._triggerEvent("onDisconnect", responseObject);
-
-    if (responseObject.errorCode !== 0) {
-      this._handleError("Connection lost", responseObject);
-      this._attemptReconnection();
+  _flushMessageQueue() {
+    while (this.messageQueue.length > 0 && this.isConnected) {
+      const { topic, message, options } = this.messageQueue.shift();
+      this._doPublish(topic, message, options);
     }
   }
 
-  _attemptReconnection() {
-    if (this.reconnectTimer || this.isConnecting) {
-      return;
+  _doPublish(topic, message, options = {}) {
+    if (!this.isConnected) {
+      return false;
     }
 
-    if (this.options.maxReconnectAttempts > 0 && this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-      this._handleError("Max reconnection attempts reached");
-      return;
-    }
+    try {
+      const mqttMessage = new Paho.MQTT.Message(message);
+      mqttMessage.destinationName = topic;
+      mqttMessage.qos = options.qos || 0;
+      mqttMessage.retained = options.retained || false;
 
-    this.reconnectAttempts++;
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect()
-        .then(() => {
-          this._triggerEvent("onReconnect");
-        })
-        .catch(() => {
-          this._attemptReconnection();
-        });
-    }, this.options.reconnectInterval);
+      this.client.send(mqttMessage);
+      return true;
+    } catch (error) {
+      console.error("Error publishing message:", error);
+      this.onError(error);
+      return false;
+    }
   }
 
-  _clearReconnectTimer() {
+  // Public methods
+
+  subscribe(topic, callback) {
+    if (typeof callback !== "function") {
+      throw new Error("Callback must be a function");
+    }
+
+    this.subscriptions.set(topic, callback);
+
+    if (this.isConnected) {
+      this._doSubscribe(topic, callback);
+    }
+    // If not connected, subscription will happen automatically on reconnection
+  }
+
+  unsubscribe(topic) {
+    this.subscriptions.delete(topic);
+
+    if (this.isConnected) {
+      this.client.unsubscribe(topic, {
+        onSuccess: () => {
+          console.log(`Successfully unsubscribed from topic: ${topic}`);
+        },
+        onFailure: (error) => {
+          console.error(`Failed to unsubscribe from topic ${topic}:`, error);
+          this.onError(error);
+        },
+      });
+    }
+  }
+
+  publish(topic, data, options = {}) {
+    let message;
+
+    // Auto-serialize objects to JSON
+    if (typeof data === "object" && data !== null) {
+      try {
+        message = JSON.stringify(data);
+      } catch (error) {
+        console.error("Error serializing message to JSON:", error);
+        this.onError(error);
+        return false;
+      }
+    } else {
+      message = String(data);
+    }
+
+    if (this.isConnected) {
+      return this._doPublish(topic, message, options);
+    } else {
+      // Queue message for later sending
+      this.messageQueue.push({ topic, message, options });
+      console.log(`Message queued for topic ${topic} (not connected)`);
+      return true;
+    }
+  }
+
+  disconnect() {
+    this.autoReconnect = false;
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-  }
 
-  _processQueues() {
-    // Process queued subscriptions
-    const subscriptions = [...this.subscriptionQueue];
-    this.subscriptionQueue = [];
-
-    subscriptions.forEach(({ topic, qos }) => {
-      this._performSubscription(topic, qos).catch((error) => {
-        console.error("Failed to resubscribe to", topic, error);
-      });
-    });
-
-    // Process queued messages
-    const messages = [...this.messageQueue];
-    this.messageQueue = [];
-
-    messages.forEach((message) => {
-      try {
-        this.client.send(message);
-      } catch (error) {
-        console.error("Failed to send queued message:", error);
-        // Re-queue on failure
-        this.messageQueue.push(message);
-      }
-    });
-  }
-
-  _handleError(message, error = null) {
-    const errorObj = { message, error, timestamp: new Date() };
-    console.error("MQTT Error:", errorObj);
-    this._triggerEvent("onError", errorObj);
-  }
-
-  _triggerEvent(eventName, data = null) {
-    if (this.eventHandlers[eventName]) {
-      this.eventHandlers[eventName].forEach((handler) => {
-        try {
-          handler(data);
-        } catch (error) {
-          console.error(`Error in ${eventName} handler:`, error);
-        }
-      });
+    if (this.client && this.isConnected) {
+      this.client.disconnect();
+      this.onDisconnected();
     }
+
+    this.isConnected = false;
+    this.isConnecting = false;
   }
 
-  // Event handler management
-  on(event, handler) {
-    if (this.eventHandlers[event] && typeof handler === "function") {
-      this.eventHandlers[event].push(handler);
+  reconnect() {
+    if (this.isConnected || this.isConnecting) {
+      return;
     }
+
+    this.autoReconnect = true;
+    this.reconnectAttempts = 0;
+    this._connect();
   }
 
-  off(event, handler) {
-    if (this.eventHandlers[event]) {
-      const index = this.eventHandlers[event].indexOf(handler);
-      if (index > -1) {
-        this.eventHandlers[event].splice(index, 1);
-      }
-    }
-  }
-
-  // Utility methods
-  isConnectedState() {
+  isClientConnected() {
     return this.isConnected;
-  }
-
-  getClientId() {
-    return this.clientId;
   }
 
   getSubscriptions() {
     return Array.from(this.subscriptions.keys());
   }
 
-  getQueuedMessages() {
-    return this.messageQueue.length;
-  }
-
-  getReconnectAttempts() {
-    return this.reconnectAttempts;
-  }
-
-  clearQueues() {
-    this.messageQueue = [];
-    this.subscriptionQueue = [];
+  clearSubscriptions() {
+    for (const topic of this.subscriptions.keys()) {
+      this.unsubscribe(topic);
+    }
   }
 }

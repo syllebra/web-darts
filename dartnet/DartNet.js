@@ -9,68 +9,9 @@ class DartNet {
     this.Mi = null; //Transformation matrix from board ref to source image
     this.targetDetector = null;
     this.dartDetector = null;
-    this.mqttBroker = mqttBroker;
-    this.mqttPort = 8083;
     this.mqttClient = null;
-    this.mqttStatusCallback = mqttStatusCallback;
-    (this.mqttMessageCallback = null), (this.calibrationPairFactor = 1.0);
+    this.calibrationPairFactor = 1.0;
     this.initDetectors();
-  }
-
-  initMqtt(mqttMessageCallback) {
-    try {
-      console.log("Starting MQTT client...");
-      // Create MQTT client
-      const clientId = "DARTNET_" + Math.random().toString(16).substr(2, 8);
-      this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, Number(this.mqttPort), clientId);
-
-      // Set callback handlers
-      this.mqttClient.onConnectionLost = this.onMqttConnectionLost.bind(this);
-      this.mqttClient.onMessageArrived = this.onMqttMessage.bind(this);
-
-      this.mqttMessageCallback = mqttMessageCallback;
-      this.updateMqttStatus("connecting");
-      // Connect to MQTT broker
-      this.mqttClient.connect({
-        onSuccess: this.onMqttConnect.bind(this),
-        onFailure: this.onMqttConnectFailure.bind(this),
-      });
-    } catch (error) {
-      console.error("Unable to initialize mqtt:", this.mqttBroker, error);
-    }
-  }
-
-  updateMqttStatus(status) {
-    if (this.mqttStatusCallback) this.mqttStatusCallback(status);
-  }
-
-  onMqttConnect() {
-    console.log("Connected to MQTT broker");
-    //this.mqttClient.subscribe("#");
-    this.mqttClient.subscribe("dartnet/ui");
-    this.isStarted = true;
-    this.updateMqttStatus("connected");
-  }
-
-  onMqttConnectFailure(error) {
-    console.error("Failed to connect to MQTT broker: " + error.errorMessage);
-    this.updateMqttStatus("error");
-  }
-
-  onMqttConnectionLost(responseObject) {
-    if (responseObject.errorCode !== 0) {
-      console.log("Connection lost: " + responseObject.errorMessage);
-      this.isStarted = false;
-      this.updateMqttStatus("disconnected");
-    }
-  }
-
-  onMqttMessage(message) {
-    const topic = message.destinationName;
-    const payload = message.payloadString;
-
-    //console.log(`MQTT: ${topic} - ${payload}`);
-    if (this.mqttMessageCallback) this.mqttMessageCallback(message);
   }
 
   async initDetectors() {

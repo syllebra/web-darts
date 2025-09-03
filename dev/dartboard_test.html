@@ -31,6 +31,7 @@
 <script src="../ui/ZoomablePannableCanvas.js"></script>
 <script src="../ui/DartboardRenderer.js"></script>
 <script src="../ui/DartboardLayer.js"></script>
+<script src="../ui/gsap_helper.js"></script>
 <script>
     const dartboardLayer = new DartboardLayer(document.body);
 
@@ -66,12 +67,11 @@
     dartboardLayer.zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
       if (id == "Dartboard") {
         let thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
-        console.log(thr)
+        //console.log(thr)
         // Immediately publish - gets queued if not connected yet
-          mqtt.publish('dartnet/hit', thr);
-          console.log(mqtt.messageQueue)
+        mqtt.publish('dartnet/hit', thr);
 
-        flickZone(thr.zone);
+        //flickZone(thr.zone);
       }
     });
 
@@ -86,13 +86,8 @@
 
     // Immediately subscribe - connection happens automatically
     mqtt.subscribe('dartnet/hit', (data, topic) => {
-        console.log(`${topic}:`, data, data.value);
+        console.log(`${topic}:`, data);
+        flickZone(data.zone);
     });
-
-    // Immediately publish - gets queued if not connected yet
-    mqtt.publish('dartnet/hit', {
-        temperature: 23.5,
-        humidity: 60
-    });
-    
+   
 </script>

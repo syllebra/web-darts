@@ -69,26 +69,10 @@
     <script src="../core/utils/ColorUtils.js"></script>
     <script src="../utils/sound.js"></script>
     <script src="../ui/ArcadePlayerRoundAnimation.js"></script>
-
+    <script src="../ui/gsap_helper.js"></script>
+    
     <script>
-        // GSAP ticker helper function
-        function tickGSAPWhileHidden(value) {
-            if (value === false) {
-                document.removeEventListener("visibilitychange", tickGSAPWhileHidden.fn);
-                return clearInterval(tickGSAPWhileHidden.id);
-            }
-            const onChange = () => {
-                clearInterval(tickGSAPWhileHidden.id);
-                document.hidden && (tickGSAPWhileHidden.id = setInterval(gsap.ticker.tick, 500));
-            };
-            document.addEventListener("visibilitychange", onChange);
-            tickGSAPWhileHidden.fn = onChange;
-            onChange();
-        }
-        tickGSAPWhileHidden(true);
-        gsap.ticker.lagSmoothing(0);
-
-        // Initialize the animation
+    // Initialize the animation
         const arcadeAnimation = new ArcadePlayerRoundAnimation();
 
         let currentRound = 1;

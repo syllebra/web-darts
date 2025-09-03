@@ -454,24 +454,7 @@
     <script src="../ui/ZoomablePannableCanvas.js"></script>
     <script src="../ui/DartboardRenderer.js"></script>
     <script src="../ui/DartboardLayer.js"></script>
-    <script>
-        // GSAP ticker helper function
-        function tickGSAPWhileHidden(value) {
-            if (value === false) {
-                document.removeEventListener("visibilitychange", tickGSAPWhileHidden.fn);
-                return clearInterval(tickGSAPWhileHidden.id);
-            }
-            const onChange = () => {
-                clearInterval(tickGSAPWhileHidden.id);
-                document.hidden && (tickGSAPWhileHidden.id = setInterval(gsap.ticker.tick, 500));
-            };
-            document.addEventListener("visibilitychange", onChange);
-            tickGSAPWhileHidden.fn = onChange;
-            onChange();
-        }
-        tickGSAPWhileHidden(true);
-        gsap.ticker.lagSmoothing(0);
-    </script>
+    <script src="../ui/gsap_helper.js"></script>
     <script>
 
         const dartboardLayer = new DartboardLayer();//document.getElementsByClassName("game-container")[0]);

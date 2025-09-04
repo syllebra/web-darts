@@ -419,7 +419,7 @@
         <div class="player-info neon-panel neon-panel--secondary">
             <div class="players-header">PLAYERS</div>
             <div id="playersList"></div>
-            <button class="add-player-btn" onclick="addPlayer()">+ ADD PLAYER</button>
+            <!-- <button class="add-player-btn" onclick="addPlayer()">+ ADD PLAYER</button> -->
         </div>
 
         <div class="score-section neon-panel neon-panel--primary">
@@ -497,7 +497,9 @@
 
                 this.players = [
                     { name: "PLAYER 1", legScore: legScore, roundTotal: 0, dartHistory: [] },
-                    { name: "PLAYER 2", legScore: legScore, roundTotal: 0, dartHistory: [] }
+                    { name: "PLAYER 2", legScore: legScore, roundTotal: 0, dartHistory: [] },
+                    { name: "PLAYER 3", legScore: legScore, roundTotal: 0, dartHistory: [] },
+                    { name: "PLAYER 4", legScore: legScore, roundTotal: 0, dartHistory: [] }
                 ];
                 this.currentPlayer = 0;
                 this.currentRound = 1;
@@ -1027,50 +1029,50 @@
                 // Play victory sound
                 soundEffects.playModernSound('victory');
 
-                const overlay = this.elements.countdownOverlay;
-                const number = this.elements.countdownNumber;
+                // const overlay = this.elements.countdownOverlay;
+                // const number = this.elements.countdownNumber;
 
-                number.textContent = `PLAYER ${this.currentPlayer + 1} WINS!`;
-                number.style.fontSize = '6rem';
-                overlay.style.display = 'flex';
+                // number.textContent = `PLAYER ${this.currentPlayer + 1} WINS!`;
+                // number.style.fontSize = '6rem';
+                // overlay.style.display = 'flex';
 
                 // GSAP victory animation
-                gsap.timeline()
-                    .set(number, {
-                        scale: 0,
-                        rotation: -180,
-                        color: "#00ff00",
-                        textShadow: "0 0 80px #00ff00"
-                    })
-                    .to(number, {
-                        scale: 1.2,
-                        rotation: 10,
-                        duration: 0.8,
-                        ease: "back.out(1.7)"
-                    })
-                    .to(number, {
-                        scale: 1,
-                        rotation: 0,
-                        duration: 0.5
-                    })
-                    .to(number, {
-                        scale: 1.1,
-                        duration: 0.5,
-                        repeat: 3,
-                        yoyo: true,
-                        ease: "power2.inOut"
-                    });
+                // gsap.timeline()
+                //     .set(number, {
+                //         scale: 0,
+                //         rotation: -180,
+                //         color: "#00ff00",
+                //         textShadow: "0 0 80px #00ff00"
+                //     })
+                //     .to(number, {
+                //         scale: 1.2,
+                //         rotation: 10,
+                //         duration: 0.8,
+                //         ease: "back.out(1.7)"
+                //     })
+                //     .to(number, {
+                //         scale: 1,
+                //         rotation: 0,
+                //         duration: 0.5
+                //     })
+                //     .to(number, {
+                //         scale: 1.1,
+                //         duration: 0.5,
+                //         repeat: 3,
+                //         yoyo: true,
+                //         ease: "power2.inOut"
+                //     });
 
                 // Create victory particle explosion
                 this.createVictoryExplosion();
 
-                setTimeout(() => {
-                    this.resetGame();
-                    overlay.style.display = 'none';
-                    number.style.fontSize = '15rem';
-                    number.style.color = '#ff0080';
-                    number.style.textShadow = '0 0 80px #ff0080';
-                }, 4000);
+                // setTimeout(() => {
+                //     this.resetGame();
+                //     overlay.style.display = 'none';
+                //     number.style.fontSize = '15rem';
+                //     number.style.color = '#ff0080';
+                //     number.style.textShadow = '0 0 80px #ff0080';
+                // }, 4000);
             }
 
             createVictoryExplosion() {

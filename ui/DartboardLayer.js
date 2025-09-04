@@ -16,6 +16,8 @@ class DartboardLayer {
 
     this.initInteractivity();
 
+    this.initZonesLights();
+
     this.zoomCanvas = document.getElementById("dartboardZoomCanvas");
     this.zoomCtx = this.zoomCanvas.getContext("2d");
 
@@ -294,5 +296,46 @@ class DartboardLayer {
 
     const score = this.dartboardRenderer.getScoreInfo(xx, yy);
     document.getElementById("dartboardZoneDisplay").innerText = score.short;
+  }
+
+  /// LIGHTS
+
+  initZonesLights() {
+    let zones = ["DB", "B"];
+    for (let i = 1; i <= 20; i++) {
+      zones.push(`S${i}IN`, `D${i}`, `S${i}OUT`, `T${i}`);
+    }
+
+    this.lights = {};
+
+    zones.forEach((z) => {
+      const v = { zone: z, opacity: 0.0, r: 0, g: 255, b: 255 };
+      this.lights[z] = v;
+      this.dartboardRenderer.extraRenderingFunctions.push(() => {
+        if (v.opacity > 0.0)
+          this.dartboardRenderer.enlightZone(
+            v.zone,
+            false,
+            `rgba(${v.r},${v.g},${v.b},${v.opacity * 0.95})`,
+            `rgba(${v.r},${v.g},${v.b},${v.opacity})`,
+            1.5
+          );
+      });
+    });
+  }
+
+  flickZone(zone) {
+    if (this.lights[zone])
+      gsap
+        .to(this.lights[zone], {
+          opacity: 1.0,
+          repeat: 11,
+          yoyo: true,
+          duration: 0.08,
+          ease: "power2.inout",
+        })
+        .then(() => {
+          this.lights[zone].opacity = 0;
+        });
   }
 }

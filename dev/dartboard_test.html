@@ -36,35 +36,6 @@
     const dartboardLayer = new DartboardLayer(document.body);
     dartboardLayer.zoomableCanvas.autoZoomVideo(20, false, [-100,-450,450,100])
 
-    let zones = ["DB","B"];
-    for(let i=1;i<=20;i++) {
-        zones.push(`S${i}IN`, `D${i}`,`S${i}OUT`,`T${i}`);
-    }
-
-    let lights = {}
-
-    function test(v) {
-        if(v.opacity > 0.0)
-            dartboardLayer.dartboardRenderer.enlightZone(v.zone,false, `rgba(0,255,255,${v.opacity*0.95})`, glowColor = `rgba(0,255,255,${v.opacity})`,1.5);
-    }
-    
-    zones.forEach((z) =>  {
-        const obj = {zone: z, opacity:0.0};
-        lights[z] = obj;
-        dartboardLayer.dartboardRenderer.extraRenderingFunctions.push( () => test(obj));
-    })
-
-
-    function flickZone(zone) {
-        gsap.to(lights[zone], {
-            opacity:1.0,
-            repeat:11,
-            yoyo: true,
-            duration:0.08,
-            ease:"power2.inout"
-        }).then(()=> {lights[zone].opacity = 0;})
-    }
-
     dartboardLayer.zoomableCanvas.addOnElementDragEnd((id, element, worldCoords) => {
       if (id == "Dartboard") {
         let thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
@@ -88,7 +59,7 @@
     // Immediately subscribe - connection happens automatically
     mqtt.subscribe('dartnet/hit', (data, topic) => {
         console.log(`${topic}:`, data);
-        flickZone(data.zone);
+        dartboardLayer.flickZone(data.zone);
     });
    
 </script>

@@ -98,8 +98,8 @@ class Throw {
     if (lz == "b" || lz == "sb") return 25;
     if (lz == "out") return 0;
     let mult = 1;
-    if (lz.includes("d")) mult = 2;
-    if (lz.includes("t")) mult = 3;
+    if (lz.charAt(0) == "d") mult = 2;
+    if (lz.charAt(0) == "t") mult = 3;
 
     const num = parseInt(lz.replace("t", "").replace("d", "").replace("s", ""));
     return num * mult;

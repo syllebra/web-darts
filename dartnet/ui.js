@@ -851,11 +851,11 @@ function initZoomableCanvasUI() {
   );
 
   // Set up event callbacks
-  zoomableCanvas.setOnElementSelected((id, element) => {
+  zoomableCanvas.addOnElementSelected((id, element) => {
     console.debug(`Selected element: ${id}`, element);
   });
 
-  zoomableCanvas.setOnElementDrag((id, element, worldCoords) => {
+  zoomableCanvas.addOnElementDrag((id, element, worldCoords) => {
     console.debug(`Dragging ${id} to:`, element.x, element.y);
 
     if (id.includes("calib")) {
@@ -877,7 +877,7 @@ function initZoomableCanvasUI() {
     }
   });
 
-  zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
+  zoomableCanvas.addOnElementDragEnd((id, element, worldCoords) => {
     console.debug(`Finished dragging ${id}`);
   });
 }

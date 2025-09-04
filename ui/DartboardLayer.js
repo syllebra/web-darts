@@ -227,12 +227,12 @@ class DartboardLayer {
     }
 
     // Set up event callbacks
-    this.zoomableCanvas.setOnElementSelected((id, element) => {
+    this.zoomableCanvas.addOnElementSelected((id, element) => {
       console.debug(`Selected element: ${id}`, element);
       if (id != "Dartboard") updateZoomView(element.x, element.y);
     });
 
-    this.zoomableCanvas.setOnElementDrag((id, element, worldCoords) => {
+    this.zoomableCanvas.addOnElementDrag((id, element, worldCoords) => {
       console.debug(`Dragging ${id} to:`, element.x, element.y);
 
       if (id == "Dartboard") {
@@ -242,7 +242,7 @@ class DartboardLayer {
     });
 
     let nextHit = 0;
-    this.zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
+    this.zoomableCanvas.addOnElementDragEnd((id, element, worldCoords) => {
       if (id == "Dartboard") {
         let thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
         zoomableCanvas.getOverlayElement(`throw${nextHit}`).setThrow(thr);

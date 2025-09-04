@@ -51,10 +51,10 @@ class ZoomablePannableCanvas {
     this.overlayDrawCallbacks = [];
 
     // Event callbacks for interactive elements
-    this.onElementSelected = null;
-    this.onElementDragStart = null;
-    this.onElementDrag = null;
-    this.onElementDragEnd = null;
+    this.onElementSelected = [];
+    this.onElementDragStart = [];
+    this.onElementDrag = [];
+    this.onElementDragEnd = [];
 
     this.init();
   }
@@ -150,12 +150,8 @@ class ZoomablePannableCanvas {
       };
 
       // Trigger callbacks
-      if (this.onElementSelected) {
-        this.onElementSelected(hitElement.id, element);
-      }
-      if (this.onElementDragStart) {
-        this.onElementDragStart(hitElement.id, element, worldCoords);
-      }
+      this.onElementSelected.forEach((cb) => cb(hitElement.id, element));
+      this.onElementDragStart.forEach((cb) => cb(hitElement.id, element, worldCoords));
     } else {
       // No overlay element hit, proceed with canvas dragging
       this.selectedOverlayElement = null;
@@ -180,9 +176,7 @@ class ZoomablePannableCanvas {
         element.x = worldCoords.x - this.overlayElementOffset.x;
         element.y = worldCoords.y - this.overlayElementOffset.y;
 
-        if (this.onElementDrag) {
-          this.onElementDrag(this.selectedOverlayElement, element, worldCoords);
-        }
+        this.onElementDrag.forEach((cb) => cb(this.selectedOverlayElement, element, worldCoords));
 
         this.requestRedraw();
       }
@@ -213,9 +207,7 @@ class ZoomablePannableCanvas {
       const canvasY = e.clientY - rect.top;
       const worldCoords = this.canvasToWorld(canvasX, canvasY);
 
-      if (this.onElementDragEnd) {
-        this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
-      }
+      this.onElementDragEnd.forEach((cb) => cb(this.selectedOverlayElement, element, worldCoords));
     }
 
     this.isDragging = false;
@@ -261,12 +253,8 @@ class ZoomablePannableCanvas {
           y: worldCoords.y - element.y,
         };
 
-        if (this.onElementSelected) {
-          this.onElementSelected(hitElement.id, element);
-        }
-        if (this.onElementDragStart) {
-          this.onElementDragStart(hitElement.id, element, worldCoords);
-        }
+        this.onElementSelected.forEach((cb) => cb(hitElement.id, element));
+        this.onElementDragStart.forEach((cb) => cb(hitElement.id, element, worldCoords));
       } else {
         this.selectedOverlayElement = null;
         this.isDraggingOverlayElement = false;
@@ -318,9 +306,7 @@ class ZoomablePannableCanvas {
           element.x = worldCoords.x - this.overlayElementOffset.x;
           element.y = worldCoords.y - this.overlayElementOffset.y;
 
-          if (this.onElementDrag) {
-            this.onElementDrag(this.selectedOverlayElement, element, worldCoords);
-          }
+          this.onElementDrag.forEach((cb) => cb(this.selectedOverlayElement, element, worldCoords));
 
           this.requestRedraw();
         }
@@ -420,11 +406,11 @@ class ZoomablePannableCanvas {
         // before the multi-touch started (this shouldn't happen in current logic,
         // but keeping for safety)
         const element = this.overlayElements.get(this.selectedOverlayElement);
-        if (this.onElementDragEnd && element) {
+        if (element) {
           // Use last known position
           const rect = this.canvas.getBoundingClientRect();
           const worldCoords = this.canvasToWorld(this.lastX - rect.left, this.lastY - rect.top);
-          this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
+          this.onElementDragEnd.forEach((cb) => cb(this.selectedOverlayElement, element, worldCoords));
         }
       }
 
@@ -456,9 +442,7 @@ class ZoomablePannableCanvas {
         const rect = this.canvas.getBoundingClientRect();
         const worldCoords = this.canvasToWorld(this.lastX - rect.left, this.lastY - rect.top);
 
-        if (this.onElementDragEnd) {
-          this.onElementDragEnd(this.selectedOverlayElement, element, worldCoords);
-        }
+        this.onElementDragEnd.forEach((cb) => cb(this.selectedOverlayElement, element, worldCoords));
       }
 
       // Reset all states
@@ -620,20 +604,20 @@ class ZoomablePannableCanvas {
   }
 
   // Event callback setters
-  setOnElementSelected(callback) {
-    this.onElementSelected = callback;
+  addOnElementSelected(callback) {
+    this.onElementSelected.push(callback);
   }
 
-  setOnElementDragStart(callback) {
-    this.onElementDragStart = callback;
+  addOnElementDragStart(callback) {
+    this.onElementDragStart.push(callback);
   }
 
-  setOnElementDrag(callback) {
-    this.onElementDrag = callback;
+  addOnElementDrag(callback) {
+    this.onElementDrag.push(callback);
   }
 
-  setOnElementDragEnd(callback) {
-    this.onElementDragEnd = callback;
+  addOnElementDragEnd(callback) {
+    this.onElementDragEnd.push(callback);
   }
 
   // Video methods (for backward compatibility)

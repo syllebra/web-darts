@@ -443,11 +443,11 @@
     <div class="controls">
         <button class="btn-neon" onclick="simulateScore()">Simulate Score</button>
         <button class="btn-neon" onclick="resetGame()">New Game</button>
-        <button class="btn-neon" onclick="connectMQTT()">Connect MQTT</button>
     </div>
 
     <script src="../core/utils/ColorUtils.js"></script>
     <script src="../core/Throw.js"></script>
+    <script src="../core/MqttClient.js"></script>
     <script src="../utils/sound_effects.js"></script>
     <script src="../utils/sound.js"></script>
     <script src="../ui/ArcadePlayerRoundAnimation.js"></script>
@@ -525,48 +525,40 @@
                 this.createFloatingParticles();
 
                 this.newRound();
+
+                this.initMQTT();
             }
 
-            connectMQTT() {
-                try {
-                    this.mqttClient = new Paho.MQTT.Client('192.168.31.120', 8083, 'epicDarts_' + Math.random());
-                    
-                    this.mqttClient.onConnectionLost = (responseObject) => {
-                        if (responseObject.errorCode !== 0) {
-                            console.log("MQTT Connection lost: " + responseObject.errorMessage);
-                            this.updateConnectionStatus(false);
-                        }
-                    };
-                    
-                    this.mqttClient.onMessageArrived = (message) => {
-                        const hit = JSON.parse(message.payloadString);
-                        console.log("MQTT arrived:", hit)
-                        let th = new Throw(hit.alpha, hit.d, hit.zone, hit.targetZone);
-                        th.id = hit.id;
-                        th.timestamp = hit.timestamp;
+            initMQTT() {
 
-                           const score = th.getStandardZoneScore();
-                        if (!isNaN(score) && score >= 0 && score <= 180) {
-                            this.addScore(score);
-                        }
-                    };
-                    
-                    this.mqttClient.connect({
-                        onSuccess: () => {
-                            console.log("MQTT Connected");
+                const mqtt = new MQTTClient('192.168.31.120', 8083, {
+                    clientId: "epicDarts_"+location.origin,
+                    // username: 'user',
+                    // password: 'pass',
+                    onConnected: () => {
                             this.updateConnectionStatus(true);
-                            this.mqttClient.subscribe("dartnet/hit");
                             soundEffects.playModernSound('connect');
-                        },
-                        onFailure: (message) => {
-                            console.log("MQTT Connection failed: " + message.errorMessage);
-                            this.updateConnectionStatus(false);
-                        }
-                    });
-                } catch (error) {
-                    console.log("MQTT setup failed:", error);
-                    this.updateConnectionStatus(false);
-                }
+                            console.log('Connected!')
+                    },
+                    onDisconnected: () => this.updateConnectionStatus(false),
+                    onConnectionLost: () => this.updateConnectionStatus(false),
+                    onError: (err) => console.error('Error:', err)
+                });
+
+                // Immediately subscribe - connection happens automatically
+                mqtt.subscribe('dartnet/hit', (hit, topic) => {
+                    console.log("MQTT arrived:", hit)
+                    let th = new Throw(hit.alpha, hit.d, hit.zone, hit.targetZone);
+                    th.id = hit.id;
+                    th.timestamp = hit.timestamp;
+
+                    const score = th.getStandardZoneScore();
+                    if (!isNaN(score) && score >= 0 && score <= 180) {
+                        this.addScore(score);
+                    }
+                });
+            
+    
             }
             
             updateConnectionStatus(connected) {
@@ -1295,11 +1287,8 @@
         const game = new EpicDartsScorer();
 
        // Global functions for buttons
-        function connectMQTT() {
-            game.connectMQTT();
-        }
-        
-        function resetGame() {
+
+       function resetGame() {
             game.resetGame();
         }
         
@@ -1311,28 +1300,20 @@
             game.addPlayer();
         }
 
-        
-        // Auto-connect MQTT on load
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                game.connectMQTT();
-            }, 1000);
-        });
+        // // Initialize audio context on first user interaction
+        // document.addEventListener('click', () => {
+        //     if (game.audioContext && game.audioContext.state === 'suspended') {
+        //         game.audioContext.resume().then(() => {
+        //             console.log("Audio context resumed on click");
+        //         });
+        //     }
+        // }, { once: true });
 
-        // Initialize audio context on first user interaction
-        document.addEventListener('click', () => {
-            if (game.audioContext && game.audioContext.state === 'suspended') {
-                game.audioContext.resume().then(() => {
-                    console.log("Audio context resumed on click");
-                });
-            }
-        }, { once: true });
-
-        document.addEventListener('touchstart', () => {
-            if (game.audioContext && game.audioContext.state === 'suspended') {
-                game.audioContext.resume();
-            }
-        }, { once: true });
+        // document.addEventListener('touchstart', () => {
+        //     if (game.audioContext && game.audioContext.state === 'suspended') {
+        //         game.audioContext.resume();
+        //     }
+        // }, { once: true });
 
          // Handle keyboard shortcuts
         document.addEventListener("keydown", (e) => {

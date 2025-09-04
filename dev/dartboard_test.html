@@ -34,6 +34,7 @@
 <script src="../ui/gsap_helper.js"></script>
 <script>
     const dartboardLayer = new DartboardLayer(document.body);
+    dartboardLayer.zoomableCanvas.autoZoomVideo(20, false, [-100,-450,450,100])
 
     let zones = ["DB","B"];
     for(let i=1;i<=20;i++) {
@@ -64,7 +65,7 @@
         }).then(()=> {lights[zone].opacity = 0;})
     }
 
-    dartboardLayer.zoomableCanvas.setOnElementDragEnd((id, element, worldCoords) => {
+    dartboardLayer.zoomableCanvas.addOnElementDragEnd((id, element, worldCoords) => {
       if (id == "Dartboard") {
         let thr = element.dbr.getThrowFromClick(worldCoords.x, worldCoords.y);
         //console.log(thr)

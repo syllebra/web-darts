@@ -1,10 +1,23 @@
 class MQTTClient {
-  constructor(brokerHost, brokerPort = 8000, options = {}) {
+  constructor(brokerHost = "load", brokerPort = 8000, options = {}) {
     this.brokerHost = brokerHost;
     this.brokerPort = brokerPort;
     this.clientId = options.clientId || `mqtt_client_${Math.random().toString(36).substr(2, 9)}`;
     this.username = options.username || null;
     this.password = options.password || null;
+
+    if (brokerHost == "load") {
+      const savedSettings = localStorage.getItem("dartnetSettings");
+      if (savedSettings) {
+        const settings = savedSettings ? JSON.parse(savedSettings) : this.getDefaultSettings();
+        console.log(settings.mqtt);
+        this.brokerHost = settings.mqtt.brokerIP;
+        this.brokerPort = settings.mqtt.port;
+        this.username = settings.mqtt.username;
+        this.password = settings.mqtt.password;
+      }
+    }
+
     this.useSSL = options.useSSL || false;
     this.keepAliveInterval = options.keepAliveInterval || 60;
     this.cleanSession = options.cleanSession !== false;

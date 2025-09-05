@@ -1,5 +1,5 @@
 class DartNet {
-  constructor(videoSource, mqttBroker = "192.168.31.120", mqttStatusCallback = null) {
+  constructor(videoSource) {
     this.processingCanvas = null;
     this.videoSource = videoSource;
     this.board = new Board();

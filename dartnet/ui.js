@@ -391,13 +391,6 @@ function initializeHardwareUI() {
   });
 }
 
-// function onDartnetUIMessage(message) {
-//   const topic = message.destinationName;
-//   const payload = message.payloadString;
-//   console.log(`MQTT DartNet UI: ${topic} - ${payload}`);
-//   if (payload == "calibrate camera") calibrateCamAndUpdateUI();
-// }
-
 function initializeMqttUI() {
   // MQTT Connection Status Management
   const mqttStatusDot = document.getElementById("mqttStatusDot");
@@ -445,6 +438,13 @@ function initializeMqttUI() {
     onError: (err) => {
       console.error("Error:", err), updateMqttStatus("error");
     },
+  });
+
+  dartnet.mqttClient.subscribe("dartnet/ui", (message, topic) => {
+    if (message == "calibrate camera") {
+      showNotification("Calibrate camera started from MQTT");
+      calibrateCamAndUpdateUI();
+    }
   });
 }
 

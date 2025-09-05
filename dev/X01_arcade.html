@@ -533,10 +533,8 @@
 
             initMQTT() {
 
-                const mqtt = new MQTTClient('192.168.31.120', 8083, {
+                const mqtt = new MQTTClient('load', 8083, {
                     clientId: "epicDarts_"+location.origin,
-                    // username: 'user',
-                    // password: 'pass',
                     onConnected: () => {
                             this.updateConnectionStatus(true);
                             soundEffects.playModernSound('connect');

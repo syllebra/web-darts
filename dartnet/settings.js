@@ -156,32 +156,42 @@ class SettingsManager {
 
   populateSettings(settings) {
     // MQTT
-    document.getElementById("mqttBrokerIP").value = settings.mqtt.brokerIP;
-    document.getElementById("mqttPort").value = settings.mqtt.port;
-    document.getElementById("mqttUsername").value = settings.mqtt.username;
-    document.getElementById("mqttPassword").value = settings.mqtt.password;
+    if (document.getElementById("mqttBrokerIP")) document.getElementById("mqttBrokerIP").value = settings.mqtt.brokerIP;
+    if (document.getElementById("mqttPort")) document.getElementById("mqttPort").value = settings.mqtt.port;
+    if (document.getElementById("mqttUsername")) document.getElementById("mqttUsername").value = settings.mqtt.username;
+    if (document.getElementById("mqttPassword")) document.getElementById("mqttPassword").value = settings.mqtt.password;
 
     // Dart detector
 
-    document.getElementById("dartType").value = settings.dart.type;
-    document.getElementById("dartvaiURL").value = settings.dart.vaiURL;
-    document.getElementById("dartvaiBurstLength").value = settings.dart.vaiBurstLength;
-    document.getElementById("dartvaiExtraWaitFrames").value = settings.dart.vaiExtraWaitFrames;
-    document.getElementById("dartConfidence").value = settings.dart.confidence;
-    document.getElementById("dartNMS").value = settings.dart.nms;
-    document.getElementById("dartModel").value = settings.dart.model;
+    if (document.getElementById("dartType")) document.getElementById("dartType").value = settings.dart.type;
+    if (document.getElementById("dartvaiURL")) document.getElementById("dartvaiURL").value = settings.dart.vaiURL;
+    if (document.getElementById("dartvaiBurstLength"))
+      document.getElementById("dartvaiBurstLength").value = settings.dart.vaiBurstLength;
+    if (document.getElementById("dartvaiExtraWaitFrames"))
+      document.getElementById("dartvaiExtraWaitFrames").value = settings.dart.vaiExtraWaitFrames;
+    if (document.getElementById("dartConfidence"))
+      document.getElementById("dartConfidence").value = settings.dart.confidence;
+    if (document.getElementById("dartNMS")) document.getElementById("dartNMS").value = settings.dart.nms;
+    if (document.getElementById("dartModel")) document.getElementById("dartModel").value = settings.dart.model;
 
     // Calibration
-    document.getElementById("calibrationType").value = settings.calibration.type;
-    document.getElementById("calibrationPoints").value = settings.calibration.points;
-    document.getElementById("calibrationAccuracy").value = settings.calibration.accuracy;
-    document.getElementById("calibrationTolerance").value = settings.calibration.tolerance;
+    if (document.getElementById("calibrationType"))
+      document.getElementById("calibrationType").value = settings.calibration.type;
+    if (document.getElementById("calibrationPoints"))
+      document.getElementById("calibrationPoints").value = settings.calibration.points;
+    if (document.getElementById("calibrationAccuracy"))
+      document.getElementById("calibrationAccuracy").value = settings.calibration.accuracy;
+    if (document.getElementById("calibrationTolerance"))
+      document.getElementById("calibrationTolerance").value = settings.calibration.tolerance;
 
     // General
-    document.getElementById("generalLanguage").value = settings.general.language;
-    document.getElementById("generalTheme").value = settings.general.theme;
-    document.getElementById("generalUpdateInterval").value = settings.general.updateInterval;
-    document.getElementById("generalLogLevel").value = settings.general.logLevel;
+    if (document.getElementById("generalLanguage"))
+      document.getElementById("generalLanguage").value = settings.general.language;
+    if (document.getElementById("generalTheme")) document.getElementById("generalTheme").value = settings.general.theme;
+    if (document.getElementById("generalUpdateInterval"))
+      document.getElementById("generalUpdateInterval").value = settings.general.updateInterval;
+    if (document.getElementById("generalLogLevel"))
+      document.getElementById("generalLogLevel").value = settings.general.logLevel;
 
     // Update sliders
     this.updateSliderValues();

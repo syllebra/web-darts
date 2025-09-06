@@ -656,12 +656,7 @@ class ZoomablePannableCanvas {
     }
   }
 
-  /**
-   * Auto-zoom the video to fit within the canvas viewport while maintaining aspect ratio
-   * @param {number} padding - Optional padding in pixels around the video (default: 20)
-   * @param {boolean} animated - Whether to animate the zoom transition (default: false)
-   */
-  autoZoomVideo(padding = 20, animated = false, srcCrop = null) {
+  computeAutoZoom(padding = 20, srcCrop = null) {
     let x, y, w, h;
     if (srcCrop) {
       [x, y, w, h] = [srcCrop[0], srcCrop[1], srcCrop[2] - srcCrop[0], srcCrop[3] - srcCrop[1]];
@@ -682,7 +677,7 @@ class ZoomablePannableCanvas {
       [x, y, w, h] = [0, 0, videoWidth, videoHeight];
     }
 
-    console.debug("AUTO-ZOOM:", [x, y, w, h]);
+
     // Calculate available canvas space (minus padding)
     const availableWidth = this.canvas.width - padding * 2;
     const availableHeight = this.canvas.height - padding * 2;
@@ -690,20 +685,30 @@ class ZoomablePannableCanvas {
     // Calculate scale to fit video within available space
     const scaleX = availableWidth / w;
     const scaleY = availableHeight / h;
-    const targetScale = Math.min(scaleX, scaleY);
+    const scale = Math.min(scaleX, scaleY);
 
     // Calculate center position
-    const targetTranslateX = this.canvas.width * 0.5 - (x + w * 0.5) * targetScale;
-    const targetTranslateY = this.canvas.height * 0.5 - (y + h * 0.5) * targetScale;
+    const translateX = this.canvas.width * 0.5 - (x + w * 0.5) * scale;
+    const translateY = this.canvas.height * 0.5 - (y + h * 0.5) * scale;
 
+    return { scale, translateX, translateY };
+  }
+
+  /**
+   * Auto-zoom the video to fit within the canvas viewport while maintaining aspect ratio
+   * @param {number} padding - Optional padding in pixels around the video (default: 20)
+   * @param {boolean} animated - Whether to animate the zoom transition (default: false)
+   */
+  autoZoomVideo(padding = 20, animated = false, srcCrop = null) {
+    const target = this.computeAutoZoom(padding, srcCrop);
     if (animated) {
       // Animate the transition
-      this.animateToTransform(targetScale, targetTranslateX, targetTranslateY, 300);
+      this.animateToTransform(target.scale, target.translateX, target.translateY, 300);
     } else {
       // Set immediately
-      this.scale = targetScale;
-      this.translateX = targetTranslateX;
-      this.translateY = targetTranslateY;
+      this.scale = target.scale;
+      this.translateX = target.translateX;
+      this.translateY = target.translateY;
       this.requestRedraw();
     }
   }

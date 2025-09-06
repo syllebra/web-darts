@@ -476,7 +476,7 @@
                 repeat: -1,yoyo:false, repeatRefresh:true
             })
         }
-        let dartboardFloatAnim = gentleDartboardAnimation();
+        const dartboardFloatAnim = gentleDartboardAnimation();
 
 
         let checkoutRoutes = {};
@@ -556,6 +556,41 @@
                     if (!isNaN(score) && score >= 0 && score <= 180) {
                         this.addScore(score);
                     }
+
+
+                    let hitPos = th.getCartesianCoordinates(
+                        dartboardLayer.dartboardRenderer.ringRadii.doubleOuter *
+                        dartboardLayer.dartboardRenderer.radius);
+                    console.log(th, dartboardLayer.dartboardRenderer);
+                    console.log(hitPos);
+                    const dec  = dartboardLayer.dartboardRenderer.radius * 0.25;
+                    const target = dartboardLayer.zoomableCanvas.computeAutoZoom(20,[hitPos.x- dec, hitPos.y- dec, hitPos.x+ dec, hitPos.y+ dec])
+                    hitPos = {x: target.translateX, y:target.translateY };
+
+                    const savedView = {
+                        x: dartboardLayer.zoomableCanvas.translateX,
+                        y: dartboardLayer.zoomableCanvas.translateY,
+                        scale: dartboardLayer.zoomableCanvas.scale
+                    }
+                    dartboardFloatAnim.pause();
+                    gsap.to(dartboardLayer.zoomableCanvas, {
+                        translateX: () => target.translateX,
+                        translateY: () => target.translateY,
+                        scale: () => target.scale,
+                        duration: 0.6,
+                        ease: "power2.inout",
+                    }).then(
+                        setTimeout(() => {
+                            gsap.to(dartboardLayer.zoomableCanvas, {
+                                translateX: () => savedView.x,
+                                translateY: () => savedView.y,
+                                scale: () => savedView.scale,
+                                duration: 10.6,
+                                ease: "power2.inout",
+                            }).then(dartboardFloatAnim.play())},800)
+                    );
+
+                    
 
                     dartboardLayer.flickZone(th.zone);
                 });

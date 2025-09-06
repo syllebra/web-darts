@@ -573,24 +573,20 @@
                         scale: dartboardLayer.zoomableCanvas.scale
                     }
                     dartboardFloatAnim.pause();
-                    gsap.to(dartboardLayer.zoomableCanvas, {
-                        translateX: () => target.translateX,
-                        translateY: () => target.translateY,
-                        scale: () => target.scale,
+                    gsap.timeline().to(dartboardLayer.zoomableCanvas, {
+                        translateX: target.translateX,
+                        translateY: target.translateY,
+                        scale: target.scale,
                         duration: 0.6,
                         ease: "power2.inout",
-                    }).then(
-                        setTimeout(() => {
-                            gsap.to(dartboardLayer.zoomableCanvas, {
-                                translateX: () => savedView.x,
-                                translateY: () => savedView.y,
-                                scale: () => savedView.scale,
-                                duration: 10.6,
-                                ease: "power2.inout",
-                            }).then(dartboardFloatAnim.play())},800)
-                    );
-
-                    
+                    }).to(dartboardLayer.zoomableCanvas, {
+                                translateX: savedView.x,
+                                translateY: savedView.y,
+                                scale: savedView.scale,
+                                duration: 1,
+                                ease: "none",
+                                delay:1.5
+                            }).then(() => {dartboardFloatAnim.play();});
 
                     dartboardLayer.flickZone(th.zone);
                 });

@@ -126,6 +126,34 @@ class Board {
     }
   }
 
+  getZoneFromThrow(th) {
+    //     angle = (angle + 2 * Math.PI - this.angleOffset) % (2 * Math.PI);
+    // const index = Math.floor(angle / this.sectorAngle);
+    // const baseScore = this.numberOrder[index];
+    // const sectorAngle = (2 * Math.PI) / 20;
+    // const angleOffset = -Math.PI / 2 - sectorAngle / 2;
+    // const index = Math.floor(angle / this.sectorAngle);
+    // const angle = (th.alpha + 2 * Math.PI - this.angleOffset) % (2 * Math.PI);
+    const dist = th.d < 0.0001 ? 0 : this.r_double * th.d;
+
+    if (dist > this.r_double) return "OUT";
+    if (dist <= this.r_inner_bull) return "DB";
+    if (dist <= this.r_outer_bull) return "B";
+
+    const adjustedAngle = (th.alpha + 9) % 360;
+    const numberOrder = [6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5, 20, 1, 18, 4, 13];
+    const number = numberOrder[Math.floor(adjustedAngle / 18)];
+
+    if (dist <= this.r_double && dist > this.r_double - this.w_double_treble) {
+      return "D" + number;
+    } else if (dist <= this.r_treble && dist > this.r_treble - this.w_double_treble) {
+      return "T" + number;
+    } else {
+      if (dist < this.r_treble - this.w_double_treble) return "S" + number + "IN";
+      else return "S" + number + "OUT";
+    }
+  }
+
   getDartScores(calibPts, tipsPts, numeric = false, offsetCenter = null) {
     // Get perspective transformation matrix
     const M = PerspectiveUtils.getPerspectiveTransform(calibPts, this.board_cal_pts);

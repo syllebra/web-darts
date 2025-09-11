@@ -1,18 +1,19 @@
 // Throw class
 class Throw {
-  constructor(alpha, d, zone, targetZone = null) {
+  constructor(alpha, d, zone = "AUTO", targetZone = null) {
     // Normalized angular coordinates
     this.alpha = alpha; // Angle in degrees (0-360)
     this.d = d; // Distance to center normalized by distance to outer double line (0-1+)
 
     // Zone encoding:
+    // AUTO: compute from standard dartboard
     // T<number> for trebles (e.g., T20)
     // D<number> for doubles (e.g., D20)
     // S<sector><IN or OUT> for simple (e.g., S20IN, S20OUT)
     // "DB" for bull's eye (double bull)
     // "B" for simple bull
     // "OUT" for throws outside the dartboard
-    this.zone = zone;
+    this.zone = zone === "AUTO" ? this.autoZone() : zone;
 
     // Optional target zone (same encoding as zone)
     this.targetZone = targetZone;
@@ -20,6 +21,11 @@ class Throw {
     // Metadata
     this.timestamp = Date.now();
     this.id = this.generateId();
+  }
+
+  autoZone() {
+    const b = new Board();
+    return b.getZoneFromThrow(this);
   }
 
   generateId() {

@@ -63,9 +63,8 @@ class DartboardLayer {
               margin: 0px;
               padding: 0;
               border-radius: 8px;
-              /* Add this to round the container */
               overflow: hidden;
-              /* Add this to ensure clean edges */
+              cursor: grab;
           }
 
           #dartboardZoomCanvas {
@@ -121,6 +120,8 @@ class DartboardLayer {
       </div>
     </div>
     ` + container.innerHTML;
+
+    makeDraggable("dartboardZoomContainer");
   }
 
   initInteractivity() {

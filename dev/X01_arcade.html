@@ -33,6 +33,10 @@
             position: relative;
         }
 
+        hr {
+            margin: 0.3rem 0;
+        }
+
         .neon-grid {
             position: absolute;
             top: 0;
@@ -370,7 +374,7 @@
                 border-radius: 8px;
                 font-size: 1.2rem;
                 font-weight: bold;
-                margin: 10px;
+                margin: 0px;
             }
 
         @media (max-width: 768px) {
@@ -994,7 +998,11 @@
                         return routeEl;
                     }
                     checkoutRoutes[remaining]
-                        .forEach(route => {checkoutEl.appendChild(htmlElems(this,route));});
+                        .forEach((route, index) => {
+                            checkoutEl.appendChild(htmlElems(this,route));
+                            if(index <checkoutRoutes[remaining].length -1)
+                                checkoutEl.innerHTML+= "<hr/>"
+                        });
 
                     // Animate appearance
                     gsap.fromTo(checkoutEl,

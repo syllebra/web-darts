@@ -52,6 +52,45 @@ class DartboardLayer {
               pointer-events: none;
           }
 
+          #dartboardControlsContainer {
+              position: absolute;
+              top: 10px;
+              left: calc(15vh + 40px);
+              width: auto;
+              box-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                  0 15px 35px rgba(0, 0, 0, 0.1);
+              margin: 0;
+              padding: 0.1rem;
+              border-radius: 20px;
+              overflow: hidden;
+              cursor: grab;
+          }
+
+          .dartBoardControlButton {
+              width: 10vh;
+              height: 10vh;
+              background: rgba(255, 255, 255, 0.05);
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              border-radius: 50%;
+              color: rgba(255, 255, 255, 0.8);
+              cursor: pointer;
+              transition: all 0.3s ease;
+              font-size: 2.9rem;
+              text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+              backdrop-filter: blur(10px);
+          }
+
+          input:where([type="checkbox"][role="switch"]) {
+            display: none;
+          }
+
+          input:where([type="checkbox"][role="switch"]):checked + .dartBoardControlButton{
+            box-shadow:inset 0 0 4vh 0 rgba(58, 77, 252, 0.5), 0 0 4vh rgba(42, 97, 247, 0.8);
+            color: rgba(208, 223, 255, 1);
+            text-shadow: 0 0 4vh rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(251, 255, 255, 1);
+          }
+
           #dartboardZoomContainer {
               position: absolute;
               top: 10px;
@@ -118,10 +157,17 @@ class DartboardLayer {
           ZONE
         </div>
       </div>
+      <div id="dartboardControlsContainer">
+        <input type="checkbox" role="switch" id="add-button"/>
+        <label for="add-button"  class="dartBoardControlButton m-3 d-flex align-items-center justify-content-center"><i class="fas fa-plus"></i></label>
+        <input type="checkbox" role="switch" id="del-button"/>
+        <label for="del-button"  class="dartBoardControlButton m-3 d-flex align-items-center justify-content-center"><i class="fas fa-xmark"></i></label>
+        </div>
     </div>
     ` + container.innerHTML;
 
     makeDraggable("dartboardZoomContainer");
+    makeDraggable("dartboardControlsContainer");
   }
 
   initInteractivity() {

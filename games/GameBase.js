@@ -5,7 +5,7 @@ class GameBase {
     this.eventEmitter = new EventEmitter();
     this.players = config.players || ["Player 1", "Player 2"];
     this.currentPlayerIndex = 0;
-    this.throws = [];
+    this.throwManager = new ThrowManager();
     this.gameComplete = false;
     this.playerSessions = {};
     this.throwsPerRound = config.throwsPerRound || 3;

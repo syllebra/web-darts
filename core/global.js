@@ -6,6 +6,10 @@ function isMobile() {
 if (isMobile()) console.log("Mobile device detected");
 else console.log("Desktop device detected");
 
+function isRemote() {
+  return window.location.search.includes("remote");
+}
+
 var g_useGPU = false;
 var gpuDetector = null;
 var dartnet = null;

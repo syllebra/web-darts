@@ -70,7 +70,7 @@ function recomputeUpTextPos() {
         Math.sin(Math.PI * 1.5 + Math.PI / 20) * dartnet.board.r_double * 1.2,
       ],
     ],
-    dartnet.Mi
+    dartnet.Mi,
   )[0];
   let el = zoomableCanvas.getOverlayElement("20");
   el.x = upText[0];

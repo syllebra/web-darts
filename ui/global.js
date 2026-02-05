@@ -110,7 +110,7 @@ function showNotification(message, type = "info") {
     warning: "#FF9800",
     info: "#2196F3",
   };
-
+  console.log("Notification:", message);
   const notification = document.createElement("div");
   notification.style.cssText = `
                 position: fixed; top: 80px; right: 20px; z-index: 5001;

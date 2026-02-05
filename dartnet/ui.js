@@ -71,6 +71,22 @@ function initializeToggleButtonGroups() {
     toggleButtonGroup("video");
   });
 
+  // Hide if remote control
+  if (isRemote()) {
+    document.getElementById("cameraMainBtn").remove();
+    document.getElementById("videoMainBtn").remove();
+
+    document.getElementById("remoteGrabBtn").addEventListener("click", () => {
+      const message = new Paho.MQTT.Message("grab");
+      message.destinationName = "dartnet/remote";
+      dartnet.mqttClient?.client.send(message);
+      showGroupSpinner("camera");
+      showNotification("Remote Grab asked");
+    });
+  } else {
+    document.getElementById("remoteGrabBtn").remove();
+  }
+
   // Hide expanded groups when clicking outside
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".control-group-expandable")) {
@@ -118,7 +134,7 @@ function initializeCameraManagementUI() {
       webcamStopBtn: document.getElementById("webcamStopBtn"),
       videoElement: document.getElementById("videoElement"),
     },
-    options
+    options,
   );
 
   // Camera selection button handler
@@ -196,7 +212,7 @@ function initializeCameraManagementUI() {
       webcamStopBtn: document.getElementById("webcamStopBtn"),
       videoElement: document.getElementById("videoElement"),
     },
-    options
+    options,
   );
 
   // Setup webcam button handlers
@@ -302,7 +318,7 @@ function initializeVideoFileUI() {
             updateAutoCalibButtonState();
           });
       },
-      { once: true }
+      { once: true },
     );
 
     videoElement.addEventListener("play", () => {
@@ -436,7 +452,7 @@ function initializeMqttUI() {
     onConnectionLost: () => updateMqttStatus("disconnected"),
     onConnecting: () => updateMqttStatus("connecting"),
     onError: (err) => {
-      console.error("Error:", err), updateMqttStatus("error");
+      (console.error("Error:", err), updateMqttStatus("error"));
     },
   });
 
@@ -444,6 +460,56 @@ function initializeMqttUI() {
     if (message == "calibrate camera") {
       showNotification("Calibrate camera started from MQTT");
       calibrateCamAndUpdateUI();
+    }
+  });
+
+  dartnet.mqttClient.subscribe("dartnet/remote", (message, topic) => {
+    if (message == "grab") {
+      if (!isRemote()) {
+        const video = document.getElementById("videoElement");
+        showNotification("Grab asked from MQTT", video ? "info" : "error");
+        if (video) {
+          const canvas = document.createElement("canvas");
+          canvas.id = "grabCanvas";
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          console.log(canvas.width, canvas.width, canvas);
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0);
+          const imageDataURL = canvas.toDataURL("image/jpeg");
+
+          const message = new Paho.MQTT.Message(imageDataURL);
+          message.destinationName = "dartnet/grabbed";
+          dartnet?.mqttClient?.client?.send(message);
+        }
+      }
+    } else {
+      if (!isRemote()) {
+        const newPts = message;
+        dartnet.sourceCalibPts = newPts;
+        dartnet.updateCalibPoints(dartnet.sourceCalibPts);
+        onCalibrationSuccess(dartnet.sourceCalibPts, false, true);
+        console.log("Remote calibration points:", newPts);
+      }
+    }
+  });
+
+  dartnet.mqttClient.subscribe("dartnet/grabbed", (message, topic) => {
+    if (isRemote()) {
+      // var videoElement = document.getElementById("videoElement");
+      // videoElement.src = message;
+      const img = new Image();
+      img.onload = function () {
+        console.log("Image loaded successfully.");
+        img.videoWidth = img.width;
+        img.videoHeight = img.height;
+        dartnet.videoSource = img;
+        zoomableCanvas.setVideoSource(img);
+        updateAutoCalibButtonState();
+        showNotification("Image grabbed.", "success");
+        hideGroupSpinner("camera");
+      };
+      img.src = message;
     }
   });
 }
@@ -578,7 +644,7 @@ function initZoomableCanvasUI() {
         const dx = worldX - element.x;
         const dy = worldY - element.y;
         return Math.sqrt(dx * dx + dy * dy) <= element.circle_radius / zoomableCanvas.scale;
-      }
+      },
     );
   }
 
@@ -604,7 +670,7 @@ function initZoomableCanvasUI() {
 
       // ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
       // ctx.strokeRect(ca[0], ca[1], ca[2]-ca[0], ca[3]-ca[1]);
-    }
+    },
   );
 
   // Add "20" Element to help reorient in case it is needed
@@ -623,7 +689,7 @@ function initZoomableCanvasUI() {
             const dis = dartnet.board.r_double * 1.2;
             return [Math.cos(angle) * dis, Math.sin(angle) * dis];
           }),
-          dartnet.Mi
+          dartnet.Mi,
         );
       },
     },
@@ -656,7 +722,7 @@ function initZoomableCanvasUI() {
       const dx = worldX - element.x;
       const dy = worldY - element.y;
       return Math.sqrt(dx * dx + dy * dy) <= element.radius / zoomableCanvas.scale;
-    }
+    },
   );
 
   // Add a virtual target visualizer
@@ -689,7 +755,7 @@ function initZoomableCanvasUI() {
           const ratio = board.r_outer_bull / Math.sqrt(p[0] * p[0] + p[1] * p[1]);
           return [p[0] * ratio, p[1] * ratio];
         }),
-        Mi
+        Mi,
       );
       ctx.beginPath();
       for (let i = 0; i < segStart.length; i++) {
@@ -723,7 +789,7 @@ function initZoomableCanvasUI() {
         }
         ctx.stroke();
       });
-    }
+    },
   );
 
   // Add score viewer on mouse hover
@@ -738,7 +804,7 @@ function initZoomableCanvasUI() {
       ctx.textAlign = "center";
       ctx.fillText(element.text, element.x, element.y + 14 / zoomableCanvas.scale);
     },
-    (element, worldX, worldY) => false // Disable picking drag and drop
+    (element, worldX, worldY) => false, // Disable picking drag and drop
   );
 
   // Add Dart tip debug viewer
@@ -766,7 +832,7 @@ function initZoomableCanvasUI() {
       // ctx.textAlign = 'center';
       // ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
     },
-    (element, worldX, worldY) => false // Disable picking drag and drop
+    (element, worldX, worldY) => false, // Disable picking drag and drop
   );
 
   // Add Dart tip debug viewer
@@ -786,10 +852,10 @@ function initZoomableCanvasUI() {
       // ctx.textAlign = 'center';
       // ctx.fillText(element.text, element.x, element.y + 14/ zoomableCanvas.scale);
     },
-    (element, worldX, worldY) => false // Disable picking drag and drop
+    (element, worldX, worldY) => false, // Disable picking drag and drop
   );
 
-  // Add Debug Element to help detect problems of dazrt detection
+  // Add Debug Element to help detect problems of dart detection
   zoomableCanvas.addOverlayElement(
     "dartImpactDebug",
     {
@@ -840,14 +906,14 @@ function initZoomableCanvasUI() {
               x + img.bb[0] * ca[2],
               y + img.bb[1] * ca[3],
               (img.bb[2] - img.bb[0]) * ca[2],
-              (img.bb[3] - img.bb[1]) * ca[3]
+              (img.bb[3] - img.bb[1]) * ca[3],
             );
           }
 
           x += img.width + 10;
         }
       });
-    }
+    },
   );
 
   // Set up event callbacks
@@ -892,8 +958,10 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeToggleButtonGroups();
   initializeHardwareUI();
 
-  initializeVideoFileUI();
-  initializeCameraManagementUI();
+  if (!isRemote()) {
+    initializeVideoFileUI();
+    initializeCameraManagementUI();
+  }
   intializeAutoCalibUI();
 
   initializeMqttUI();

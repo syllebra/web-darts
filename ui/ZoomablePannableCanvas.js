@@ -336,7 +336,7 @@ class ZoomablePannableCanvas {
         const distanceChange = Math.abs(currentDistance - this.multiTouchStartDistance);
         const centerMovement = Math.sqrt(
           Math.pow(currentCenter.x - this.multiTouchStartCenter.x, 2) +
-            Math.pow(currentCenter.y - this.multiTouchStartCenter.y, 2)
+            Math.pow(currentCenter.y - this.multiTouchStartCenter.y, 2),
         );
 
         // If distance changed more than threshold, it's a zoom
@@ -677,7 +677,6 @@ class ZoomablePannableCanvas {
       [x, y, w, h] = [0, 0, videoWidth, videoHeight];
     }
 
-
     // Calculate available canvas space (minus padding)
     const availableWidth = this.canvas.width - padding * 2;
     const availableHeight = this.canvas.height - padding * 2;
@@ -973,7 +972,7 @@ class ZoomablePannableCanvas {
       this.ctx.fillText(
         `Video: ${this.videoElement.videoWidth}x${this.videoElement.videoHeight}`,
         10,
-        this.canvas.height - 120
+        this.canvas.height - 120,
       );
     }
     this.ctx.fillText(`Scale: ${this.scale.toFixed(2)}`, 10, this.canvas.height - 100);

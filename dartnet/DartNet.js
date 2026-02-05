@@ -20,7 +20,7 @@ class DartNet {
         this.board,
         "../models/best_n_tip_boxes_cross_640_B.onnx",
         640,
-        false
+        false,
       );
     } else this.targetDetector.initializeModel();
 
@@ -32,7 +32,7 @@ class DartNet {
             settingsManager.getSetting("mqtt", "brokerIP"),
             settingsManager.getSetting("mqtt", "port"),
             settingsManager.getSetting("dart", "vaiBurstLength"),
-            settingsManager.getSetting("dart", "vaiExtraWaitFrames")
+            settingsManager.getSetting("dart", "vaiExtraWaitFrames"),
           );
           break;
 
@@ -72,7 +72,7 @@ class DartNet {
       0,
       0,
       modelSize,
-      modelSize
+      modelSize,
     );
 
     const imgData = cropContext.getImageData(0, 0, modelSize, modelSize);
@@ -100,7 +100,7 @@ class DartNet {
         const dis = this.board.r_double; // * 1.2;
         return [Math.cos(angle) * dis, Math.sin(angle) * dis];
       }),
-      this.Mi
+      this.Mi,
     );
     const distances = possible.map((p) => MathUtils.distance(p, pt));
     var indexMin = distances.indexOf(Math.min(...distances));
@@ -115,6 +115,12 @@ class DartNet {
     localStorage.setItem("dartnetCalib", JSON.stringify({ calibPts: this.sourceCalibPts, cropArea: this.cropArea }));
     this.M = PerspectiveUtils.getPerspectiveTransform(this.sourceCalibPts, this.board.board_cal_pts);
     this.Mi = PerspectiveUtils.getPerspectiveTransform(this.board.board_cal_pts, this.sourceCalibPts);
+
+    if (isRemote() && this.mqttClient?.client?.isConnected()) {
+      const message = new Paho.MQTT.Message(JSON.stringify(this.sourceCalibPts));
+      message.destinationName = "dartnet/remote";
+      dartnet.mqttClient?.client.send(message);
+    }
   }
 
   async calibrate() {
@@ -155,7 +161,7 @@ class DartNet {
       "Calibration pair factor:",
       self.calibrationPairFactor,
       " computed distance threshold:",
-      distanceThreshold
+      distanceThreshold,
     );
 
     let results = await this.targetDetector.detect(input, debugCtx, distanceThreshold);
@@ -189,7 +195,7 @@ class DartNet {
 
       console.debug("CALIB POINTS:", calibration.calibrationPoints);
       this.sourceCalibPts = calibration.calibrationPoints.map((p) =>
-        this.normalizedToSource([p[0] / this.targetDetector.modelSize, p[1] / this.targetDetector.modelSize])
+        this.normalizedToSource([p[0] / this.targetDetector.modelSize, p[1] / this.targetDetector.modelSize]),
       );
       console.debug("SOURCE CALIB POINTS:", this.sourceCalibPts);
       this.updateCalibPoints(this.sourceCalibPts);
